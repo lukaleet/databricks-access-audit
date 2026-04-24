@@ -20,8 +20,11 @@ pytest tests/test_redundancy.py::test_full_redundancy
 # Lint
 ruff check .
 
-# Run the CLI
+# Run the CLI (group audit)
 databricks-group-audit --group "data-engineers" --cloud azure
+
+# Run the CLI (principal audit)
+databricks-group-audit --principal "alice@example.com" --cloud azure --escalation-check
 ```
 
 ## Architecture
@@ -34,21 +37,47 @@ The tool audits Databricks group membership and Unity Catalog permissions across
 
 ### Data flow — group audit
 
-1. `group_resolver.py` — walks SCIM to build a `GroupNode` tree with all nested groups, users, and SPs. Uses bulk pre-fetch of all groups then resolves members by ID.
+1. `group_resolver.py` — walks SCIM to build a `GroupNode` tree (nested groups, users, SPs). Bulk pre-fetches all users and SPs to avoid N+1 calls. Reads `externalId` from SCIM to tag each member as IdP-synced or Databricks-managed.
 2. `workspace.py` — discovers workspaces via the Account API (or explicit URLs).
-3. `catalog_scanner.py` → `schema_scanner.py` → `table_scanner.py` — each fetches UC grants at progressively deeper levels; all call `classify_grant()` from `_classification.py`.
-4. `_classification.py` — shared `classify_grant()` and `build_member_lookups()` used by all three scanners. Classifies each grant as `GrantSource.DIRECT` (group itself), `UPSTREAM` (parent group), or `MEMBER_DIRECT` (individual user/SP personal grant).
+3. `catalog_scanner.py` → `schema_scanner.py` → `table_scanner.py` — fetches UC grants at progressively deeper levels; all call `classify_grant()` from `_classification.py`.
+4. `_classification.py` — `classify_grant()` and `build_member_lookups()` shared by all scanners. Classifies each grant as `GrantSource.DIRECT`, `UPSTREAM`, or `MEMBER_DIRECT`.
 5. `redundancy.py` — compares member-direct grants against the group's effective privileges (with `ALL_PRIVILEGES` expansion) to produce `RedundancyLevel.FULL/PARTIAL/NONE`.
 6. `revoke.py` — generates copy-paste REVOKE SQL from `RedundancyResult` objects.
 
 ### Data flow — principal audit
 
-`principal_auditor.py` resolves a user/SP/group via SCIM, BFS-walks upward through all group memberships, queries `/permissionassignments` per workspace, then scans UC grants for each accessible workspace. Dead-end groups (member of group with no workspace assignment) are detected and reported.
+`principal_auditor.py` resolves a user/SP/group via SCIM (returning a 4-tuple including `external_id`), BFS-walks upward through all group memberships, queries `/permissionassignments` per workspace, then scans UC grants. Dead-end groups (no workspace assignment) are detected and reported.
+
+### Security and compliance features
+
+- `elevate.py` — `PermissionElevator` context manager: temporarily grants Workspace Admin to the audit SP on each workspace, then restores prior state on exit (success or failure). Used by `--auto-elevate`.
+- `escalation.py` — `detect_escalations()` flags `ALL_PRIVILEGES` and `MANAGE` grants in a `PrincipalAuditResult`. Used by `--escalation-check`.
+- `stale_checker.py` — `StaleGrantChecker` executes SQL against `system.access.audit` via the Statement Execution API to find principals with no recent activity. `_execute_statement` raises `RuntimeError` on failure (caller catches to avoid false positives). Used by `--stale-days`.
+- `local_groups.py` — `LocalGroupChecker` compares workspace SCIM (`/api/2.0/preview/scim/v2/Groups`) against account SCIM to find legacy workspace-local groups. Used by `--check-local-groups`.
+
+### Output features
+
+- `csv_output.py` — `write_group_audit_csv()` and `write_principal_audit_csv()` render results as CSV (grants + redundancy / permissions + escalations). `write_diff_csv()` renders an `AuditDiff`. Used by `--output csv`.
+- `snapshot.py` — `build_group_snapshot()` / `build_principal_snapshot()` serialise audit results to a plain-dict JSON format. `save_snapshot()` / `load_snapshot()` persist to disk. `diff_snapshots()` compares two snapshots by full-field fingerprint (grants) and identity key (members) to produce an `AuditDiff`. Used by `--save-snapshot` / `--baseline`.
 
 ### Models
 
-All dataclasses and enums live in `models.py`: `GroupNode`, `GroupMember`, `WorkspaceInfo`, `CatalogGrant`/`SchemaGrant`/`TableGrant`, `RedundancyResult`, and the principal-audit models `GroupMembership`, `WorkspaceRole`, `EffectivePermission`, `PrincipalAuditResult`.
+All dataclasses and enums live in `models.py`:
+
+| Model | Purpose |
+|---|---|
+| `GroupMember`, `GroupNode` | SCIM group tree; both have `external_id` and `source: PrincipalSource` |
+| `PrincipalSource` | Enum: `EXTERNAL` (has SCIM `externalId`) / `INTERNAL` (Databricks-managed) |
+| `WorkspaceInfo` | Workspace metadata |
+| `CatalogGrant`, `SchemaGrant`, `TableGrant` | UC permission grant at each level |
+| `GrantSource` | `DIRECT`, `UPSTREAM`, `MEMBER_DIRECT` |
+| `RedundancyResult`, `RedundancyLevel` | Redundancy analysis output |
+| `GroupMembership`, `WorkspaceRole`, `EffectivePermission`, `PrincipalAuditResult` | Principal audit output |
+| `EscalationFinding` | `ALL_PRIVILEGES` / `MANAGE` escalation risk |
+| `StaleFinding` | Member-direct grant with no recent `system.access.audit` activity |
+| `LocalGroupFinding` | Group present in workspace SCIM but absent from account SCIM |
+| `AuditDiff` | Delta between two snapshots; `has_changes` property |
 
 ### Tests
 
-Tests use the `responses` library (HTTP mocking, no real Databricks connection needed). `tests/conftest.py` defines shared SCIM/UC mock data and three fixtures: `mock_client` (bare client), `mock_scim` (SCIM endpoints mocked), `mock_uc` (SCIM + Unity Catalog endpoints mocked). Tests for each scanner/module are in their own file.
+Tests use the `responses` library (HTTP mocking, no real Databricks connection). `tests/conftest.py` defines shared SCIM/UC mock data and three fixtures: `mock_client`, `mock_scim`, `mock_uc`. Each module has its own test file. 275 tests total.

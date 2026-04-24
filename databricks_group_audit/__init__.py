@@ -12,7 +12,7 @@ Quick start::
     node = resolver.resolve_group("data-engineers")
 """
 
-__version__ = "0.3.0"
+__version__ = "0.8.0"
 
 from databricks_group_audit.models import (
     MemberType,
