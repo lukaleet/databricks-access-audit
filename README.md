@@ -25,15 +25,15 @@ This tool fills that gap with two complementary audit modes:
 
 **Python:** 3.9 or later.
 
-**Databricks account:** Unity Catalog must be enabled. The tool uses the Account API and the per-workspace Unity Catalog API — it does **not** scan Hive Metastore or workspace-local permissions.
+**Databricks account:** Unity Catalog must be enabled. The tool uses the Account API and the per-workspace Unity Catalog API - it does **not** scan Hive Metastore or workspace-local permissions.
 
 **Service Principal permissions:** The SP running the audit requires elevated access at three distinct levels:
 
 | Level | Required role / privilege | Why |
 |---|---|---|
-| **Databricks account** | Account Admin | Required to call the SCIM API (list groups, users, SPs), list workspaces, and read workspace permission assignments — all account-level endpoints enforce Account Admin |
+| **Databricks account** | Account Admin | Required to call the SCIM API (list groups, users, SPs), list workspaces, and read workspace permission assignments - all account-level endpoints enforce Account Admin |
 | **Each workspace** | Workspace Admin (recommended) or Workspace User | The SP must be assigned to each workspace it will scan; Workspace Admin is the safest choice since some permission assignment APIs are not visible to plain users |
-| **Unity Catalog** | Metastore Admin, or `MANAGE` on every catalog to audit | The `GET /permissions/catalog/{name}` endpoint (and the equivalent schema/table endpoints) requires either Metastore Admin or `MANAGE` on the securable — `BROWSE` or `SELECT` are not sufficient to read grant lists |
+| **Unity Catalog** | Metastore Admin, or `MANAGE` on every catalog to audit | The `GET /permissions/catalog/{name}` endpoint (and the equivalent schema/table endpoints) requires either Metastore Admin or `MANAGE` on the securable - `BROWSE` or `SELECT` are not sufficient to read grant lists |
 
 The simplest setup that is guaranteed to work: grant the SP **Account Admin**, add it to each workspace as **Workspace Admin**, and assign it **Metastore Admin**. Scoping to minimum required permissions is possible but requires granting `MANAGE` on every individual catalog, which is difficult to maintain across a large account.
 
@@ -45,7 +45,7 @@ The package is not yet published to PyPI. Install from source:
 git clone https://github.com/yourusername/databricks-group-audit.git
 cd databricks-group-audit
 
-# Core install (raw HTTP client only — no extra dependencies beyond requests)
+# Core install (raw HTTP client only - no extra dependencies beyond requests)
 pip install -e .
 
 # Recommended: include the Databricks SDK for automatic auth and retries
@@ -78,7 +78,7 @@ export DATABRICKS_CLIENT_SECRET="your-sp-secret"
 export DATABRICKS_ACCOUNT_ID="your-account-id"
 ```
 
-### CLI — Group Audit
+### CLI - Group Audit
 
 ```bash
 # Scan all workspaces, catalog level only
@@ -104,7 +104,7 @@ databricks-group-audit \
 databricks-group-audit --group "data-engineers" --no-sdk
 ```
 
-### CLI — Principal Audit
+### CLI - Principal Audit
 
 ```bash
 # Audit a user by email
@@ -182,9 +182,9 @@ Client:
 
 Getting Workspace Admin on every workspace is a hard prerequisite for a full audit but granting it permanently can be undesirable. The `--auto-elevate` flag automates the lifecycle:
 
-1. **Before the audit** — for each workspace where the SP lacks Workspace Admin, the tool calls the Account API to grant it temporarily.
-2. **During the audit** — all workspace and Unity Catalog APIs are called with Workspace Admin in place.
-3. **After the audit** — regardless of whether the audit succeeded or failed, the tool restores each workspace to its prior state:
+1. **Before the audit** - for each workspace where the SP lacks Workspace Admin, the tool calls the Account API to grant it temporarily.
+2. **During the audit** - all workspace and Unity Catalog APIs are called with Workspace Admin in place.
+3. **After the audit** - regardless of whether the audit succeeded or failed, the tool restores each workspace to its prior state:
    - If the SP had **no assignment** before elevation, the assignment is **deleted**.
    - If the SP had a **USER-level** assignment before elevation, it is **restored to USER**.
 
@@ -206,9 +206,9 @@ databricks-group-audit --group "data-engineers" --cloud azure --dry-run-elevatio
 |---|---|
 | **Workspace Admin** | Granted temporarily per-workspace; restored after the audit |
 | **Metastore Admin** | **Not managed.** Must be granted manually before running the tool |
-| **Account Admin** | **Not managed.** Hard prerequisite — must be in place before using `--auto-elevate` |
+| **Account Admin** | **Not managed.** Hard prerequisite - must be in place before using `--auto-elevate` |
 
-The SP can only be elevated on workspaces discovered through the Account API (workspaces with a known numeric workspace ID). Workspaces supplied via `--workspace-urls` have no known ID and are skipped with a warning — the SP must already be a Workspace Admin on those.
+The SP can only be elevated on workspaces discovered through the Account API (workspaces with a known numeric workspace ID). Workspaces supplied via `--workspace-urls` have no known ID and are skipped with a warning - the SP must already be a Workspace Admin on those.
 
 If cleanup fails (e.g. due to a network error), the tool:
 - Logs an ERROR with explicit manual revocation instructions (workspace name, SP SCIM ID, and the `DELETE /permissionassignments/principals/{id}` endpoint to call).
@@ -290,7 +290,7 @@ result = auditor.audit("alice@example.com", scan_schemas=True)
 
 for g in result.groups:
     tag = "direct" if g.is_direct else "transitive"
-    print(f"  {g.group_name} ({tag}) — path: {' → '.join(g.path)}")
+    print(f"  {g.group_name} ({tag}) - path: {' → '.join(g.path)}")
 
 for r in result.workspace_roles:
     print(f"  {r.workspace_name}: {r.permission_level} via {r.via_group}")
@@ -306,13 +306,13 @@ if result.dead_end_groups:
 
 Import `Databricks Group Audit Tool.ipynb` into your workspace and **Run All**.
 
-The notebook auto-detects whether the package is installed. When available it imports from the package; otherwise it falls back to self-contained inline definitions — the only required dependency is `requests`.
+The notebook auto-detects whether the package is installed. When available it imports from the package; otherwise it falls back to self-contained inline definitions - the only required dependency is `requests`.
 
 ### Widgets
 
 | Widget | Type | Description |
 |---|---|---|
-| `secret_scope` | text | *(optional)* Secret scope containing `client_id`, `client_secret`, `account_id` keys — takes priority over plain-text widgets |
+| `secret_scope` | text | *(optional)* Secret scope containing `client_id`, `client_secret`, `account_id` keys - takes priority over plain-text widgets |
 | `client_id` | text | Service Principal application (client) ID |
 | `client_secret` | text | Service Principal secret |
 | `account_id` | text | Databricks account ID (auto-detected from workspace context if blank) |
@@ -327,7 +327,7 @@ The notebook auto-detects whether the package is installed. When available it im
 | `retry_base_delay` | text | Base retry delay in seconds (default: `1.0`) |
 | `retry_max_delay` | text | Maximum retry delay cap in seconds (default: `60.0`) |
 
-### Output DataFrames — Group Audit
+### Output DataFrames - Group Audit
 
 | DataFrame | Contents |
 |---|---|
@@ -339,7 +339,7 @@ The notebook auto-detects whether the package is installed. When available it im
 | `df_table_grants` | Table/view-level grants (populated when `scan_tables=true`) |
 | `revoke_sql` | Auto-generated REVOKE SQL script (string) |
 
-### Output DataFrames — Principal Audit
+### Output DataFrames - Principal Audit
 
 | DataFrame | Contents |
 |---|---|
@@ -353,7 +353,7 @@ When `export_delta_path` is set, all DataFrames are appended to partitioned Delt
 
 ## Output Reference
 
-### CLI — JSON (group audit)
+### CLI - JSON (group audit)
 
 ```json
 {
@@ -369,7 +369,7 @@ When `export_delta_path` is set, all DataFrames are appended to partitioned Delt
 }
 ```
 
-### CLI — JSON (principal audit)
+### CLI - JSON (principal audit)
 
 ```json
 {
@@ -409,7 +409,7 @@ Redundancy is computed at the **catalog level**. Member-direct grants are compar
 
 | Level | Meaning | Recommended action |
 |---|---|---|
-| **Full** | Every member privilege is covered by the group | Safe to REVOKE — `--revoke-script` generates the SQL |
+| **Full** | Every member privilege is covered by the group | Safe to REVOKE - `--revoke-script` generates the SQL |
 | **Partial** | Some overlap, some privileges unique to the member | Review: the tool lists which privileges are redundant and which are unique |
 | **None** | No overlap | No action needed |
 
@@ -423,7 +423,7 @@ databricks_group_audit/
 ├── __main__.py            # python -m entry point
 ├── cli.py                 # argparse CLI (--group / --principal modes)
 ├── client.py              # AuditClient protocol, DatabricksAPIClient, create_client()
-├── sdk_client.py          # DatabricksSDKClient (optional — requires databricks-sdk)
+├── sdk_client.py          # DatabricksSDKClient (optional - requires databricks-sdk)
 ├── models.py              # All dataclasses and enums
 ├── group_resolver.py      # Recursive SCIM walker with bulk pre-fetch and caching
 ├── workspace.py           # Multi-cloud workspace discovery and URL resolution
@@ -440,7 +440,7 @@ databricks_group_audit/
 └── local_groups.py        # Workspace-local (legacy) SCIM group detection
 ```
 
-**Client protocol:** `AuditClient` is a structural `Protocol` in `client.py`. Both `DatabricksAPIClient` and `DatabricksSDKClient` satisfy it — all scanners, resolvers, and the auditor accept either backend without modification.
+**Client protocol:** `AuditClient` is a structural `Protocol` in `client.py`. Both `DatabricksAPIClient` and `DatabricksSDKClient` satisfy it - all scanners, resolvers, and the auditor accept either backend without modification.
 
 **SCIM performance:** `GroupMembershipResolver` bulk-fetches all users and service principals in two paginated calls before resolving individual members, avoiding N+1 API calls. For accounts with fewer than ~10 000 users this is significantly faster than per-member lookups.
 
@@ -448,7 +448,7 @@ databricks_group_audit/
 
 Every user, service principal, and group in Databricks has an origin: either it was created directly inside Databricks (*Databricks-managed / internal*) or it was provisioned by an external identity provider via SCIM (*IdP-synced / external*).
 
-The tool reads the SCIM `externalId` field — the standard SCIM indicator for IdP-provisioned principals — and tags every member accordingly.
+The tool reads the SCIM `externalId` field - the standard SCIM indicator for IdP-provisioned principals - and tags every member accordingly.
 
 | Source | Indicator | Examples |
 |---|---|---|
@@ -481,7 +481,7 @@ JSON output adds `"source": "external"/"internal"` to each group in the `groups`
 * **Shadow accounts**: Internal (Databricks-managed) users that don't correspond to any IdP identity may be orphaned service accounts, test accounts, or users who bypassed the provisioning process.
 * **IdP off-boarding gaps**: If an IdP user was removed from the IdP but their Databricks account wasn't deprovisioned, they'll appear as `internal` (no longer externally managed).
 * **Compliance**: Many security policies require that all human users be provisioned through the corporate IdP. Internal users are exceptions that need justification.
-* **Migration readiness**: Accounts mid-migration to Unity Catalog need all groups to be `external` (account-level, IdP-managed) — `internal` groups are candidates for migration.
+* **Migration readiness**: Accounts mid-migration to Unity Catalog need all groups to be `external` (account-level, IdP-managed) - `internal` groups are candidates for migration.
 
 ### Python API
 
@@ -500,12 +500,12 @@ print(f"{len(external)} IdP-synced, {len(internal)} Databricks-managed")
 
 ## Privilege Escalation Detection
 
-The `--escalation-check` flag adds a security pass to the principal audit.  After collecting all effective permissions it flags any grant that contains `ALL_PRIVILEGES` or `MANAGE` — the two privileges that represent meaningful escalation vectors in Unity Catalog:
+The `--escalation-check` flag adds a security pass to the principal audit.  After collecting all effective permissions it flags any grant that contains `ALL_PRIVILEGES` or `MANAGE` - the two privileges that represent meaningful escalation vectors in Unity Catalog:
 
 | Privilege | Risk |
 |---|---|
 | `ALL_PRIVILEGES` | Grants unrestricted read/write/admin access to the securable and everything beneath it |
-| `MANAGE` | Grants the ability to add and remove grants on the securable — can be used to self-escalate or escalate other principals |
+| `MANAGE` | Grants the ability to add and remove grants on the securable - can be used to self-escalate or escalate other principals |
 
 ```bash
 databricks-group-audit --principal "alice@example.com" --cloud azure --escalation-check
@@ -524,7 +524,7 @@ Output (JSON) adds an `"escalation_findings"` array to the principal audit resul
 
 ## Stale Grant Detection
 
-The `--stale-days N` flag cross-references current member-direct catalog grants against `system.access.audit` — the Unity Catalog system table that records every API call, SQL command, and data-access event.  Any grant holder with no recorded activity in the last N days is flagged as potentially stale.
+The `--stale-days N` flag cross-references current member-direct catalog grants against `system.access.audit` - the Unity Catalog system table that records every API call, SQL command, and data-access event.  Any grant holder with no recorded activity in the last N days is flagged as potentially stale.
 
 ### Prerequisites
 
@@ -570,8 +570,8 @@ databricks-group-audit --group "data-engineers" --cloud azure --check-local-grou
 Output:
 ```
   Workspace-local groups (2):
-    ! legacy-analysts in 'prod-workspace' (5 members) — not in account SCIM
-    ! old-read-only in 'staging-workspace' (2 members) — not in account SCIM
+    ! legacy-analysts in 'prod-workspace' (5 members) - not in account SCIM
+    ! old-read-only in 'staging-workspace' (2 members) - not in account SCIM
 ```
 
 Works with both `--group` and `--principal` modes, and is available as a standalone Python API:
@@ -583,7 +583,7 @@ checker = LocalGroupChecker(client)
 workspaces = WorkspaceDiscovery(client, "azure").discover()
 findings = checker.check_all_workspaces(workspaces)
 for f in findings:
-    print(f"  {f.group_name} in '{f.workspace_name}' ({f.member_count} members) — workspace-local")
+    print(f"  {f.group_name} in '{f.workspace_name}' ({f.member_count} members) - workspace-local")
 ```
 
 ## When Not to Use This Tool
@@ -606,12 +606,12 @@ WHERE grantee = 'data-engineers';
 
 Use this tool when you need what `INFORMATION_SCHEMA` does not provide:
 
-- **Cross-workspace aggregation** — scan all workspaces from a single entry point
-- **Recursive group membership resolution** — nested groups, users, and SPs via SCIM
-- **Upstream group detection** — grants inherited through ancestor groups
-- **Redundancy detection** — personal grants that duplicate what the group already provides
-- **REVOKE script generation** — automated cleanup recommendations
-- **Principal reverse lookup** — map any identity to all accessible resources across the account
+- **Cross-workspace aggregation** - scan all workspaces from a single entry point
+- **Recursive group membership resolution** - nested groups, users, and SPs via SCIM
+- **Upstream group detection** - grants inherited through ancestor groups
+- **Redundancy detection** - personal grants that duplicate what the group already provides
+- **REVOKE script generation** - automated cleanup recommendations
+- **Principal reverse lookup** - map any identity to all accessible resources across the account
 
 ## Known Limitations
 
@@ -651,8 +651,8 @@ pytest tests/test_redundancy.py::test_full_redundancy
 ruff check .
 ```
 
-Tests use the `responses` library for HTTP mocking — no real Databricks connection is required.
+Tests use the `responses` library for HTTP mocking - no real Databricks connection is required.
 
 ## License
 
-Apache 2.0 — see [LICENSE.py](LICENSE.py).
+Apache 2.0 - see [LICENSE.py](LICENSE.py).
