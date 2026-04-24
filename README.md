@@ -312,9 +312,7 @@ if result.dead_end_groups:
 
 ## Databricks Notebook
 
-Import `Databricks Group Audit Tool.ipynb` into your workspace and **Run All**.
-
-The notebook auto-detects whether the package is installed. When available it imports from the package; otherwise it falls back to self-contained inline definitions - the only required dependency is `requests`.
+Import `Databricks Group Audit Tool.ipynb` into your workspace. Install the package first (`%pip install databricks-group-audit`) then **Run All**.
 
 ### Widgets
 
@@ -323,37 +321,45 @@ The notebook auto-detects whether the package is installed. When available it im
 | `secret_scope` | text | *(optional)* Databricks secret scope whose keys `client_id`, `client_secret`, `account_id` take priority over plain-text widgets and environment variables |
 | `client_id` | text | Service Principal application (client) ID |
 | `client_secret` | text | Service Principal secret |
-| `account_id` | text | Databricks account ID (auto-detected from workspace context if blank) |
-| `cloud_provider` | dropdown | `azure` / `aws` / `gcp` |
+| `account_id` | text | Databricks account ID |
+| `cloud` | dropdown | `azure` / `aws` / `gcp` |
 | `target_group` | text | Group display name to audit |
 | `principal_identifier` | text | *(optional)* User email, SP name/app-ID, or group name for the principal reverse-lookup |
 | `workspace_urls` | text | *(optional)* Comma-separated workspace URLs; blank to scan all |
 | `scan_schemas` | dropdown | `true` / `false` |
 | `scan_tables` | dropdown | `true` / `false` |
+| `auto_elevate` | dropdown | `true` / `false` — temporarily grant Workspace Admin to the audit SP |
+| `dry_run_elevation` | dropdown | `true` / `false` — log elevation actions without applying them |
+| `escalation_check` | dropdown | `true` / `false` — flag `ALL_PRIVILEGES` / `MANAGE` grants (principal audit) |
+| `stale_days` | text | Stale-grant threshold in days; `0` disables the check |
+| `sql_warehouse_id` | text | SQL warehouse ID for stale grant queries |
+| `sql_workspace_url` | text | Workspace URL used for stale grant queries |
+| `check_local_groups` | dropdown | `true` / `false` — detect workspace-local groups not in account SCIM |
+| `save_snapshot` | text | *(optional)* Path to write a JSON snapshot of this audit run |
+| `baseline_snapshot` | text | *(optional)* Path to a prior snapshot; produces a diff instead of a full report |
 | `export_delta_path` | text | *(optional)* Delta table path for historical export (e.g. `abfss://container@account.dfs.core.windows.net/audit`) |
-| `max_retries` | text | Retry attempts on 429/5xx (default: `5`) |
-| `retry_base_delay` | text | Base retry delay in seconds (default: `1.0`) |
-| `retry_max_delay` | text | Maximum retry delay cap in seconds (default: `60.0`) |
 
 ### Output DataFrames - Group Audit
 
 | DataFrame | Contents |
 |---|---|
-| `df_permissions` | All catalog-level grants (direct, upstream, member-direct) |
-| `df_membership` | Users and SPs with full inheritance paths |
-| `df_inheritance` | Permission source trace per principal |
+| `df_grants` | All catalog-level grants (direct, upstream, member-direct) |
+| `df_membership` | Users and SPs with IdP-sync source and full inheritance paths |
 | `df_redundancy` | Redundancy analysis with revoke recommendations |
 | `df_schema_grants` | Schema-level grants (populated when `scan_schemas=true`) |
 | `df_table_grants` | Table/view-level grants (populated when `scan_tables=true`) |
+| `df_stale` | Member-direct grants with no recent audit-log activity (when `stale_days>0`) |
+| `df_local_groups` | Workspace-local groups absent from account SCIM (when `check_local_groups=true`) |
 | `revoke_sql` | Auto-generated REVOKE SQL script (string) |
 
 ### Output DataFrames - Principal Audit
 
 | DataFrame | Contents |
 |---|---|
-| `df_principal_groups` | All group memberships (direct + transitive) with full inheritance path |
-| `df_principal_ws` | Workspace access roles with the source group |
-| `df_principal_perms` | UC permissions (catalog/schema/table) with granting group and workspace |
+| `df_pa_groups` | All group memberships (direct + transitive) with full inheritance path |
+| `df_pa_ws` | Workspace access roles with the source group |
+| `df_pa_perms` | UC permissions (catalog/schema/table) with granting group and workspace |
+| `df_escalation` | `ALL_PRIVILEGES` / `MANAGE` escalation findings (when `escalation_check=true`) |
 
 ### Delta export
 
