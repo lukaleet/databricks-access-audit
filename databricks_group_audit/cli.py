@@ -203,7 +203,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
         tbl_scanner = TablePermissionScanner(client)
         for cat_name, ws_url in accessible:
             ws = WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), "")
-            for sch in sch_scanner._get_schemas(ws, cat_name):
+            for sch in sch_scanner.get_schemas(ws, cat_name):
                 sname = sch.get("name", "")
                 table_grants.extend(tbl_scanner.scan_tables(ws, cat_name, sname, args.group, members, upstream))
         print(f"  Found {len(table_grants)} table grant(s)")

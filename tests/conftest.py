@@ -112,30 +112,50 @@ def mock_client():
     )
 
 
+ALL_USERS = [SCIM_USER_ALICE, SCIM_USER_BOB, SCIM_USER_CHARLIE]
+ALL_SPS = [SCIM_SP_ETL]
+
+
 @pytest.fixture
 def mock_scim(mock_client):
-    """Activate responses mock with SCIM endpoints pre-loaded."""
-    with responses.RequestsMock() as rsps:
+    """Activate responses mock with SCIM endpoints pre-loaded.
+
+    Uses assert_all_requests_are_fired=False because shared fixtures register
+    more endpoints than any single test exercises — some tests only call
+    get_groups_containing_target (bulk SCIM) and never touch per-id routes.
+    """
+    with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         base = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
 
-        # Token endpoint
+        # Token endpoints
         rsps.add(responses.POST, f"{ACCOUNT_HOST}/oidc/v1/token",
                  json={"access_token": "mock-token", "expires_in": 3600})
 
-        # Group list (paginated SCIM) - returns all groups
+        # Paginated group list — used by scim_list_all("Groups") and
+        # by group_resolver._get_group_by_name (filter queries hit this too)
         rsps.add(responses.GET, f"{base}/scim/v2/Groups",
                  json={"Resources": ALL_GROUPS, "totalResults": len(ALL_GROUPS),
                        "itemsPerPage": 100})
 
-        # Individual group lookups
+        # Individual group lookups — used by _resolve_recursive via _get_group_by_id
         for g in ALL_GROUPS:
             rsps.add(responses.GET, f"{base}/scim/v2/Groups/{g['id']}", json=g)
 
-        # User lookups
-        for u in [SCIM_USER_ALICE, SCIM_USER_BOB, SCIM_USER_CHARLIE]:
+        # Paginated users list — used by _prefetch_users_and_sps
+        rsps.add(responses.GET, f"{base}/scim/v2/Users",
+                 json={"Resources": ALL_USERS, "totalResults": len(ALL_USERS),
+                       "itemsPerPage": 100})
+
+        # Individual user lookups — fallback when cache miss
+        for u in ALL_USERS:
             rsps.add(responses.GET, f"{base}/scim/v2/Users/{u['id']}", json=u)
 
-        # SP lookups
+        # Paginated SP list — used by _prefetch_users_and_sps
+        rsps.add(responses.GET, f"{base}/scim/v2/ServicePrincipals",
+                 json={"Resources": ALL_SPS, "totalResults": len(ALL_SPS),
+                       "itemsPerPage": 100})
+
+        # Individual SP lookups — fallback when cache miss
         rsps.add(responses.GET, f"{base}/scim/v2/ServicePrincipals/sp-1", json=SCIM_SP_ETL)
 
         yield rsps, mock_client

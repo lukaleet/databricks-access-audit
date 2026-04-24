@@ -10,7 +10,7 @@ import logging
 from collections import deque
 from typing import Dict, List, Optional, Set, Tuple
 
-from databricks_group_audit.client import DatabricksAPIClient
+from databricks_group_audit.client import AuditClient
 from databricks_group_audit.models import (
     EffectivePermission,
     GroupMembership,
@@ -34,12 +34,13 @@ class PrincipalAuditor:
     2. Checks **workspace permission assignments** for each group.
     3. Scans **Unity Catalog grants** (catalog / schema / table) that flow
        through those groups.
-    4. Flags **dead-end groups** — memberships that grant no workspace access.
+    4. Flags **dead-end groups** — memberships that contribute no workspace
+       access through any path in the group hierarchy.
     """
 
     def __init__(
         self,
-        api_client: DatabricksAPIClient,
+        api_client: AuditClient,
         workspace_discovery: Optional[WorkspaceDiscovery] = None,
         cloud_provider: str = "azure",
     ):
@@ -112,9 +113,8 @@ class PrincipalAuditor:
         """
         all_groups = self.api.scim_list_all("Groups")
 
-        # Build lookup maps
         id_to_name: Dict[str, str] = {}
-        child_to_parents: Dict[str, Set[str]] = {}  # child_id -> set of parent group_ids
+        child_to_parents: Dict[str, Set[str]] = {}
 
         for g in all_groups:
             gid = g.get("id", "")
@@ -125,10 +125,8 @@ class PrincipalAuditor:
                 if cid:
                     child_to_parents.setdefault(cid, set()).add(gid)
 
-        # Find direct parent groups
         direct_parent_ids = child_to_parents.get(principal_id, set())
 
-        # BFS upward from direct parents
         memberships: List[GroupMembership] = []
         visited: Set[str] = set()
         queue: deque[Tuple[str, List[str], bool]] = deque()
@@ -206,20 +204,32 @@ class PrincipalAuditor:
         scan_tables: bool = False,
     ) -> List[EffectivePermission]:
         """For each workspace the principal can access, scan UC grants
-        and return only those held by the principal or their groups."""
+        and return only those held by the principal or their groups.
+
+        Deduplication is keyed on ``(workspace_url, catalog_name)`` so that
+        identically-named catalogs in different workspaces / metastores are
+        each scanned independently.  Principal matching is case-insensitive
+        and strips backtick quoting uniformly at all securable levels.
+        """
         perms: List[EffectivePermission] = []
         relevant = group_names | {principal_name}
+        # Pre-compute lowercased set once — reused at catalog / schema / table levels
+        relevant_lower = {n.lower() for n in relevant}
 
-        # Deduplicate workspaces (may appear multiple times via different groups)
+        def _matches(p: str) -> bool:
+            """Backtick-strip + case-insensitive membership check."""
+            clean = p.replace("`", "").strip()
+            return p in relevant or clean in relevant or clean.lower() in relevant_lower
+
         seen_ws: Set[str] = set()
-        scanned_catalogs: Set[str] = set()
+        # (workspace_url, catalog_name) — same semantics as CatalogPermissionScanner
+        scanned_catalogs: Set[Tuple[str, str]] = set()
 
         for role in workspace_roles:
             if role.workspace_url in seen_ws:
                 continue
             seen_ws.add(role.workspace_url)
 
-            # Catalog-level grants
             try:
                 catalogs = self.api.workspace_api(
                     role.workspace_url, "GET", "/api/2.1/unity-catalog/catalogs",
@@ -229,24 +239,25 @@ class PrincipalAuditor:
 
             for cat in catalogs:
                 cname = cat.get("name", "")
-                if cname in scanned_catalogs:
+                if not cname:
                     continue
-                scanned_catalogs.add(cname)
+                cat_key = (role.workspace_url, cname)
+                if cat_key in scanned_catalogs:
+                    continue
+                scanned_catalogs.add(cat_key)
 
                 try:
-                    grants = self.api.workspace_api(
+                    cat_grants = self.api.workspace_api(
                         role.workspace_url, "GET",
                         f"/api/2.1/unity-catalog/permissions/catalog/{cname}",
-                    ).get("privilege_assignments", [])
+                    ).get("privilege_assignments") or []
                 except Exception:
-                    continue
+                    cat_grants = []
 
-                for g in grants:
+                for g in cat_grants:
                     principal = g.get("principal", "")
-                    privs = g.get("privileges", [])
-                    p_lower = principal.lower()
-                    p_clean = principal.replace("`", "")
-                    if principal in relevant or p_lower in {n.lower() for n in relevant} or p_clean in relevant:
+                    privs = g.get("privileges") or []
+                    if privs and _matches(principal):
                         perms.append(EffectivePermission(
                             securable_type="CATALOG", securable_name=cname,
                             privileges=privs, via_group=principal,
@@ -254,71 +265,79 @@ class PrincipalAuditor:
                             workspace_url=role.workspace_url,
                         ))
 
+                if not (scan_schemas or scan_tables):
+                    continue
+
                 # Schema-level grants
-                if scan_schemas or scan_tables:
+                try:
+                    schemas = self.api.workspace_api(
+                        role.workspace_url, "GET",
+                        "/api/2.1/unity-catalog/schemas",
+                        params={"catalog_name": cname},
+                    ).get("schemas", [])
+                except Exception:
+                    schemas = []
+
+                for sch in schemas:
+                    sname = sch.get("name", "")
+                    if not sname:
+                        continue
+                    full_schema = f"{cname}.{sname}"
                     try:
-                        schemas = self.api.workspace_api(
+                        sgrants = self.api.workspace_api(
                             role.workspace_url, "GET",
-                            "/api/2.1/unity-catalog/schemas",
-                            params={"catalog_name": cname},
-                        ).get("schemas", [])
+                            f"/api/2.1/unity-catalog/permissions/schema/{full_schema}",
+                        ).get("privilege_assignments") or []
                     except Exception:
-                        schemas = []
+                        sgrants = []
 
-                    for sch in schemas:
-                        sname = sch.get("name", "")
-                        full_schema = f"{cname}.{sname}"
+                    for sg in sgrants:
+                        principal = sg.get("principal", "")
+                        privs = sg.get("privileges") or []
+                        if privs and _matches(principal):
+                            perms.append(EffectivePermission(
+                                securable_type="SCHEMA", securable_name=full_schema,
+                                privileges=privs, via_group=principal,
+                                workspace_name=role.workspace_name,
+                                workspace_url=role.workspace_url,
+                            ))
+
+                    if not scan_tables:
+                        continue
+
+                    # Table / view-level grants
+                    try:
+                        tables = self.api.workspace_api(
+                            role.workspace_url, "GET",
+                            "/api/2.1/unity-catalog/tables",
+                            params={"catalog_name": cname, "schema_name": sname},
+                        ).get("tables", [])
+                    except Exception:
+                        tables = []
+
+                    for tbl in tables:
+                        tname = tbl.get("name", "")
+                        if not tname:
+                            continue
+                        full_table = f"{cname}.{sname}.{tname}"
                         try:
-                            sgrants = self.api.workspace_api(
+                            tgrants = self.api.workspace_api(
                                 role.workspace_url, "GET",
-                                f"/api/2.1/unity-catalog/permissions/schema/{full_schema}",
-                            ).get("privilege_assignments", [])
+                                f"/api/2.1/unity-catalog/permissions/table/{full_table}",
+                            ).get("privilege_assignments") or []
                         except Exception:
-                            sgrants = []
+                            tgrants = []
 
-                        for sg in sgrants:
-                            principal = sg.get("principal", "")
-                            privs = sg.get("privileges", [])
-                            if principal in relevant or principal.replace("`", "") in relevant:
+                        for tg in tgrants:
+                            principal = tg.get("principal", "")
+                            privs = tg.get("privileges") or []
+                            if privs and _matches(principal):
                                 perms.append(EffectivePermission(
-                                    securable_type="SCHEMA", securable_name=full_schema,
+                                    securable_type="TABLE", securable_name=full_table,
                                     privileges=privs, via_group=principal,
                                     workspace_name=role.workspace_name,
                                     workspace_url=role.workspace_url,
                                 ))
-
-                        # Table-level grants
-                        if scan_tables:
-                            try:
-                                tables = self.api.workspace_api(
-                                    role.workspace_url, "GET",
-                                    "/api/2.1/unity-catalog/tables",
-                                    params={"catalog_name": cname, "schema_name": sname},
-                                ).get("tables", [])
-                            except Exception:
-                                tables = []
-
-                            for tbl in tables:
-                                tname = tbl.get("name", "")
-                                full_table = f"{cname}.{sname}.{tname}"
-                                try:
-                                    tgrants = self.api.workspace_api(
-                                        role.workspace_url, "GET",
-                                        f"/api/2.1/unity-catalog/permissions/table/{full_table}",
-                                    ).get("privilege_assignments", [])
-                                except Exception:
-                                    tgrants = []
-
-                                for tg in tgrants:
-                                    principal = tg.get("principal", "")
-                                    privs = tg.get("privileges", [])
-                                    if principal in relevant or principal.replace("`", "") in relevant:
-                                        perms.append(EffectivePermission(
-                                            securable_type="TABLE", securable_name=full_table,
-                                            privileges=privs, via_group=principal,
-                                            workspace_name=role.workspace_name,
-                                            workspace_url=role.workspace_url,
-                                        ))
 
         return perms
 
@@ -363,14 +382,36 @@ class PrincipalAuditor:
         ws_roles = self.get_workspace_assignments(workspaces, pid, group_ids, id_to_name)
         log.info("Found %d workspace role(s)", len(ws_roles))
 
-        # 5. Dead-end groups — memberships with no workspace access
-        groups_with_access = {
-            r.via_group_id for r in ws_roles if r.via_group != "(direct)"
-        }
-        dead_ends = [
-            m.group_name for m in memberships
-            if m.group_id not in groups_with_access
-        ]
+        # 5. Dead-end groups — groups that provide no workspace access through any path.
+        #
+        # A group G is NOT a dead end when:
+        #   a) G itself is directly assigned to a workspace, OR
+        #   b) G is a transitive *ancestor* of a workspace-assigned group in
+        #      the principal's membership hierarchy (i.e. a workspace-assigned
+        #      group appears between the principal and G in the BFS upward path,
+        #      meaning the principal reaches workspace access through a child of G).
+        #
+        # We use a name→ids multimap to handle the edge case where two groups
+        # share the same display name but have different IDs.
+        groups_with_access = {r.via_group_id for r in ws_roles if r.via_group != "(direct)"}
+
+        name_to_ids: Dict[str, Set[str]] = {}
+        for m in memberships:
+            name_to_ids.setdefault(m.group_name, set()).add(m.group_id)
+
+        dead_ends: List[str] = []
+        for m in memberships:
+            if m.group_id in groups_with_access:
+                continue
+            # m.path = [principal_name, ..., m.group_name]
+            # path[1:-1] are intermediate groups — descendants of m in the hierarchy.
+            # If any of them has workspace access, m transitively enables access.
+            path_has_access = any(
+                name_to_ids.get(name, set()) & groups_with_access
+                for name in m.path[1:-1]
+            )
+            if not path_has_access:
+                dead_ends.append(m.group_name)
 
         # 6. Scan UC permissions
         perms = self.scan_permissions(

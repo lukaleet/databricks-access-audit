@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from databricks_group_audit.client import DatabricksAPIClient
+from databricks_group_audit.client import AuditClient
 from databricks_group_audit.models import GrantSource, GroupMember, SchemaGrant, WorkspaceInfo
 from databricks_group_audit._classification import build_member_lookups, classify_grant
 
@@ -12,10 +12,10 @@ from databricks_group_audit._classification import build_member_lookups, classif
 class SchemaPermissionScanner:
     """Scan schema-level permissions within accessible catalogs."""
 
-    def __init__(self, api_client: DatabricksAPIClient):
+    def __init__(self, api_client: AuditClient):
         self.api_client = api_client
 
-    def _get_schemas(self, workspace: WorkspaceInfo, catalog_name: str) -> List[dict]:
+    def get_schemas(self, workspace: WorkspaceInfo, catalog_name: str) -> List[dict]:
         try:
             return self.api_client.workspace_api(
                 workspace.workspace_url, "GET",
@@ -42,7 +42,7 @@ class SchemaPermissionScanner:
         grants: List[SchemaGrant] = []
         lookups = build_member_lookups(all_members)
 
-        for schema in self._get_schemas(workspace, catalog_name):
+        for schema in self.get_schemas(workspace, catalog_name):
             sname = schema.get("name", "")
             for g in self._get_schema_grants(workspace, catalog_name, sname):
                 privs = g.get("privileges", [])

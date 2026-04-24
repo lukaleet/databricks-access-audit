@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from databricks_group_audit.client import DatabricksAPIClient
+from databricks_group_audit.client import AuditClient
 from databricks_group_audit.models import GrantSource, GroupMember, TableGrant, WorkspaceInfo
 from databricks_group_audit._classification import build_member_lookups, classify_grant
 
@@ -12,7 +12,7 @@ from databricks_group_audit._classification import build_member_lookups, classif
 class TablePermissionScanner:
     """Scan table/view-level permissions within schemas."""
 
-    def __init__(self, api_client: DatabricksAPIClient):
+    def __init__(self, api_client: AuditClient):
         self.api_client = api_client
 
     def _get_tables(self, ws: WorkspaceInfo, catalog: str, schema: str) -> List[dict]:

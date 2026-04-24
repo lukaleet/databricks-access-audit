@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from databricks_group_audit.client import DatabricksAPIClient
+from databricks_group_audit.client import AuditClient
 from databricks_group_audit.models import WorkspaceInfo
 
 WORKSPACE_DOMAIN_MAP = {
@@ -17,7 +17,7 @@ WORKSPACE_DOMAIN_MAP = {
 class WorkspaceDiscovery:
     """Discover Databricks workspaces (auto or manual)."""
 
-    def __init__(self, api_client: DatabricksAPIClient, cloud_provider: str = "AZURE"):
+    def __init__(self, api_client: AuditClient, cloud_provider: str = "AZURE"):
         self.api_client = api_client
         self.cloud_provider = cloud_provider.upper()
 

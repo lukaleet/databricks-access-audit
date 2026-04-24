@@ -1,5 +1,6 @@
 """Tests for the principal-centric auditor (reverse lookup)."""
 
+import json
 import pytest
 import responses
 
@@ -45,7 +46,7 @@ def _add_scim_endpoints(rsps):
         return (200, {}, body)
 
     rsps.add_callback(responses.GET, f"{BASE}/scim/v2/Groups",
-                      callback=lambda req: (200, {}, _group_list_callback(req)[2]),
+                      callback=lambda req: (200, {}, json.dumps(_group_list_callback(req)[2])),
                       content_type="application/json")
 
     # Individual groups
@@ -65,8 +66,12 @@ def _add_scim_endpoints(rsps):
             matched = all_users
         return (200, {}, {"Resources": matched, "totalResults": len(matched), "itemsPerPage": 100})
 
+    def _user_cb(req):
+        status, headers, body = _user_list_callback(req)
+        return status, headers, json.dumps(body)
+
     rsps.add_callback(responses.GET, f"{BASE}/scim/v2/Users",
-                      callback=lambda req: _user_list_callback(req),
+                      callback=_user_cb,
                       content_type="application/json")
 
     # Individual users
@@ -88,8 +93,12 @@ def _add_scim_endpoints(rsps):
             matched = all_sps
         return (200, {}, {"Resources": matched, "totalResults": len(matched), "itemsPerPage": 100})
 
+    def _sp_cb(req):
+        status, headers, body = _sp_list_callback(req)
+        return status, headers, json.dumps(body)
+
     rsps.add_callback(responses.GET, f"{BASE}/scim/v2/ServicePrincipals",
-                      callback=lambda req: _sp_list_callback(req),
+                      callback=_sp_cb,
                       content_type="application/json")
 
     rsps.add(responses.GET, f"{BASE}/scim/v2/ServicePrincipals/sp-1", json=SCIM_SP_ETL)
@@ -430,6 +439,43 @@ class TestAuditOrchestrator:
 
         result = auditor.audit("alice@example.com")
 
-        # data-engineers, all-data-team, org-all should all be dead ends
-        # because only user-1 (direct) has workspace access
+        # When only the principal directly has workspace access (no group assignments),
+        # every group membership is a dead end because no group in any path has workspace
+        # access — including data-engineers, all-data-team, and org-all.
         assert len(result.dead_end_groups) >= 1
+        assert "data-engineers" in result.dead_end_groups
+        assert "all-data-team" in result.dead_end_groups
+        assert "org-all" in result.dead_end_groups
+
+    @responses.activate
+    def test_dead_ends_excludes_transitive_ancestors_of_workspace_groups(self, mock_client):
+        """Groups that are ancestors of a workspace-assigned group are NOT dead ends.
+
+        Hierarchy: org-all → all-data-team → data-engineers (workspace-assigned)
+        Alice is in data-engineers.  all-data-team and org-all are transitive
+        ancestors of data-engineers — they are not dead ends because the principal
+        reaches workspace access through data-engineers, which is a descendant of both.
+        """
+        _add_scim_endpoints(responses)
+        _add_workspace_endpoints(responses)  # group-1 (data-engineers) has USER access
+
+        responses.add(responses.GET, f"{BASE}/workspaces",
+                      json=[{
+                          "workspace_id": "ws-001",
+                          "deployment_name": "test-workspace",
+                          "workspace_name": "test-ws",
+                          "workspace_status": "RUNNING",
+                          "deployment_url": "test-workspace.azuredatabricks.net",
+                      }])
+
+        from databricks_group_audit.workspace import WorkspaceDiscovery
+        ws_disc = WorkspaceDiscovery(mock_client, cloud_provider="azure")
+        auditor = PrincipalAuditor(mock_client, workspace_discovery=ws_disc, cloud_provider="azure")
+
+        result = auditor.audit("alice@example.com")
+
+        # data-engineers is directly workspace-assigned → not a dead end
+        assert "data-engineers" not in result.dead_end_groups
+        # all-data-team and org-all are ancestors of data-engineers → not dead ends
+        assert "all-data-team" not in result.dead_end_groups
+        assert "org-all" not in result.dead_end_groups

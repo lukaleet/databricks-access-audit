@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, List, Optional, Set
 
-from databricks_group_audit.client import DatabricksAPIClient
+from databricks_group_audit.client import AuditClient
 from databricks_group_audit.models import GroupMember, GroupNode, MemberType
 
 log = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ MAX_RECURSION_DEPTH = 50
 class GroupMembershipResolver:
     """Walk the SCIM API to build a full group hierarchy tree."""
 
-    def __init__(self, api_client: DatabricksAPIClient):
+    def __init__(self, api_client: AuditClient):
         self.api_client = api_client
         self._group_cache: Dict[str, dict] = {}
         self._user_cache: Dict[str, dict] = {}
@@ -130,19 +130,23 @@ class GroupMembershipResolver:
             mid = member.get("value")
             display = member.get("display", "Unknown")
 
-            if "/Users/" in ref:
+            if "Users/" in ref:
                 user_data = self._get_user_by_id(mid)
                 email = None
                 if user_data:
                     emails = user_data.get("emails", [])
-                    email = emails[0].get("value") if emails else None
+                    email = None
+                    for _e in emails:
+                        v = _e.get("value")
+                        if v and (_e.get("primary") or email is None):
+                            email = v
                     display = user_data.get("displayName", display)
                 node.direct_users.append(
                     GroupMember(id=mid, display_name=display, member_type=MemberType.USER,
                                 email=email, parent_groups=list(current_path))
                 )
 
-            elif "/ServicePrincipals/" in ref:
+            elif "ServicePrincipals/" in ref:
                 sp_data = self._get_sp_by_id(mid)
                 app_id = None
                 if sp_data:
@@ -154,7 +158,7 @@ class GroupMembershipResolver:
                                 application_id=app_id, parent_groups=list(current_path))
                 )
 
-            elif "/Groups/" in ref:
+            elif "Groups/" in ref:
                 nested = self._resolve_recursive(mid, current_path, depth + 1)
                 if nested:
                     node.nested_groups[mid] = nested
