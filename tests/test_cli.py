@@ -1,18 +1,22 @@
 """Integration tests for the CLI entry point."""
 
 import json
+
 import responses as responses_lib
 
-from databricks_group_audit.cli import main, _parse_args
+from databricks_group_audit.cli import _parse_args, main
 from tests.conftest import (
-    ACCOUNT_HOST, ACCOUNT_ID, WORKSPACE_HOST,
-    SCIM_GROUP_DATA_ENGINEERS, SCIM_GROUP_DATA_ANALYSTS,
-    SCIM_GROUP_PARENT, SCIM_GROUP_GRANDPARENT,
-    SCIM_USER_ALICE, SCIM_USER_BOB, SCIM_USER_CHARLIE, SCIM_SP_ETL,
-    ALL_GROUPS, ALL_USERS, ALL_SPS,
-    CATALOGS_RESPONSE, MAIN_CATALOG_GRANTS, STAGING_CATALOG_GRANTS,
+    ACCOUNT_HOST,
+    ACCOUNT_ID,
+    ALL_GROUPS,
+    ALL_SPS,
+    ALL_USERS,
+    CATALOGS_RESPONSE,
+    MAIN_CATALOG_GRANTS,
+    SCIM_SP_ETL,
+    STAGING_CATALOG_GRANTS,
+    WORKSPACE_HOST,
 )
-
 
 # ---------------------------------------------------------------------------
 # _parse_args

@@ -176,6 +176,7 @@ def _build_client(args: argparse.Namespace) -> Any:
 def _elevation_context(args: argparse.Namespace, client: Any, workspaces: List):
     """Return a configured PermissionElevator, or a no-op context when not needed."""
     import contextlib
+
     from databricks_group_audit.elevate import PermissionElevator
 
     use_elevation = args.auto_elevate or args.dry_run_elevation
@@ -323,9 +324,9 @@ def _print_diff(diff: Any, output_format: str) -> None:
 
 def _run_principal_audit(args: argparse.Namespace) -> int:
     """Run the principal-centric audit."""
-    from databricks_group_audit.workspace import WorkspaceDiscovery
-    from databricks_group_audit.principal_auditor import PrincipalAuditor
     from databricks_group_audit.escalation import detect_escalations
+    from databricks_group_audit.principal_auditor import PrincipalAuditor
+    from databricks_group_audit.workspace import WorkspaceDiscovery
 
     client = _build_client(args)
     ws_disc = WorkspaceDiscovery(client, cloud_provider=args.cloud)
@@ -365,7 +366,9 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
     # Optional: diff against baseline
     if args.baseline:
         from databricks_group_audit.snapshot import (
-            build_principal_snapshot, load_snapshot, diff_snapshots,
+            build_principal_snapshot,
+            diff_snapshots,
+            load_snapshot,
         )
         baseline = load_snapshot(args.baseline)
         current_snap = build_principal_snapshot(result)
@@ -471,14 +474,14 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
 
 def _run_group_audit(args: argparse.Namespace) -> int:
     """Run the group-centric audit (original behavior)."""
-    from databricks_group_audit.group_resolver import GroupMembershipResolver
-    from databricks_group_audit.workspace import WorkspaceDiscovery
     from databricks_group_audit.catalog_scanner import CatalogPermissionScanner
-    from databricks_group_audit.schema_scanner import SchemaPermissionScanner
-    from databricks_group_audit.table_scanner import TablePermissionScanner
+    from databricks_group_audit.group_resolver import GroupMembershipResolver
+    from databricks_group_audit.models import GrantSource, WorkspaceInfo
     from databricks_group_audit.redundancy import RedundancyDetector
     from databricks_group_audit.revoke import RevokeScriptGenerator
-    from databricks_group_audit.models import GrantSource, WorkspaceInfo
+    from databricks_group_audit.schema_scanner import SchemaPermissionScanner
+    from databricks_group_audit.table_scanner import TablePermissionScanner
+    from databricks_group_audit.workspace import WorkspaceDiscovery
 
     client = _build_client(args)
 
@@ -501,7 +504,9 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     table_grants: List = []
 
     with _elevation_context(args, client, workspaces):
-        catalog_grants = cat_scanner.scan_all_workspaces(workspaces, args.group, group_node, members)
+        catalog_grants = cat_scanner.scan_all_workspaces(
+            workspaces, args.group, group_node, members
+        )
         print(f"  Found {len(catalog_grants)} catalog grant(s)")
 
         if args.scan_schemas or args.scan_tables:
@@ -511,7 +516,9 @@ def _run_group_audit(args: argparse.Namespace) -> int:
                           if g.grant_source in (GrantSource.DIRECT, GrantSource.UPSTREAM)}
             for cat_name, ws_url in accessible:
                 ws = WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), "")
-                schema_grants.extend(sch_scanner.scan_schemas(ws, cat_name, args.group, members, upstream))
+                schema_grants.extend(
+                    sch_scanner.scan_schemas(ws, cat_name, args.group, members, upstream)
+                )
             print(f"  Found {len(schema_grants)} schema grant(s)")
 
         if args.scan_tables:
@@ -520,7 +527,9 @@ def _run_group_audit(args: argparse.Namespace) -> int:
                 ws = WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), "")
                 for sch in sch_scanner.get_schemas(ws, cat_name):
                     sname = sch.get("name", "")
-                    table_grants.extend(tbl_scanner.scan_tables(ws, cat_name, sname, args.group, members, upstream))
+                    table_grants.extend(
+                        tbl_scanner.scan_tables(ws, cat_name, sname, args.group, members, upstream)
+                    )
             print(f"  Found {len(table_grants)} table grant(s)")
 
     detector = RedundancyDetector()
@@ -538,14 +547,18 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     # Optional: save snapshot
     if args.save_snapshot:
         from databricks_group_audit.snapshot import build_group_snapshot, save_snapshot
-        snap = build_group_snapshot(args.group, members, catalog_grants, schema_grants, table_grants)
+        snap = build_group_snapshot(
+            args.group, members, catalog_grants, schema_grants, table_grants
+        )
         save_snapshot(snap, args.save_snapshot)
         print(f"  Snapshot saved to: {args.save_snapshot}")
 
     # Optional: diff against baseline
     if args.baseline:
         from databricks_group_audit.snapshot import (
-            build_group_snapshot, load_snapshot, diff_snapshots,
+            build_group_snapshot,
+            diff_snapshots,
+            load_snapshot,
         )
         baseline = load_snapshot(args.baseline)
         current_snap = build_group_snapshot(
@@ -575,7 +588,9 @@ def _run_group_audit(args: argparse.Namespace) -> int:
             "schema_grants": len(schema_grants),
             "table_grants": len(table_grants),
             "full_redundancy": sum(1 for r in redundancy if r.redundancy_level.value == "Full"),
-            "partial_redundancy": sum(1 for r in redundancy if r.redundancy_level.value == "Partial"),
+            "partial_redundancy": sum(
+                1 for r in redundancy if r.redundancy_level.value == "Partial"
+            ),
         }
         if args.stale_days:
             result["stale_findings"] = [{
@@ -602,13 +617,18 @@ def _run_group_audit(args: argparse.Namespace) -> int:
               f"({ext_users} IdP-synced, {int_users} Databricks-managed)"
               f"  |  SPs: {len(members['service_principals'])} "
               f"({ext_sps} IdP-synced, {int_sps} Databricks-managed)")
-        print(f"  Catalog grants: {len(catalog_grants)}  |  Schema: {len(schema_grants)}  |  Table: {len(table_grants)}")
+        print(
+            f"  Catalog grants: {len(catalog_grants)}"
+            f"  |  Schema: {len(schema_grants)}  |  Table: {len(table_grants)}"
+        )
         full = sum(1 for r in redundancy if r.redundancy_level.value == "Full")
         partial = sum(1 for r in redundancy if r.redundancy_level.value == "Partial")
         print(f"  Redundancy: {full} full, {partial} partial")
 
         if stale_findings:
-            print(f"\n  Stale grants ({len(stale_findings)}, no activity in {args.stale_days} days):")
+            print(
+                f"\n  Stale grants ({len(stale_findings)}, no activity in {args.stale_days} days):"
+            )
             for f in stale_findings:
                 print(f"    ! {f.principal}: {', '.join(f.privileges)} on {f.catalog_name}")
 
@@ -630,7 +650,10 @@ def main(argv: List[str] | None = None) -> int:
     args = _parse_args(argv)
 
     if not args.client_id or not args.client_secret or not args.account_id:
-        print("ERROR: --client-id, --client-secret, and --account-id are required.", file=sys.stderr)
+        print(
+            "ERROR: --client-id, --client-secret, and --account-id are required.",
+            file=sys.stderr,
+        )
         return 1
 
     if args.principal:

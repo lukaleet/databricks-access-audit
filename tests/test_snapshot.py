@@ -6,28 +6,25 @@ import json
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from databricks_group_audit.models import (
+    AuditDiff,
     CatalogGrant,
+    EffectivePermission,
     GrantSource,
     GroupMember,
-    MemberType,
-    EffectivePermission,
     GroupMembership,
-    WorkspaceRole,
+    MemberType,
     PrincipalAuditResult,
-    AuditDiff,
+    WorkspaceRole,
 )
 from databricks_group_audit.snapshot import (
+    SNAPSHOT_VERSION,
     build_group_snapshot,
     build_principal_snapshot,
-    save_snapshot,
-    load_snapshot,
     diff_snapshots,
-    SNAPSHOT_VERSION,
+    load_snapshot,
+    save_snapshot,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
@@ -133,7 +130,9 @@ def test_group_snapshot_sp_members():
 
 
 def test_group_snapshot_privileges_sorted():
-    snap = build_group_snapshot("grp", _members(), [_cat_grant(privs=["SELECT", "USE_CATALOG"])], [], [])
+    snap = build_group_snapshot(
+        "grp", _members(), [_cat_grant(privs=["SELECT", "USE_CATALOG"])], [], []
+    )
     assert snap["grants"][0]["privileges"] == sorted(["SELECT", "USE_CATALOG"])
 
 

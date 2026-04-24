@@ -5,26 +5,23 @@ from __future__ import annotations
 import csv
 import io
 
-import pytest
-
-from databricks_group_audit.models import (
-    CatalogGrant,
-    SchemaGrant,
-    TableGrant,
-    GrantSource,
-    RedundancyLevel,
-    RedundancyResult,
-    EffectivePermission,
-    PrincipalAuditResult,
-    EscalationFinding,
-    AuditDiff,
-)
 from databricks_group_audit.csv_output import (
+    write_diff_csv,
     write_group_audit_csv,
     write_principal_audit_csv,
-    write_diff_csv,
 )
-
+from databricks_group_audit.models import (
+    AuditDiff,
+    CatalogGrant,
+    EffectivePermission,
+    EscalationFinding,
+    GrantSource,
+    PrincipalAuditResult,
+    RedundancyLevel,
+    RedundancyResult,
+    SchemaGrant,
+    TableGrant,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers

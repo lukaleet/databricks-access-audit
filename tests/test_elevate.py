@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -321,8 +321,6 @@ def test_match_by_service_principal_name():
 def test_permission_read_error_proceeds_with_elevation():
     """If reading current permissions fails, elevation proceeds anyway."""
     client = MagicMock()
-
-    call_count = {"n": 0}
 
     def _api(method: str, endpoint: str, **kwargs):
         if endpoint == "/scim/v2/ServicePrincipals":

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
-from databricks_group_audit.client import AuditClient
-from databricks_group_audit.models import GrantSource, GroupMember, SchemaGrant, WorkspaceInfo
 from databricks_group_audit._classification import build_member_lookups, classify_grant
+from databricks_group_audit.client import AuditClient
+from databricks_group_audit.models import GroupMember, SchemaGrant, WorkspaceInfo
 
 
 class SchemaPermissionScanner:

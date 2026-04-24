@@ -86,7 +86,9 @@ class WorkspaceDiscovery:
             if cloud == "AZURE":
                 region = ws.get("azure_workspace_info", {}).get("region", "unknown")
             elif cloud == "GCP":
-                region = ws.get("gcp_workspace_info", {}).get("region", ws.get("cloud_region", "unknown"))
+                region = ws.get("gcp_workspace_info", {}).get(
+                    "region", ws.get("cloud_region", "unknown")
+                )
             else:
                 region = ws.get("aws_region", ws.get("cloud_region", "unknown"))
 

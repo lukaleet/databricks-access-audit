@@ -3,7 +3,7 @@
 import pytest
 import responses
 
-from databricks_group_audit.workspace import WorkspaceDiscovery, WORKSPACE_DOMAIN_MAP
+from databricks_group_audit.workspace import WorkspaceDiscovery
 from tests.conftest import ACCOUNT_HOST, ACCOUNT_ID
 
 

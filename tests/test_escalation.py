@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from databricks_group_audit.escalation import ESCALATION_PRIVILEGES, detect_escalations
 from databricks_group_audit.models import EffectivePermission, PrincipalAuditResult
 

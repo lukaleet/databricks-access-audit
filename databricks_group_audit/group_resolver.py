@@ -110,7 +110,9 @@ class GroupMembershipResolver:
             parent_path = []
 
         if depth > MAX_RECURSION_DEPTH:
-            log.warning("Max recursion depth (%d) reached at group '%s'", MAX_RECURSION_DEPTH, group_id)
+            log.warning(
+                "Max recursion depth (%d) reached at group '%s'", MAX_RECURSION_DEPTH, group_id
+            )
             return None
 
         if group_id in self._resolved_groups:

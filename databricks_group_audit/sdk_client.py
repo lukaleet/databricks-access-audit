@@ -30,6 +30,8 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
+from databricks_group_audit.client import ACCOUNT_HOST_MAP
+
 log = logging.getLogger(__name__)
 
 try:
@@ -39,8 +41,6 @@ try:
     SDK_AVAILABLE = True
 except ImportError:
     SDK_AVAILABLE = False
-
-from databricks_group_audit.client import ACCOUNT_HOST_MAP
 
 
 class DatabricksSDKClient:

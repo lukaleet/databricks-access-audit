@@ -5,17 +5,6 @@ from __future__ import annotations
 import pytest
 import responses as responses_lib
 
-from tests.conftest import (
-    ACCOUNT_HOST,
-    ACCOUNT_ID,
-    WORKSPACE_HOST,
-    ALL_GROUPS,
-    ALL_USERS,
-    ALL_SPS,
-    SCIM_GROUP_DATA_ENGINEERS,
-    SCIM_USER_ALICE,
-    SCIM_SP_ETL,
-)
 from databricks_group_audit.models import (
     GroupMember,
     GroupMembership,
@@ -24,6 +13,15 @@ from databricks_group_audit.models import (
     PrincipalAuditResult,
     PrincipalSource,
     _source_from_external_id,
+)
+from tests.conftest import (
+    ACCOUNT_HOST,
+    ACCOUNT_ID,
+    ALL_SPS,
+    ALL_USERS,
+    SCIM_GROUP_DATA_ENGINEERS,
+    SCIM_SP_ETL,
+    SCIM_USER_ALICE,
 )
 
 BASE = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"

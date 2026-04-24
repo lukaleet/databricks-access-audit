@@ -19,7 +19,9 @@ def _result(principal, level, catalog="main", redundant=None, additional=None):
 
 
 def test_full_redundancy_generates_revoke():
-    results = [_result("alice@example.com", RedundancyLevel.FULL, redundant=["SELECT", "USE_CATALOG"])]
+    results = [
+        _result("alice@example.com", RedundancyLevel.FULL, redundant=["SELECT", "USE_CATALOG"])
+    ]
     sql = RevokeScriptGenerator.generate(results)
 
     assert "REVOKE SELECT, USE_CATALOG ON CATALOG `main`" in sql

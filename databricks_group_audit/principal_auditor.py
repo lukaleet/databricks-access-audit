@@ -14,7 +14,6 @@ from databricks_group_audit.client import AuditClient
 from databricks_group_audit.models import (
     EffectivePermission,
     GroupMembership,
-    MemberType,
     PrincipalAuditResult,
     WorkspaceInfo,
     WorkspaceRole,
@@ -195,7 +194,9 @@ class PrincipalAuditor:
                             via_group_id=pid,
                         ))
             except Exception as exc:
-                log.warning("Failed to get assignments for workspace %s: %s", ws.workspace_name, exc)
+                log.warning(
+                    "Failed to get assignments for workspace %s: %s", ws.workspace_name, exc
+                )
 
         return roles
 

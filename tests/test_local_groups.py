@@ -5,15 +5,14 @@ from __future__ import annotations
 import pytest
 import responses as responses_lib
 
+from databricks_group_audit.local_groups import LocalGroupChecker
+from databricks_group_audit.models import WorkspaceInfo
 from tests.conftest import (
     ACCOUNT_HOST,
     ACCOUNT_ID,
-    WORKSPACE_HOST,
     ALL_GROUPS,
+    WORKSPACE_HOST,
 )
-
-from databricks_group_audit.local_groups import LocalGroupChecker
-from databricks_group_audit.models import WorkspaceInfo
 
 WS_SCIM_ENDPOINT = f"{WORKSPACE_HOST}/api/2.0/preview/scim/v2/Groups"
 BASE = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"

@@ -1,11 +1,11 @@
 """Tests for SchemaPermissionScanner.scan_schemas and get_schemas."""
 
-import responses as responses_lib
 import pytest
+import responses as responses_lib
 
-from databricks_group_audit.schema_scanner import SchemaPermissionScanner
 from databricks_group_audit.models import GrantSource, GroupMember, MemberType, WorkspaceInfo
-from tests.conftest import ACCOUNT_HOST, ACCOUNT_ID, WORKSPACE_HOST
+from databricks_group_audit.schema_scanner import SchemaPermissionScanner
+from tests.conftest import WORKSPACE_HOST
 
 
 def _ws(url=WORKSPACE_HOST):

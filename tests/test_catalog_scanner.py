@@ -2,8 +2,8 @@
 
 import responses as responses_lib
 
+from databricks_group_audit._classification import build_member_lookups, classify_grant
 from databricks_group_audit.catalog_scanner import CatalogPermissionScanner, classify_catalog_grant
-from databricks_group_audit._classification import classify_grant, build_member_lookups
 from databricks_group_audit.group_resolver import GroupMembershipResolver
 from databricks_group_audit.models import GrantSource, WorkspaceInfo
 from tests.conftest import WORKSPACE_HOST

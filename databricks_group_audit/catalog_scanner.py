@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, List, Optional, Set, Tuple
 
+from databricks_group_audit._classification import build_member_lookups, classify_grant
 from databricks_group_audit.client import AuditClient
 from databricks_group_audit.group_resolver import GroupMembershipResolver
 from databricks_group_audit.models import (
@@ -13,7 +14,6 @@ from databricks_group_audit.models import (
     GroupNode,
     WorkspaceInfo,
 )
-from databricks_group_audit._classification import build_member_lookups, classify_grant
 
 log = logging.getLogger(__name__)
 
@@ -74,7 +74,9 @@ class CatalogPermissionScanner:
                 workspace.workspace_url, "GET", "/api/2.1/unity-catalog/catalogs"
             ).get("catalogs", [])
         except Exception as exc:
-            log.warning("Failed to list catalogs for workspace %s: %s", workspace.workspace_name, exc)
+            log.warning(
+                "Failed to list catalogs for workspace %s: %s", workspace.workspace_name, exc
+            )
             return []
 
     def _get_catalog_grants(self, workspace: WorkspaceInfo, catalog_name: str) -> List[dict]:
@@ -196,7 +198,9 @@ class CatalogPermissionScanner:
         for ws in workspaces:
             try:
                 all_grants.extend(
-                    self.scan_workspace(ws, target_group_name, group_node, all_members, upstream_groups)
+                    self.scan_workspace(
+                        ws, target_group_name, group_node, all_members, upstream_groups
+                    )
                 )
             except Exception as exc:
                 log.warning("Skipping workspace %s due to error: %s", ws.workspace_name, exc)

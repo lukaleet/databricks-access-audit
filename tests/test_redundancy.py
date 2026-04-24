@@ -1,10 +1,11 @@
 """Tests for RedundancyDetector and privilege expansion."""
 
 from databricks_group_audit.models import (
-    CatalogGrant, GrantSource, RedundancyLevel,
+    CatalogGrant,
+    GrantSource,
+    RedundancyLevel,
 )
 from databricks_group_audit.redundancy import RedundancyDetector, expand_privileges
-
 
 # ---------------------------------------------------------------------------
 # expand_privileges

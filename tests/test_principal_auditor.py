@@ -1,16 +1,18 @@
 """Tests for the principal-centric auditor (reverse lookup)."""
 
 import json
+
 import pytest
 import responses
 
+from databricks_group_audit.models import WorkspaceInfo
+from databricks_group_audit.principal_auditor import PrincipalAuditor
 from tests.conftest import (
     ACCOUNT_HOST,
     ACCOUNT_ID,
     ALL_GROUPS,
     CATALOGS_RESPONSE,
     MAIN_CATALOG_GRANTS,
-    SCIM_GROUP_DATA_ENGINEERS,
     SCIM_SP_ETL,
     SCIM_USER_ALICE,
     SCIM_USER_BOB,
@@ -18,9 +20,6 @@ from tests.conftest import (
     STAGING_CATALOG_GRANTS,
     WORKSPACE_HOST,
 )
-from databricks_group_audit.principal_auditor import PrincipalAuditor
-from databricks_group_audit.models import WorkspaceInfo
-
 
 BASE = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
 

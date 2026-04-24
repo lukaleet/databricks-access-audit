@@ -306,8 +306,8 @@ def create_client(
     if prefer_sdk:
         try:
             from databricks_group_audit.sdk_client import (
-                DatabricksSDKClient,
                 SDK_AVAILABLE,
+                DatabricksSDKClient,
             )
 
             if SDK_AVAILABLE:

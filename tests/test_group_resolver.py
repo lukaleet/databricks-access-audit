@@ -48,7 +48,7 @@ def test_resolve_nonexistent_group(mock_scim):
     import responses as _r
     rsps.replace(
         _r.GET,
-        f"https://accounts.azuredatabricks.net/api/2.0/accounts/test-account-id/scim/v2/Groups",
+        "https://accounts.azuredatabricks.net/api/2.0/accounts/test-account-id/scim/v2/Groups",
         json={"Resources": [], "totalResults": 0},
     )
     resolver = GroupMembershipResolver(client)

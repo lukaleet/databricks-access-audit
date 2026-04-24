@@ -7,12 +7,11 @@ dict-based protocol used by scanners/resolvers and the typed SDK API.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from databricks_group_audit.sdk_client import DatabricksSDKClient, SDK_AVAILABLE
+from databricks_group_audit.sdk_client import SDK_AVAILABLE, DatabricksSDKClient
 
 pytestmark = pytest.mark.skipif(not SDK_AVAILABLE, reason="databricks-sdk not installed")
 
@@ -118,7 +117,7 @@ def test_account_api_sp_by_id():
     client, acct, _ = _make_client()
     acct.service_principals.get.return_value = _sdk_obj(id="sp7")
 
-    resp = client.account_api("GET", "/scim/v2/ServicePrincipals/sp7")
+    client.account_api("GET", "/scim/v2/ServicePrincipals/sp7")
     acct.service_principals.get.assert_called_once_with("sp7")
 
 
