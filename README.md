@@ -146,8 +146,15 @@ Scan scope:
   --scan-tables        Also scan table/view-level grants (implies --scan-schemas)
 
 Output:
-  --output             text | json  (default: text)
+  --output             text | json | csv  (default: text)
   --revoke-script      Print REVOKE SQL for redundant grants (group audit only)
+
+Snapshot / diff:
+  --save-snapshot PATH Save a timestamped JSON snapshot of this run to PATH.
+  --baseline PATH      Compare this run against a previous snapshot at PATH
+                       and print what changed (new grants, removed grants,
+                       new/removed members).  Compatible with all --output
+                       formats.
 
 Permission elevation:
   --auto-elevate       Temporarily grant the audit SP Workspace Admin on any
@@ -437,7 +444,9 @@ databricks_group_audit/
 ├── elevate.py             # Just-in-time Workspace Admin elevation with cleanup guarantee
 ├── escalation.py          # ALL_PRIVILEGES / MANAGE escalation detection
 ├── stale_checker.py       # Stale grant detection via system.access.audit SQL
-└── local_groups.py        # Workspace-local (legacy) SCIM group detection
+├── local_groups.py        # Workspace-local (legacy) SCIM group detection
+├── csv_output.py          # CSV serialisation for group and principal audit results
+└── snapshot.py            # Snapshot build/save/load and delta comparison
 ```
 
 **Client protocol:** `AuditClient` is a structural `Protocol` in `client.py`. Both `DatabricksAPIClient` and `DatabricksSDKClient` satisfy it - all scanners, resolvers, and the auditor accept either backend without modification.
@@ -585,6 +594,111 @@ findings = checker.check_all_workspaces(workspaces)
 for f in findings:
     print(f"  {f.group_name} in '{f.workspace_name}' ({f.member_count} members) - workspace-local")
 ```
+
+## CSV Output
+
+Pass `--output csv` to get audit results as comma-separated values - the format auditors and security leads need to share findings with people who won't run a CLI themselves.
+
+```bash
+# Group audit - export all grants to a spreadsheet
+databricks-group-audit --group "data-engineers" --cloud azure \
+  --output csv > grants_$(date +%F).csv
+
+# Principal audit - export all permissions
+databricks-group-audit --principal "alice@example.com" --cloud azure \
+  --output csv > alice_permissions.csv
+```
+
+**Group audit CSV** contains two sections:
+- **Grants table** - one row per grant (catalog, schema, or table level) with columns: `securable_type`, `workspace`, `securable_name`, `principal`, `principal_type`, `privileges` (pipe-separated), `grant_source`, `inherited_from`.
+- **Redundancy table** (appended after a blank row when redundancies are found) - one row per redundant personal grant with `redundancy_level` and `recommendation`.
+
+**Principal audit CSV** contains:
+- **Permissions table** - one row per effective Unity Catalog permission with `securable_type`, `securable_name`, `privileges`, `via_group`, `workspace`.
+- **Escalation table** (appended when `--escalation-check` is used) - one row per escalation risk.
+
+Combine with other flags - `--scan-schemas --scan-tables` expands scope before export, `--escalation-check` adds the escalation section to a principal audit CSV.
+
+---
+
+## Diff / Delta Mode
+
+Every audit run can save a timestamped JSON snapshot to disk.  Pass a previous snapshot as `--baseline` and the tool reports exactly what changed: new grants, removed grants, new or removed group members.
+
+This is the SOC 2 / ISO 27001 evidence workflow: *"Prove permissions haven't drifted since the last quarterly review."*
+
+```bash
+# Save the current state
+databricks-group-audit --group "data-engineers" --cloud azure \
+  --save-snapshot snapshots/data-engineers_$(date +%F).json
+
+# Three months later - run again and compare
+databricks-group-audit --group "data-engineers" --cloud azure \
+  --baseline snapshots/data-engineers_2025-01-01.json
+```
+
+Output when changes are found:
+```
+============================================================
+  Diff: data-engineers (group)
+  Baseline:  2025-01-01T00:00:00+00:00
+  Current:   2025-04-01T12:34:56+00:00
+============================================================
+
+  Grants added (1):
+    + [CATALOG] main - bob@example.com (USE_CATALOG|SELECT)
+
+  Grants removed (1):
+    + [CATALOG] staging - carol@example.com (MODIFY)
+
+  Members added (1):
+    + Bob Jones (User)
+============================================================
+```
+
+When nothing has changed:
+```
+  No changes detected.
+```
+
+**Snapshot format:** plain JSON, human-readable without this library.  Snapshots are versioned (`"version": "1"`) and safe to store in version control alongside other compliance artefacts.
+
+**Change detection rules:**
+- A grant is "added" or "removed" based on a full-field fingerprint - any field change (including privilege modifications) is reported as a removal and addition pair, making every change explicit.
+- Member identity is tracked by ID and type only - display-name changes are not flagged as membership churn.
+
+`--output csv` and `--baseline` compose: `--output csv --baseline previous.json` exports the diff as CSV, one row per change, for import into a spreadsheet or SIEM.
+
+`--save-snapshot` and `--baseline` are independent and can be combined in a single run:
+
+```bash
+databricks-group-audit --group "data-engineers" --cloud azure \
+  --baseline last_quarter.json \
+  --save-snapshot snapshots/data-engineers_$(date +%F).json
+```
+
+Python API:
+
+```python
+from databricks_group_audit import (
+    build_group_snapshot, save_snapshot, load_snapshot, diff_snapshots,
+)
+
+# After running a group audit
+snap = build_group_snapshot("data-engineers", members, catalog_grants, schema_grants, table_grants)
+save_snapshot(snap, "snapshots/data-engineers_2025-04-01.json")
+
+# Compare against a previous snapshot
+baseline = load_snapshot("snapshots/data-engineers_2025-01-01.json")
+diff = diff_snapshots(baseline, snap)
+if diff.has_changes:
+    print(f"  {len(diff.grants_added)} grants added")
+    print(f"  {len(diff.grants_removed)} grants removed")
+    print(f"  {len(diff.members_added)} members added")
+    print(f"  {len(diff.members_removed)} members removed")
+```
+
+---
 
 ## When Not to Use This Tool
 

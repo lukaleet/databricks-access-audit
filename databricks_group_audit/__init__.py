@@ -31,10 +31,11 @@ from databricks_group_audit.models import (
     WorkspaceRole,
     EffectivePermission,
     PrincipalAuditResult,
-    # New feature models
+    # Feature models
     EscalationFinding,
     StaleFinding,
     LocalGroupFinding,
+    AuditDiff,
 )
 from databricks_group_audit.client import (
     AuditClient,
@@ -54,6 +55,14 @@ from databricks_group_audit.elevate import PermissionElevator
 from databricks_group_audit.escalation import detect_escalations, ESCALATION_PRIVILEGES
 from databricks_group_audit.stale_checker import StaleGrantChecker
 from databricks_group_audit.local_groups import LocalGroupChecker
+from databricks_group_audit.csv_output import write_group_audit_csv, write_principal_audit_csv
+from databricks_group_audit.snapshot import (
+    build_group_snapshot,
+    build_principal_snapshot,
+    save_snapshot,
+    load_snapshot,
+    diff_snapshots,
+)
 
 # Optional SDK client — only available when databricks-sdk is installed
 try:
@@ -102,6 +111,15 @@ __all__ = [
     "EscalationFinding",
     "StaleFinding",
     "LocalGroupFinding",
+    "AuditDiff",
+    # CSV / snapshot
+    "write_group_audit_csv",
+    "write_principal_audit_csv",
+    "build_group_snapshot",
+    "build_principal_snapshot",
+    "save_snapshot",
+    "load_snapshot",
+    "diff_snapshots",
     # Helpers
     "WORKSPACE_DOMAIN_MAP",
     "classify_catalog_grant",

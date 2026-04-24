@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 # ---------------------------------------------------------------------------
@@ -290,3 +290,33 @@ class LocalGroupFinding:
     workspace_name: str
     workspace_url: str
     member_count: int
+
+
+# ---------------------------------------------------------------------------
+# Audit snapshot diff models
+# ---------------------------------------------------------------------------
+
+@dataclass
+class AuditDiff:
+    """Delta between two audit snapshots produced by diff_snapshots().
+
+    ``grants_added`` / ``grants_removed`` are plain dicts matching the
+    snapshot grant schema.  ``members_added`` / ``members_removed`` are
+    plain dicts matching the snapshot member schema (group mode: user/SP
+    dicts; principal mode: group-membership dicts).
+    """
+    baseline_timestamp: str
+    current_timestamp: str
+    mode: str    # "group" or "principal"
+    target: str  # group name or principal identifier
+    grants_added: List[Dict[str, Any]] = field(default_factory=list)
+    grants_removed: List[Dict[str, Any]] = field(default_factory=list)
+    members_added: List[Dict[str, Any]] = field(default_factory=list)
+    members_removed: List[Dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def has_changes(self) -> bool:
+        return bool(
+            self.grants_added or self.grants_removed
+            or self.members_added or self.members_removed
+        )

@@ -52,10 +52,31 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     p.add_argument("--scan-tables", action="store_true", help="Scan table/view-level grants")
 
     # Output
-    p.add_argument("--output", choices=["json", "text"], default="text",
+    p.add_argument("--output", choices=["json", "text", "csv"], default="text",
                    help="Output format (default: text)")
     p.add_argument("--revoke-script", action="store_true",
                    help="Print REVOKE SQL for redundant grants (group audit only)")
+
+    # Snapshot / diff
+    p.add_argument(
+        "--save-snapshot",
+        metavar="PATH",
+        default="",
+        help=(
+            "Save a timestamped JSON snapshot of this audit run to PATH.  "
+            "Use with --baseline to track permission drift over time."
+        ),
+    )
+    p.add_argument(
+        "--baseline",
+        metavar="PATH",
+        default="",
+        help=(
+            "Compare this run against a previous snapshot at PATH and print "
+            "what changed: new grants, removed grants, new/removed members.  "
+            "Compatible with all --output formats."
+        ),
+    )
 
     # Client selection
     p.add_argument("--no-sdk", action="store_true",
@@ -237,6 +258,69 @@ def _run_local_group_check(
     return checker.check_all_workspaces(workspaces)
 
 
+def _print_diff(diff: Any, output_format: str) -> None:
+    """Print an AuditDiff in the requested format."""
+    if output_format == "csv":
+        from databricks_group_audit.csv_output import write_diff_csv
+        write_diff_csv(diff)
+        return
+
+    if output_format == "json":
+        out: Dict[str, Any] = {
+            "mode": diff.mode,
+            "target": diff.target,
+            "baseline_timestamp": diff.baseline_timestamp,
+            "current_timestamp": diff.current_timestamp,
+            "has_changes": diff.has_changes,
+            "grants_added": diff.grants_added,
+            "grants_removed": diff.grants_removed,
+            "members_added": diff.members_added,
+            "members_removed": diff.members_removed,
+        }
+        print(json.dumps(out, indent=2))
+        return
+
+    # Text
+    member_label = "Members" if diff.mode == "group" else "Group memberships"
+    print(f"\n{'='*60}")
+    print(f"  Diff: {diff.target} ({diff.mode})")
+    print(f"  Baseline:  {diff.baseline_timestamp}")
+    print(f"  Current:   {diff.current_timestamp}")
+    print(f"{'='*60}")
+
+    if not diff.has_changes:
+        print("  No changes detected.")
+        print(f"{'='*60}")
+        return
+
+    if diff.grants_added:
+        print(f"\n  Grants added ({len(diff.grants_added)}):")
+        for g in diff.grants_added:
+            print(f"    + [{g.get('securable_type', '')}] {g.get('securable_name', '')} "
+                  f"- {g.get('principal', g.get('via_group', ''))} "
+                  f"({', '.join(g.get('privileges', []))})")
+    if diff.grants_removed:
+        print(f"\n  Grants removed ({len(diff.grants_removed)}):")
+        for g in diff.grants_removed:
+            print(f"    - [{g.get('securable_type', '')}] {g.get('securable_name', '')} "
+                  f"- {g.get('principal', g.get('via_group', ''))} "
+                  f"({', '.join(g.get('privileges', []))})")
+    if diff.members_added:
+        print(f"\n  {member_label} added ({len(diff.members_added)}):")
+        for m in diff.members_added:
+            name = m.get("display_name", m.get("group_name", ""))
+            mtype = m.get("type", "GROUP")
+            print(f"    + {name} ({mtype})")
+    if diff.members_removed:
+        print(f"\n  {member_label} removed ({len(diff.members_removed)}):")
+        for m in diff.members_removed:
+            name = m.get("display_name", m.get("group_name", ""))
+            mtype = m.get("type", "GROUP")
+            print(f"    - {name} ({mtype})")
+
+    print(f"\n{'='*60}")
+
+
 def _run_principal_audit(args: argparse.Namespace) -> int:
     """Run the principal-centric audit."""
     from databricks_group_audit.workspace import WorkspaceDiscovery
@@ -270,6 +354,29 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
 
     # Optional: workspace-local group check
     local_findings = _run_local_group_check(args, client, workspaces)
+
+    # Optional: save snapshot
+    if args.save_snapshot:
+        from databricks_group_audit.snapshot import build_principal_snapshot, save_snapshot
+        snap = build_principal_snapshot(result)
+        save_snapshot(snap, args.save_snapshot)
+        print(f"  Snapshot saved to: {args.save_snapshot}")
+
+    # Optional: diff against baseline
+    if args.baseline:
+        from databricks_group_audit.snapshot import (
+            build_principal_snapshot, load_snapshot, diff_snapshots,
+        )
+        baseline = load_snapshot(args.baseline)
+        current_snap = build_principal_snapshot(result)
+        diff = diff_snapshots(baseline, current_snap)
+        _print_diff(diff, args.output)
+        return 0
+
+    if args.output == "csv":
+        from databricks_group_audit.csv_output import write_principal_audit_csv
+        write_principal_audit_csv(result, result.escalation_findings)
+        return 0
 
     if args.output == "json":
         out: Dict[str, Any] = {
@@ -428,10 +535,33 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     # Optional: workspace-local group check
     local_findings = _run_local_group_check(args, client, workspaces)
 
+    # Optional: save snapshot
+    if args.save_snapshot:
+        from databricks_group_audit.snapshot import build_group_snapshot, save_snapshot
+        snap = build_group_snapshot(args.group, members, catalog_grants, schema_grants, table_grants)
+        save_snapshot(snap, args.save_snapshot)
+        print(f"  Snapshot saved to: {args.save_snapshot}")
+
+    # Optional: diff against baseline
+    if args.baseline:
+        from databricks_group_audit.snapshot import (
+            build_group_snapshot, load_snapshot, diff_snapshots,
+        )
+        baseline = load_snapshot(args.baseline)
+        current_snap = build_group_snapshot(
+            args.group, members, catalog_grants, schema_grants, table_grants,
+        )
+        diff = diff_snapshots(baseline, current_snap)
+        _print_diff(diff, args.output)
+        return 0
+
     ext_users = sum(1 for u in members["users"] if u.external_id)
     ext_sps = sum(1 for sp in members["service_principals"] if sp.external_id)
 
-    if args.output == "json":
+    if args.output == "csv":
+        from databricks_group_audit.csv_output import write_group_audit_csv
+        write_group_audit_csv(catalog_grants, schema_grants, table_grants, redundancy)
+    elif args.output == "json":
         result: Dict[str, Any] = {
             "group": args.group,
             "timestamp": datetime.now().isoformat(),
