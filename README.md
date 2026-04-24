@@ -27,17 +27,15 @@ This tool fills that gap with two complementary audit modes:
 
 **Databricks account:** Unity Catalog must be enabled. The tool uses the Account API and the per-workspace Unity Catalog API — it does **not** scan Hive Metastore or workspace-local permissions.
 
-**Service Principal permissions:**  The SP running the audit must be an **Account Admin**, or hold all of the following:
+**Service Principal permissions:** The SP running the audit requires elevated access at three distinct levels:
 
-| Scope | Required access |
-|---|---|
-| Account SCIM API | Read Groups, Users, and Service Principals |
-| Account workspaces API | List all workspaces (`GET /workspaces`) |
-| Account permission assignments | Read per-workspace permission assignments |
-| Each workspace | `CAN_USE` or higher on the workspace |
-| Unity Catalog | `BROWSE` on each catalog, or Metastore Admin |
+| Level | Required role / privilege | Why |
+|---|---|---|
+| **Databricks account** | Account Admin | Required to call the SCIM API (list groups, users, SPs), list workspaces, and read workspace permission assignments — all account-level endpoints enforce Account Admin |
+| **Each workspace** | Workspace Admin (recommended) or Workspace User | The SP must be assigned to each workspace it will scan; Workspace Admin is the safest choice since some permission assignment APIs are not visible to plain users |
+| **Unity Catalog** | Metastore Admin, or `MANAGE` on every catalog to audit | The `GET /permissions/catalog/{name}` endpoint (and the equivalent schema/table endpoints) requires either Metastore Admin or `MANAGE` on the securable — `BROWSE` or `SELECT` are not sufficient to read grant lists |
 
-Account Admin is the easiest way to satisfy all of these with a single role assignment.
+The simplest setup that is guaranteed to work: grant the SP **Account Admin**, add it to each workspace as **Workspace Admin**, and assign it **Metastore Admin**. Scoping to minimum required permissions is possible but requires granting `MANAGE` on every individual catalog, which is difficult to maintain across a large account.
 
 ## Installation
 
