@@ -141,6 +141,10 @@ print(RevokeScriptGenerator.generate(redundancy, include_partial=True))
 Import the included `Databricks Group Audit Tool` notebook into your workspace.
 Fill in the widgets at the top and **Run All**.
 
+The notebook auto-detects the installed package. When `pip install databricks-group-audit`
+is available, it imports from the package and skips inline class definitions. Otherwise
+it falls back to self-contained inline code — no external dependencies beyond `requests`.
+
 | Widget | Description |
 |---|---|
 | `secret_scope` | *(optional)* Secret scope with `client_id`, `client_secret`, `account_id` keys |
@@ -190,13 +194,45 @@ Member-direct grants are compared against the group's effective privileges
 | **Partial** | Some overlap, some unique | Review recommended |
 | **None** | No overlap | No action needed |
 
+## Single-Workspace Alternative: INFORMATION_SCHEMA
+
+If you only need to audit permissions within a **single workspace** and don't
+need membership correlation or redundancy detection, Databricks Unity Catalog
+provides built-in system views you can query directly via SQL:
+
+```sql
+-- Catalog-level grants
+SELECT * FROM system.information_schema.catalog_privileges
+WHERE grantee = 'data-engineers';
+
+-- Schema-level grants
+SELECT * FROM system.information_schema.schema_privileges
+WHERE grantee = 'data-engineers';
+
+-- Table-level grants
+SELECT * FROM system.information_schema.table_privileges
+WHERE grantee = 'data-engineers';
+```
+
+These views cover the current workspace only. This tool adds value when you need:
+
+- **Cross-workspace aggregation** — scan all workspaces from a single entry point
+- **Recursive group membership** — resolve nested groups, users, and service principals via SCIM
+- **Upstream group detection** — find grants inherited from parent groups
+- **Redundancy detection** — identify personal grants that duplicate what the group already provides
+- **REVOKE script generation** — automated cleanup recommendations
+
 ## Multi-Cloud Support
 
 | Cloud | Account Host | Workspace Domain |
 |---|---|---|
 | Azure | `accounts.azuredatabricks.net` | `.azuredatabricks.net` |
-| AWS | `accounts.cloud.databricks.com` | `.cloud.databricks.com` |
+| AWS | `accounts.cloud.databricks.com` | `adb-<id>.cloud.databricks.com` |
 | GCP | `accounts.gcp.databricks.com` | `.gcp.databricks.com` |
+
+> **Note:** AWS workspace URLs use the `adb-<workspace-id>` format. The tool
+> prefers the `deployment_url` field returned by the Account API and falls
+> back to constructing from the workspace ID when unavailable.
 
 ## Development
 

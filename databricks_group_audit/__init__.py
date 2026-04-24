@@ -20,11 +20,12 @@ from databricks_group_audit.models import (
 from databricks_group_audit.client import DatabricksAPIClient
 from databricks_group_audit.group_resolver import GroupMembershipResolver
 from databricks_group_audit.workspace import WorkspaceDiscovery, WORKSPACE_DOMAIN_MAP
-from databricks_group_audit.catalog_scanner import CatalogPermissionScanner
+from databricks_group_audit.catalog_scanner import CatalogPermissionScanner, classify_catalog_grant
 from databricks_group_audit.schema_scanner import SchemaPermissionScanner
 from databricks_group_audit.table_scanner import TablePermissionScanner
 from databricks_group_audit.redundancy import RedundancyDetector
 from databricks_group_audit.revoke import RevokeScriptGenerator
+from databricks_group_audit._classification import classify_grant, build_member_lookups
 
 __all__ = [
     "DatabricksAPIClient",
@@ -46,4 +47,7 @@ __all__ = [
     "RedundancyLevel",
     "RedundancyResult",
     "WORKSPACE_DOMAIN_MAP",
+    "classify_catalog_grant",
+    "classify_grant",
+    "build_member_lookups",
 ]

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 from databricks_group_audit.client import DatabricksAPIClient
 from databricks_group_audit.models import WorkspaceInfo
@@ -22,9 +22,39 @@ class WorkspaceDiscovery:
         self.cloud_provider = cloud_provider.upper()
 
     def _build_url(self, deployment_name: str, cloud: str | None = None) -> str:
+        """Construct workspace URL from deployment name and cloud.
+
+        Only used as a fallback when the API does not return a direct URL.
+        """
         cloud = (cloud or self.cloud_provider).upper()
         domain = WORKSPACE_DOMAIN_MAP.get(cloud, WORKSPACE_DOMAIN_MAP["AZURE"])
         return f"https://{deployment_name}{domain}"
+
+    def _resolve_workspace_url(self, ws: dict, cloud: str) -> str:
+        """Resolve the actual workspace URL.
+
+        Prefers the ``deployment_url`` field returned by the Account API (which
+        is the canonical URL for AWS ``adb-<id>`` style workspaces).  Falls
+        back to constructing from ``deployment_name`` when unavailable.
+        """
+        # The Account API may return the full URL directly
+        api_url = ws.get("deployment_url", "").strip()
+        if api_url:
+            if not api_url.startswith("https://"):
+                api_url = f"https://{api_url}"
+            return api_url.rstrip("/")
+
+        deployment_name = ws.get("deployment_name", "")
+        if deployment_name:
+            return self._build_url(deployment_name, cloud)
+
+        # Last resort: reconstruct from workspace_id for AWS
+        if cloud == "AWS":
+            wid = ws.get("workspace_id", "")
+            if wid:
+                return f"https://adb-{wid}.cloud.databricks.com"
+
+        return ""
 
     def get_all_workspaces(self) -> List[WorkspaceInfo]:
         response = self.api_client.account_api("GET", "/workspaces")
@@ -33,7 +63,8 @@ class WorkspaceDiscovery:
             deployment = ws.get("deployment_name", "")
             name = ws.get("workspace_name", deployment)
             cloud = ws.get("cloud", self.cloud_provider).upper()
-            url = self._build_url(deployment, cloud)
+
+            url = self._resolve_workspace_url(ws, cloud)
 
             if cloud == "AZURE":
                 region = ws.get("azure_workspace_info", {}).get("region", "unknown")

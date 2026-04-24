@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 
 from databricks_group_audit.client import DatabricksAPIClient
 from databricks_group_audit.models import GrantSource, GroupMember, SchemaGrant, WorkspaceInfo
+from databricks_group_audit._classification import build_member_lookups, classify_grant
 
 
 class SchemaPermissionScanner:
@@ -33,43 +34,13 @@ class SchemaPermissionScanner:
         except Exception:
             return []
 
-    def _classify(
-        self, principal: str, privileges: List[str],
-        catalog: str, schema: str, workspace: WorkspaceInfo,
-        target_group: str, upstream: Dict[str, str],
-        m_emails: set, m_names: set, sp_names: set, sp_ids: set,
-    ) -> Optional[SchemaGrant]:
-        base = dict(
-            catalog_name=catalog, schema_name=schema,
-            workspace_name=workspace.workspace_name,
-            workspace_url=workspace.workspace_url, privileges=privileges,
-        )
-        if principal == target_group:
-            return SchemaGrant(**base, principal=principal, principal_type="GROUP",
-                               grant_source=GrantSource.DIRECT, member_of_target=False)
-        if principal in upstream:
-            return SchemaGrant(**base, principal=principal, principal_type="GROUP",
-                               grant_source=GrantSource.UPSTREAM, inherited_from=principal,
-                               member_of_target=False)
-        p_lower = principal.lower()
-        if p_lower in m_emails or principal in m_names:
-            return SchemaGrant(**base, principal=principal, principal_type="USER",
-                               grant_source=GrantSource.MEMBER_DIRECT, member_of_target=True)
-        if principal in sp_names or principal in sp_ids:
-            return SchemaGrant(**base, principal=principal, principal_type="SERVICE_PRINCIPAL",
-                               grant_source=GrantSource.MEMBER_DIRECT, member_of_target=True)
-        return None
-
     def scan_schemas(
         self, workspace: WorkspaceInfo, catalog_name: str,
         target_group_name: str, all_members: Dict[str, List[GroupMember]],
         upstream_groups: Dict[str, str],
     ) -> List[SchemaGrant]:
         grants: List[SchemaGrant] = []
-        m_emails = {m.email.lower() for m in all_members["users"] if m.email}
-        m_names = {m.display_name for m in all_members["users"]}
-        sp_names = {sp.display_name for sp in all_members["service_principals"]}
-        sp_ids = {sp.application_id for sp in all_members["service_principals"] if sp.application_id}
+        lookups = build_member_lookups(all_members)
 
         for schema in self._get_schemas(workspace, catalog_name):
             sname = schema.get("name", "")
@@ -77,11 +48,23 @@ class SchemaPermissionScanner:
                 privs = g.get("privileges", [])
                 if not privs:
                     continue
-                obj = self._classify(
-                    g.get("principal", ""), privs, catalog_name, sname,
-                    workspace, target_group_name, upstream_groups,
-                    m_emails, m_names, sp_names, sp_ids,
+                result = classify_grant(
+                    g.get("principal", ""), target_group_name,
+                    upstream_groups, *lookups,
                 )
-                if obj:
-                    grants.append(obj)
+                if result is None:
+                    continue
+                source, ptype, inherited, member = result
+                grants.append(SchemaGrant(
+                    catalog_name=catalog_name,
+                    schema_name=sname,
+                    workspace_name=workspace.workspace_name,
+                    workspace_url=workspace.workspace_url,
+                    principal=g.get("principal", ""),
+                    principal_type=ptype,
+                    privileges=privs,
+                    grant_source=source,
+                    inherited_from=inherited,
+                    member_of_target=member,
+                ))
         return grants

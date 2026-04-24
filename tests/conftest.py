@@ -39,6 +39,15 @@ SCIM_GROUP_PARENT = {
     ],
 }
 
+# Grandparent: org-all contains all-data-team (which contains data-engineers)
+SCIM_GROUP_GRANDPARENT = {
+    "id": "group-grandparent",
+    "displayName": "org-all",
+    "members": [
+        {"value": "group-parent", "display": "all-data-team", "$ref": "Groups/group-parent"},
+    ],
+}
+
 SCIM_USER_ALICE = {
     "id": "user-1", "displayName": "Alice Smith",
     "emails": [{"value": "alice@example.com"}],
@@ -55,7 +64,10 @@ SCIM_SP_ETL = {
     "id": "sp-1", "displayName": "ETL-Bot", "applicationId": "app-etl-001",
 }
 
-ALL_GROUPS = [SCIM_GROUP_DATA_ENGINEERS, SCIM_GROUP_DATA_ANALYSTS, SCIM_GROUP_PARENT]
+ALL_GROUPS = [
+    SCIM_GROUP_DATA_ENGINEERS, SCIM_GROUP_DATA_ANALYSTS,
+    SCIM_GROUP_PARENT, SCIM_GROUP_GRANDPARENT,
+]
 
 
 # ---------------------------------------------------------------------------
@@ -110,9 +122,10 @@ def mock_scim(mock_client):
         rsps.add(responses.POST, f"{ACCOUNT_HOST}/oidc/v1/token",
                  json={"access_token": "mock-token", "expires_in": 3600})
 
-        # Group filter by name
+        # Group list (paginated SCIM) - returns all groups
         rsps.add(responses.GET, f"{base}/scim/v2/Groups",
-                 json={"Resources": ALL_GROUPS, "totalResults": 3, "itemsPerPage": 100})
+                 json={"Resources": ALL_GROUPS, "totalResults": len(ALL_GROUPS),
+                       "itemsPerPage": 100})
 
         # Individual group lookups
         for g in ALL_GROUPS:

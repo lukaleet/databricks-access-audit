@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 
 from databricks_group_audit.client import DatabricksAPIClient
 from databricks_group_audit.models import GrantSource, GroupMember, TableGrant, WorkspaceInfo
+from databricks_group_audit._classification import build_member_lookups, classify_grant
 
 
 class TablePermissionScanner:
@@ -32,45 +33,13 @@ class TablePermissionScanner:
         except Exception:
             return []
 
-    def _classify(
-        self, principal: str, privileges: List[str],
-        catalog: str, schema: str, table: str, table_type: str,
-        ws: WorkspaceInfo, target_group: str, upstream: Dict[str, str],
-        m_emails: set, m_names: set, sp_names: set, sp_ids: set,
-    ) -> Optional[TableGrant]:
-        full_name = f"{catalog}.{schema}.{table}"
-        base = dict(
-            catalog_name=catalog, schema_name=schema, table_name=table,
-            full_name=full_name, table_type=table_type,
-            workspace_name=ws.workspace_name, workspace_url=ws.workspace_url,
-            privileges=privileges,
-        )
-        if principal == target_group:
-            return TableGrant(**base, principal=principal, principal_type="GROUP",
-                              grant_source=GrantSource.DIRECT, member_of_target=False)
-        if principal in upstream:
-            return TableGrant(**base, principal=principal, principal_type="GROUP",
-                              grant_source=GrantSource.UPSTREAM, inherited_from=principal,
-                              member_of_target=False)
-        p_lower = principal.lower()
-        if p_lower in m_emails or principal in m_names:
-            return TableGrant(**base, principal=principal, principal_type="USER",
-                              grant_source=GrantSource.MEMBER_DIRECT, member_of_target=True)
-        if principal in sp_names or principal in sp_ids:
-            return TableGrant(**base, principal=principal, principal_type="SERVICE_PRINCIPAL",
-                              grant_source=GrantSource.MEMBER_DIRECT, member_of_target=True)
-        return None
-
     def scan_tables(
         self, ws: WorkspaceInfo, catalog: str, schema: str,
         target_group: str, all_members: Dict[str, List[GroupMember]],
         upstream_groups: Dict[str, str],
     ) -> List[TableGrant]:
         grants: List[TableGrant] = []
-        m_emails = {m.email.lower() for m in all_members["users"] if m.email}
-        m_names = {m.display_name for m in all_members["users"]}
-        sp_names = {sp.display_name for sp in all_members["service_principals"]}
-        sp_ids = {sp.application_id for sp in all_members["service_principals"] if sp.application_id}
+        lookups = build_member_lookups(all_members)
 
         for tbl in self._get_tables(ws, catalog, schema):
             tname = tbl.get("name", "")
@@ -80,11 +49,26 @@ class TablePermissionScanner:
                 privs = g.get("privileges", [])
                 if not privs:
                     continue
-                obj = self._classify(
-                    g.get("principal", ""), privs, catalog, schema, tname, ttype,
-                    ws, target_group, upstream_groups,
-                    m_emails, m_names, sp_names, sp_ids,
+                result = classify_grant(
+                    g.get("principal", ""), target_group,
+                    upstream_groups, *lookups,
                 )
-                if obj:
-                    grants.append(obj)
+                if result is None:
+                    continue
+                source, ptype, inherited, member = result
+                grants.append(TableGrant(
+                    catalog_name=catalog,
+                    schema_name=schema,
+                    table_name=tname,
+                    full_name=full,
+                    table_type=ttype,
+                    workspace_name=ws.workspace_name,
+                    workspace_url=ws.workspace_url,
+                    principal=g.get("principal", ""),
+                    principal_type=ptype,
+                    privileges=privs,
+                    grant_source=source,
+                    inherited_from=inherited,
+                    member_of_target=member,
+                ))
         return grants
