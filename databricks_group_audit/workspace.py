@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List
 
 from databricks_group_audit.client import AuditClient
 from databricks_group_audit.models import WorkspaceInfo
@@ -12,6 +12,11 @@ WORKSPACE_DOMAIN_MAP = {
     "AWS": ".cloud.databricks.com",
     "GCP": ".gcp.databricks.com",
 }
+
+# Workspace statuses that indicate the workspace is reachable.
+# Any other status (NOT_RUNNING, PROVISIONING, FAILED, BANNED, CANCELLING,
+# DELETED) means the workspace cannot serve API requests and should be skipped.
+_REACHABLE_STATUSES = {"RUNNING"}
 
 
 class WorkspaceDiscovery:
@@ -60,11 +65,23 @@ class WorkspaceDiscovery:
         response = self.api_client.account_api("GET", "/workspaces")
         workspaces: List[WorkspaceInfo] = []
         for ws in response:
+            # Skip workspaces that are not reachable.  Stopped, deleted,
+            # provisioning, or failed workspaces cannot serve API requests.
+            # When workspace_status is absent the workspace is assumed reachable
+            # (older API versions or private-link setups may omit the field).
+            status = ws.get("workspace_status")
+            if status is not None and status not in _REACHABLE_STATUSES:
+                continue
+
             deployment = ws.get("deployment_name", "")
             name = ws.get("workspace_name", deployment)
             cloud = ws.get("cloud", self.cloud_provider).upper()
 
             url = self._resolve_workspace_url(ws, cloud)
+            # Skip workspaces where no URL can be constructed — attempting to
+            # connect to an empty host would produce cryptic errors downstream.
+            if not url:
+                continue
 
             if cloud == "AZURE":
                 region = ws.get("azure_workspace_info", {}).get("region", "unknown")
