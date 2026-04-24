@@ -86,6 +86,53 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         ),
     )
 
+    # Privilege escalation detection (principal audit only)
+    p.add_argument(
+        "--escalation-check",
+        action="store_true",
+        help=(
+            "Flag ALL_PRIVILEGES and MANAGE grants inherited by the principal "
+            "through group membership.  Applies to --principal mode only."
+        ),
+    )
+
+    # Stale grant detection (both modes)
+    p.add_argument(
+        "--stale-days",
+        type=int,
+        default=0,
+        metavar="N",
+        help=(
+            "Flag member-direct catalog grants whose holders have had no recorded "
+            "activity in system.access.audit for the last N days.  Requires "
+            "--sql-warehouse-id and --sql-workspace-url."
+        ),
+    )
+    p.add_argument(
+        "--sql-warehouse-id",
+        default="",
+        help="SQL warehouse ID used to query system.access.audit (required for --stale-days).",
+    )
+    p.add_argument(
+        "--sql-workspace-url",
+        default="",
+        help=(
+            "Workspace URL whose system.access.audit will be queried.  "
+            "Defaults to the first discovered workspace when omitted."
+        ),
+    )
+
+    # Workspace-local group detection (both modes)
+    p.add_argument(
+        "--check-local-groups",
+        action="store_true",
+        help=(
+            "Scan each workspace's SCIM directory and flag groups that exist "
+            "only at the workspace level (not in account SCIM).  These are "
+            "legacy workspace-local groups pending Unity Catalog migration."
+        ),
+    )
+
     return p.parse_args(argv)
 
 
@@ -143,10 +190,58 @@ class _AlreadyEnteredContext:
         return self._inner.__exit__(*args)
 
 
+def _run_stale_check(
+    args: argparse.Namespace,
+    client: Any,
+    catalog_grants: List,
+    workspaces: List,
+    workspace_name: str,
+) -> List:
+    """Run stale grant detection if --stale-days is set; return findings."""
+    if not args.stale_days:
+        return []
+    if not args.sql_warehouse_id:
+        print("WARNING: --stale-days requires --sql-warehouse-id; skipping stale check.",
+              file=sys.stderr)
+        return []
+
+    from databricks_group_audit.stale_checker import StaleGrantChecker
+
+    ws_url = args.sql_workspace_url
+    if not ws_url:
+        ws_url = workspaces[0].workspace_url if workspaces else ""
+    if not ws_url:
+        print("WARNING: No workspace available for --stale-days query; skipping.",
+              file=sys.stderr)
+        return []
+
+    print(f"  Checking for stale grants (>{args.stale_days} days inactive) ...")
+    checker = StaleGrantChecker(client, ws_url, args.sql_warehouse_id,
+                                stale_days=args.stale_days)
+    return checker.check_catalog_grants(catalog_grants, workspace_name, ws_url)
+
+
+def _run_local_group_check(
+    args: argparse.Namespace,
+    client: Any,
+    workspaces: List,
+) -> List:
+    """Run workspace-local group detection if --check-local-groups is set."""
+    if not args.check_local_groups:
+        return []
+
+    from databricks_group_audit.local_groups import LocalGroupChecker
+
+    print("  Checking for workspace-local groups ...")
+    checker = LocalGroupChecker(client)
+    return checker.check_all_workspaces(workspaces)
+
+
 def _run_principal_audit(args: argparse.Namespace) -> int:
     """Run the principal-centric audit."""
     from databricks_group_audit.workspace import WorkspaceDiscovery
     from databricks_group_audit.principal_auditor import PrincipalAuditor
+    from databricks_group_audit.escalation import detect_escalations
 
     client = _build_client(args)
     ws_disc = WorkspaceDiscovery(client, cloud_provider=args.cloud)
@@ -168,6 +263,14 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
+    # Optional: privilege escalation check
+    if args.escalation_check:
+        result.escalation_findings = detect_escalations(result)
+        print(f"  Escalation check: {len(result.escalation_findings)} finding(s)")
+
+    # Optional: workspace-local group check
+    local_findings = _run_local_group_check(args, client, workspaces)
+
     if args.output == "json":
         out: Dict[str, Any] = {
             "principal": result.principal_name,
@@ -187,6 +290,21 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
             } for p in result.permissions],
             "dead_end_groups": result.dead_end_groups,
         }
+        if args.escalation_check:
+            out["escalation_findings"] = [{
+                "privilege": f.privilege,
+                "securable_type": f.securable_type,
+                "securable_name": f.securable_name,
+                "via_group": f.via_group,
+                "is_transitive": f.is_transitive,
+                "workspace": f.workspace_name,
+            } for f in result.escalation_findings]
+        if args.check_local_groups:
+            out["local_group_findings"] = [{
+                "group_name": f.group_name,
+                "workspace": f.workspace_name,
+                "member_count": f.member_count,
+            } for f in local_findings]
         print(json.dumps(out, indent=2))
     else:
         print(f"\n{'='*60}")
@@ -213,6 +331,23 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
             print(f"    * [{p.securable_type}] {p.securable_name}")
             print(f"      privileges: {', '.join(p.privileges)}")
             print(f"      via: {p.via_group} @ {p.workspace_name}")
+
+        if args.escalation_check:
+            findings = result.escalation_findings
+            print(f"\n  Escalation risks ({len(findings)}):")
+            if findings:
+                for f in findings:
+                    kind = "transitive" if f.is_transitive else "direct"
+                    print(f"    ! RISK [{f.securable_type}] {f.securable_name}: "
+                          f"{f.privilege} via {f.via_group} ({kind})")
+            else:
+                print("    No escalation risks found.")
+
+        if args.check_local_groups:
+            print(f"\n  Workspace-local groups ({len(local_findings)}):")
+            for f in local_findings:
+                print(f"    ! {f.group_name} in '{f.workspace_name}' "
+                      f"({f.member_count} member(s)) — not in account SCIM")
 
         print(f"\n{'='*60}")
 
@@ -276,6 +411,15 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     detector = RedundancyDetector()
     redundancy = detector.detect_redundancy(catalog_grants, args.group)
 
+    # Optional: stale grant detection
+    stale_findings = _run_stale_check(
+        args, client, catalog_grants, workspaces,
+        workspace_name=workspaces[0].workspace_name if workspaces else "",
+    )
+
+    # Optional: workspace-local group check
+    local_findings = _run_local_group_check(args, client, workspaces)
+
     if args.output == "json":
         result: Dict[str, Any] = {
             "group": args.group,
@@ -288,6 +432,20 @@ def _run_group_audit(args: argparse.Namespace) -> int:
             "full_redundancy": sum(1 for r in redundancy if r.redundancy_level.value == "Full"),
             "partial_redundancy": sum(1 for r in redundancy if r.redundancy_level.value == "Partial"),
         }
+        if args.stale_days:
+            result["stale_findings"] = [{
+                "principal": f.principal,
+                "catalog": f.catalog_name,
+                "privileges": f.privileges,
+                "stale_days": f.stale_days,
+                "workspace": f.workspace_name,
+            } for f in stale_findings]
+        if args.check_local_groups:
+            result["local_group_findings"] = [{
+                "group_name": f.group_name,
+                "workspace": f.workspace_name,
+                "member_count": f.member_count,
+            } for f in local_findings]
         print(json.dumps(result, indent=2))
     else:
         print(f"\n{'='*60}")
@@ -297,6 +455,18 @@ def _run_group_audit(args: argparse.Namespace) -> int:
         full = sum(1 for r in redundancy if r.redundancy_level.value == "Full")
         partial = sum(1 for r in redundancy if r.redundancy_level.value == "Partial")
         print(f"  Redundancy: {full} full, {partial} partial")
+
+        if stale_findings:
+            print(f"\n  Stale grants ({len(stale_findings)}, no activity in {args.stale_days} days):")
+            for f in stale_findings:
+                print(f"    ! {f.principal}: {', '.join(f.privileges)} on {f.catalog_name}")
+
+        if args.check_local_groups:
+            print(f"\n  Workspace-local groups ({len(local_findings)}):")
+            for f in local_findings:
+                print(f"    ! {f.group_name} in '{f.workspace_name}' "
+                      f"({f.member_count} member(s)) — not in account SCIM")
+
         print(f"{'='*60}")
 
     if args.revoke_script:

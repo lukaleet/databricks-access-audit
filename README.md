@@ -158,6 +158,19 @@ Permission elevation:
   --dry-run-elevation  Preview which workspaces would be elevated without
                        writing any permission changes.  Implies --auto-elevate.
 
+Security analysis:
+  --escalation-check   (principal audit) Flag ALL_PRIVILEGES and MANAGE
+                       grants inherited transitively through group membership.
+  --stale-days N       Flag member-direct catalog grants whose holders have
+                       had no recorded activity in system.access.audit for
+                       the last N days.  Requires --sql-warehouse-id.
+  --sql-warehouse-id   SQL warehouse ID used to query system.access.audit.
+  --sql-workspace-url  Workspace URL whose audit table to query (defaults to
+                       first discovered workspace).
+  --check-local-groups Scan workspace SCIM directories and flag groups that
+                       exist only at workspace level (legacy local groups not
+                       yet migrated to account SCIM).
+
 Client:
   --no-sdk             Force raw HTTP client even if databricks-sdk is installed
   --max-retries        Retry attempts on 429/5xx (default: 5; raw client only)
@@ -421,12 +434,103 @@ databricks_group_audit/
 ├── redundancy.py          # Privilege hierarchy expansion and redundancy detection
 ├── revoke.py              # REVOKE SQL generation from RedundancyResult objects
 ├── principal_auditor.py   # BFS reverse-lookup from user/SP/group
-└── elevate.py             # Just-in-time Workspace Admin elevation with cleanup guarantee
+├── elevate.py             # Just-in-time Workspace Admin elevation with cleanup guarantee
+├── escalation.py          # ALL_PRIVILEGES / MANAGE escalation detection
+├── stale_checker.py       # Stale grant detection via system.access.audit SQL
+└── local_groups.py        # Workspace-local (legacy) SCIM group detection
 ```
 
 **Client protocol:** `AuditClient` is a structural `Protocol` in `client.py`. Both `DatabricksAPIClient` and `DatabricksSDKClient` satisfy it — all scanners, resolvers, and the auditor accept either backend without modification.
 
 **SCIM performance:** `GroupMembershipResolver` bulk-fetches all users and service principals in two paginated calls before resolving individual members, avoiding N+1 API calls. For accounts with fewer than ~10 000 users this is significantly faster than per-member lookups.
+
+## Privilege Escalation Detection
+
+The `--escalation-check` flag adds a security pass to the principal audit.  After collecting all effective permissions it flags any grant that contains `ALL_PRIVILEGES` or `MANAGE` — the two privileges that represent meaningful escalation vectors in Unity Catalog:
+
+| Privilege | Risk |
+|---|---|
+| `ALL_PRIVILEGES` | Grants unrestricted read/write/admin access to the securable and everything beneath it |
+| `MANAGE` | Grants the ability to add and remove grants on the securable — can be used to self-escalate or escalate other principals |
+
+```bash
+databricks-group-audit --principal "alice@example.com" --cloud azure --escalation-check
+```
+
+Output (text):
+```
+  Escalation risks (2):
+    ! RISK [CATALOG] main: ALL_PRIVILEGES via data-engineers (transitive)
+    ! RISK [CATALOG] staging: MANAGE via all-admins (transitive)
+```
+
+Output (JSON) adds an `"escalation_findings"` array to the principal audit result.
+
+**What it does not cover:** workspace-level admin roles (`WORKSPACE_ADMIN`) are already visible in the workspace roles section.  Databricks account-level admin is out of scope for the Unity Catalog scan.
+
+## Stale Grant Detection
+
+The `--stale-days N` flag cross-references current member-direct catalog grants against `system.access.audit` — the Unity Catalog system table that records every API call, SQL command, and data-access event.  Any grant holder with no recorded activity in the last N days is flagged as potentially stale.
+
+### Prerequisites
+
+* System tables must be enabled for the account (the `system` catalog must be visible in the metastore).
+* The audit SP must have `SELECT` on `system.access.audit` (requires Metastore Admin or explicit grant).
+* A **SQL warehouse** with access to the system catalog must be available.
+
+### Usage
+
+```bash
+# Flag grants with no activity in 90 days
+databricks-group-audit \
+    --group "data-engineers" \
+    --cloud azure \
+    --stale-days 90 \
+    --sql-warehouse-id "abc123def456" \
+    --sql-workspace-url "https://adb-123.azuredatabricks.net"
+```
+
+The tool queries:
+```sql
+SELECT principal, DATE(MAX(event_time)) AS last_seen_date
+FROM system.access.audit
+WHERE event_time >= DATEADD(DAY, -90, CURRENT_TIMESTAMP())
+  AND principal IS NOT NULL
+GROUP BY 1
+```
+
+Grant holders absent from this result (no activity in the window) are returned as `StaleFinding` objects with `last_access = None`.
+
+**Stale findings do not automatically generate REVOKE SQL.** Review them manually: absence from the audit log may indicate legitimate inactivity (e.g. a batch job that runs quarterly) rather than an unused grant.
+
+## Workspace-Local Group Detection
+
+The `--check-local-groups` flag scans every workspace's SCIM directory and flags groups that exist **only at the workspace level**, absent from the account-level SCIM directory.
+
+Workspace-local groups are a legacy artefact from before Unity Catalog.  Databricks is deprecating them: they cannot hold Unity Catalog grants, are not visible to the Account API, and are not migrated automatically.  Every customer in the middle of a Unity Catalog migration needs to identify and recreate these groups at the account level.
+
+```bash
+databricks-group-audit --group "data-engineers" --cloud azure --check-local-groups
+```
+
+Output:
+```
+  Workspace-local groups (2):
+    ! legacy-analysts in 'prod-workspace' (5 members) — not in account SCIM
+    ! old-read-only in 'staging-workspace' (2 members) — not in account SCIM
+```
+
+Works with both `--group` and `--principal` modes, and is available as a standalone Python API:
+
+```python
+from databricks_group_audit import LocalGroupChecker, WorkspaceDiscovery
+
+checker = LocalGroupChecker(client)
+workspaces = WorkspaceDiscovery(client, "azure").discover()
+findings = checker.check_all_workspaces(workspaces)
+for f in findings:
+    print(f"  {f.group_name} in '{f.workspace_name}' ({f.member_count} members) — workspace-local")
+```
 
 ## When Not to Use This Tool
 
@@ -460,8 +564,8 @@ Use this tool when you need what `INFORMATION_SCHEMA` does not provide:
 - **Unity Catalog only.** Workspace-level object permissions (jobs, clusters, SQL warehouses, notebooks, MLflow experiments) are not scanned.
 - **Account-level SCIM groups only.** Workspace-local groups are not distinguished from account-level groups. If your account still has workspace-local groups that haven't been migrated, results for those groups may be incomplete.
 - **Redundancy detection is catalog-level.** Schema and table grants are reported but not included in the redundancy/REVOKE analysis.
-- **No stale-grant detection.** The tool reports current grants; it does not query `system.access.audit` to identify grants that have never been used.
-- **No privilege escalation detection.** The tool does not flag when a principal transitively acquires `ALL_PRIVILEGES` or `IS_ADMIN` through nested group membership.
+- **Stale detection is account-wide, not per-catalog.** `system.access.audit` does not always record per-catalog or per-object access; the stale check flags principals with no *any* recorded activity, which is a conservative but imprecise signal.
+- **Escalation detection covers UC privileges only.** `WORKSPACE_ADMIN` escalation through group membership is visible in the workspace roles section but not scored as an escalation finding.
 
 ## Multi-Cloud Support
 

@@ -181,3 +181,66 @@ class PrincipalAuditResult:
     workspace_roles: List[WorkspaceRole] = field(default_factory=list)
     permissions: List[EffectivePermission] = field(default_factory=list)
     dead_end_groups: List[str] = field(default_factory=list)
+    escalation_findings: List["EscalationFinding"] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Privilege escalation models
+# ---------------------------------------------------------------------------
+
+@dataclass
+class EscalationFinding:
+    """A high-privilege UC grant that represents a potential escalation risk.
+
+    ALL_PRIVILEGES and MANAGE are the two privileges that allow a principal
+    to either access everything (ALL_PRIVILEGES) or grant access to others
+    (MANAGE), making them the primary escalation vectors in Unity Catalog.
+    """
+    principal_name: str
+    privilege: str          # e.g. "ALL_PRIVILEGES" or "MANAGE"
+    securable_type: str     # "CATALOG", "SCHEMA", or "TABLE"
+    securable_name: str     # e.g. "main" or "main.default"
+    via_group: str          # the group holding the grant
+    is_transitive: bool     # True when the grant is via a group, not direct
+    workspace_name: str
+    workspace_url: str
+
+
+# ---------------------------------------------------------------------------
+# Stale grant models
+# ---------------------------------------------------------------------------
+
+@dataclass
+class StaleFinding:
+    """A member-direct catalog grant with no recent activity in system.access.audit.
+
+    ``last_access`` is None when the principal has not appeared in the audit
+    log at all within the configured ``stale_days`` window.
+    """
+    principal: str
+    principal_type: str     # "USER", "SERVICE_PRINCIPAL", or "GROUP"
+    catalog_name: str
+    privileges: List[str]
+    workspace_name: str
+    workspace_url: str
+    last_access: Optional[str]  # ISO date string or None ("no activity in window")
+    stale_days: int             # the configured inactivity threshold
+
+
+# ---------------------------------------------------------------------------
+# Workspace-local group models
+# ---------------------------------------------------------------------------
+
+@dataclass
+class LocalGroupFinding:
+    """A group found in workspace SCIM but absent from account SCIM.
+
+    Workspace-local groups are a legacy artefact from before Unity Catalog
+    account-level group migration (Databricks recommends migrating all groups
+    to account SCIM as workspace-local groups are being deprecated).
+    """
+    group_name: str
+    group_id: str           # workspace-local SCIM ID
+    workspace_name: str
+    workspace_url: str
+    member_count: int

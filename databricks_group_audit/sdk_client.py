@@ -213,6 +213,8 @@ class DatabricksSDKClient:
     # workspace_api  — compatibility layer
     # =====================================================================
 
+    _RE_WS_SCIM_GROUPS = re.compile(r"^/api/2\.0/preview/scim/v2/Groups$")
+
     _RE_CATALOGS = re.compile(r"^/api/2\.1/unity-catalog/catalogs$")
     _RE_CAT_GRANTS = re.compile(
         r"^/api/2\.1/unity-catalog/permissions/catalog/(.+)$"
@@ -236,6 +238,15 @@ class DatabricksSDKClient:
         """Dispatch workspace-level API calls to typed SDK methods."""
         ws = self._get_ws_client(workspace_host)
         params = kwargs.get("params", {})
+
+        # --- Workspace SCIM groups ---------------------------------------
+        if self._RE_WS_SCIM_GROUPS.match(endpoint):
+            filt = params.get("filter")
+            items = list(ws.groups.list(filter=filt))
+            return {
+                "Resources": [self._to_dict(g) for g in items],
+                "totalResults": len(items),
+            }
 
         # --- Catalogs ----------------------------------------------------
         if self._RE_CATALOGS.match(endpoint):
@@ -302,7 +313,9 @@ class DatabricksSDKClient:
         if not workspace_host.startswith("https://"):
             workspace_host = f"https://{workspace_host}"
         log.debug("SDK fallback to raw workspace API: %s %s", method, endpoint)
-        resp = ws.api_client.do(method, endpoint, **kwargs)
+        fallback_kwargs = dict(kwargs)
+        body = fallback_kwargs.pop("json", None)
+        resp = ws.api_client.do(method, endpoint, body=body, **fallback_kwargs)
         return resp if isinstance(resp, dict) else {}
 
     # =====================================================================
