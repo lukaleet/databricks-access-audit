@@ -1,0 +1,391 @@
+"""Principal-centric auditor — reverse lookup from user/SP/group.
+
+Answers: "Given this principal, what groups are they in, which workspaces
+can they reach, and what Unity Catalog permissions flow through each group?"
+"""
+
+from __future__ import annotations
+
+import logging
+from collections import deque
+from typing import Dict, List, Optional, Set, Tuple
+
+from databricks_group_audit.client import DatabricksAPIClient
+from databricks_group_audit.models import (
+    EffectivePermission,
+    GroupMembership,
+    MemberType,
+    PrincipalAuditResult,
+    WorkspaceInfo,
+    WorkspaceRole,
+)
+from databricks_group_audit.workspace import WorkspaceDiscovery
+
+log = logging.getLogger(__name__)
+
+
+class PrincipalAuditor:
+    """Audit a single principal's effective access across the account.
+
+    Starting from a user email, service-principal app-ID / display name,
+    or group display name, this class:
+
+    1. Resolves **every group** the principal belongs to (direct + transitive).
+    2. Checks **workspace permission assignments** for each group.
+    3. Scans **Unity Catalog grants** (catalog / schema / table) that flow
+       through those groups.
+    4. Flags **dead-end groups** — memberships that grant no workspace access.
+    """
+
+    def __init__(
+        self,
+        api_client: DatabricksAPIClient,
+        workspace_discovery: Optional[WorkspaceDiscovery] = None,
+        cloud_provider: str = "azure",
+    ):
+        self.api = api_client
+        self.ws_discovery = workspace_discovery or WorkspaceDiscovery(api_client, cloud_provider)
+        self.cloud_provider = cloud_provider.upper()
+
+    # ------------------------------------------------------------------
+    # Step 1 — Identify the principal
+    # ------------------------------------------------------------------
+
+    def find_principal(self, identifier: str) -> Tuple[str, str, str]:
+        """Look up a principal by email, application ID, or display name.
+
+        Returns ``(principal_type, principal_id, display_name)``.
+        Raises ``ValueError`` when no match is found.
+        """
+        identifier = identifier.strip()
+
+        # --- Try User by email ---
+        if "@" in identifier:
+            try:
+                resp = self.api.account_api(
+                    "GET", "/scim/v2/Users",
+                    params={"filter": f'emails.value eq "{identifier}"'},
+                )
+                for u in resp.get("Resources", []):
+                    return "USER", u["id"], u.get("displayName", identifier)
+            except Exception as exc:
+                log.warning("User lookup failed for '%s': %s", identifier, exc)
+
+        # --- Try Service Principal by applicationId or displayName ---
+        for filt in (
+            f'applicationId eq "{identifier}"',
+            f'displayName eq "{identifier}"',
+        ):
+            try:
+                resp = self.api.account_api(
+                    "GET", "/scim/v2/ServicePrincipals",
+                    params={"filter": filt},
+                )
+                for sp in resp.get("Resources", []):
+                    return "SERVICE_PRINCIPAL", sp["id"], sp.get("displayName", identifier)
+            except Exception as exc:
+                log.warning("SP lookup (%s) failed: %s", filt, exc)
+
+        # --- Try Group by displayName ---
+        try:
+            resp = self.api.account_api(
+                "GET", "/scim/v2/Groups",
+                params={"filter": f'displayName eq "{identifier}"'},
+            )
+            for g in resp.get("Resources", []):
+                return "GROUP", g["id"], g.get("displayName", identifier)
+        except Exception as exc:
+            log.warning("Group lookup failed for '%s': %s", identifier, exc)
+
+        raise ValueError(f"Principal '{identifier}' not found as user, SP, or group.")
+
+    # ------------------------------------------------------------------
+    # Step 2 — Reverse group membership (BFS upward)
+    # ------------------------------------------------------------------
+
+    def resolve_group_memberships(
+        self, principal_id: str, principal_type: str, principal_name: str,
+    ) -> Tuple[List[GroupMembership], Dict[str, str]]:
+        """Find every group the principal belongs to.
+
+        Returns ``(memberships, id_to_name_map)``.
+        """
+        all_groups = self.api.scim_list_all("Groups")
+
+        # Build lookup maps
+        id_to_name: Dict[str, str] = {}
+        child_to_parents: Dict[str, Set[str]] = {}  # child_id -> set of parent group_ids
+
+        for g in all_groups:
+            gid = g.get("id", "")
+            gname = g.get("displayName", "")
+            id_to_name[gid] = gname
+            for m in g.get("members", []):
+                cid = m.get("value", "")
+                if cid:
+                    child_to_parents.setdefault(cid, set()).add(gid)
+
+        # Find direct parent groups
+        direct_parent_ids = child_to_parents.get(principal_id, set())
+
+        # BFS upward from direct parents
+        memberships: List[GroupMembership] = []
+        visited: Set[str] = set()
+        queue: deque[Tuple[str, List[str], bool]] = deque()
+
+        for pid in direct_parent_ids:
+            path = [principal_name, id_to_name.get(pid, pid)]
+            queue.append((pid, path, True))
+
+        while queue:
+            gid, path, is_direct = queue.popleft()
+            if gid in visited:
+                continue
+            visited.add(gid)
+            gname = id_to_name.get(gid, gid)
+            memberships.append(GroupMembership(
+                group_id=gid, group_name=gname, path=list(path), is_direct=is_direct,
+            ))
+            for parent_id in child_to_parents.get(gid, set()):
+                if parent_id not in visited:
+                    queue.append((parent_id, path + [id_to_name.get(parent_id, parent_id)], False))
+
+        return memberships, id_to_name
+
+    # ------------------------------------------------------------------
+    # Step 3 — Workspace permission assignments
+    # ------------------------------------------------------------------
+
+    def get_workspace_assignments(
+        self,
+        workspaces: List[WorkspaceInfo],
+        principal_id: str,
+        group_ids: Set[str],
+        id_to_name: Dict[str, str],
+    ) -> List[WorkspaceRole]:
+        """Check each workspace for permission assignments matching the
+        principal or any of their groups."""
+        roles: List[WorkspaceRole] = []
+        relevant_ids = group_ids | {principal_id}
+
+        for ws in workspaces:
+            try:
+                resp = self.api.account_api(
+                    "GET",
+                    f"/workspaces/{ws.workspace_id}/permissionassignments",
+                )
+                for pa in resp.get("permission_assignments", []):
+                    pid = str(pa.get("principal", {}).get("principal_id", ""))
+                    if pid not in relevant_ids:
+                        continue
+                    for perm in pa.get("permissions", []):
+                        via = id_to_name.get(pid, pid)
+                        roles.append(WorkspaceRole(
+                            workspace_id=ws.workspace_id,
+                            workspace_name=ws.workspace_name,
+                            workspace_url=ws.workspace_url,
+                            permission_level=perm,
+                            via_group=via if pid != principal_id else "(direct)",
+                            via_group_id=pid,
+                        ))
+            except Exception as exc:
+                log.warning("Failed to get assignments for workspace %s: %s", ws.workspace_name, exc)
+
+        return roles
+
+    # ------------------------------------------------------------------
+    # Step 4 — Catalog / schema / table permissions per group
+    # ------------------------------------------------------------------
+
+    def scan_permissions(
+        self,
+        workspace_roles: List[WorkspaceRole],
+        principal_name: str,
+        group_names: Set[str],
+        scan_schemas: bool = False,
+        scan_tables: bool = False,
+    ) -> List[EffectivePermission]:
+        """For each workspace the principal can access, scan UC grants
+        and return only those held by the principal or their groups."""
+        perms: List[EffectivePermission] = []
+        relevant = group_names | {principal_name}
+
+        # Deduplicate workspaces (may appear multiple times via different groups)
+        seen_ws: Set[str] = set()
+        scanned_catalogs: Set[str] = set()
+
+        for role in workspace_roles:
+            if role.workspace_url in seen_ws:
+                continue
+            seen_ws.add(role.workspace_url)
+
+            # Catalog-level grants
+            try:
+                catalogs = self.api.workspace_api(
+                    role.workspace_url, "GET", "/api/2.1/unity-catalog/catalogs",
+                ).get("catalogs", [])
+            except Exception:
+                continue
+
+            for cat in catalogs:
+                cname = cat.get("name", "")
+                if cname in scanned_catalogs:
+                    continue
+                scanned_catalogs.add(cname)
+
+                try:
+                    grants = self.api.workspace_api(
+                        role.workspace_url, "GET",
+                        f"/api/2.1/unity-catalog/permissions/catalog/{cname}",
+                    ).get("privilege_assignments", [])
+                except Exception:
+                    continue
+
+                for g in grants:
+                    principal = g.get("principal", "")
+                    privs = g.get("privileges", [])
+                    p_lower = principal.lower()
+                    p_clean = principal.replace("`", "")
+                    if principal in relevant or p_lower in {n.lower() for n in relevant} or p_clean in relevant:
+                        perms.append(EffectivePermission(
+                            securable_type="CATALOG", securable_name=cname,
+                            privileges=privs, via_group=principal,
+                            workspace_name=role.workspace_name,
+                            workspace_url=role.workspace_url,
+                        ))
+
+                # Schema-level grants
+                if scan_schemas or scan_tables:
+                    try:
+                        schemas = self.api.workspace_api(
+                            role.workspace_url, "GET",
+                            "/api/2.1/unity-catalog/schemas",
+                            params={"catalog_name": cname},
+                        ).get("schemas", [])
+                    except Exception:
+                        schemas = []
+
+                    for sch in schemas:
+                        sname = sch.get("name", "")
+                        full_schema = f"{cname}.{sname}"
+                        try:
+                            sgrants = self.api.workspace_api(
+                                role.workspace_url, "GET",
+                                f"/api/2.1/unity-catalog/permissions/schema/{full_schema}",
+                            ).get("privilege_assignments", [])
+                        except Exception:
+                            sgrants = []
+
+                        for sg in sgrants:
+                            principal = sg.get("principal", "")
+                            privs = sg.get("privileges", [])
+                            if principal in relevant or principal.replace("`", "") in relevant:
+                                perms.append(EffectivePermission(
+                                    securable_type="SCHEMA", securable_name=full_schema,
+                                    privileges=privs, via_group=principal,
+                                    workspace_name=role.workspace_name,
+                                    workspace_url=role.workspace_url,
+                                ))
+
+                        # Table-level grants
+                        if scan_tables:
+                            try:
+                                tables = self.api.workspace_api(
+                                    role.workspace_url, "GET",
+                                    "/api/2.1/unity-catalog/tables",
+                                    params={"catalog_name": cname, "schema_name": sname},
+                                ).get("tables", [])
+                            except Exception:
+                                tables = []
+
+                            for tbl in tables:
+                                tname = tbl.get("name", "")
+                                full_table = f"{cname}.{sname}.{tname}"
+                                try:
+                                    tgrants = self.api.workspace_api(
+                                        role.workspace_url, "GET",
+                                        f"/api/2.1/unity-catalog/permissions/table/{full_table}",
+                                    ).get("privilege_assignments", [])
+                                except Exception:
+                                    tgrants = []
+
+                                for tg in tgrants:
+                                    principal = tg.get("principal", "")
+                                    privs = tg.get("privileges", [])
+                                    if principal in relevant or principal.replace("`", "") in relevant:
+                                        perms.append(EffectivePermission(
+                                            securable_type="TABLE", securable_name=full_table,
+                                            privileges=privs, via_group=principal,
+                                            workspace_name=role.workspace_name,
+                                            workspace_url=role.workspace_url,
+                                        ))
+
+        return perms
+
+    # ------------------------------------------------------------------
+    # Orchestrator
+    # ------------------------------------------------------------------
+
+    def audit(
+        self,
+        identifier: str,
+        explicit_workspace_urls: str = "",
+        scan_schemas: bool = False,
+        scan_tables: bool = False,
+    ) -> PrincipalAuditResult:
+        """Run a full principal audit.
+
+        Parameters
+        ----------
+        identifier:
+            User email, SP application ID / display name, or group name.
+        explicit_workspace_urls:
+            Comma-separated workspace URLs (empty = discover all).
+        scan_schemas:
+            Also scan schema-level grants.
+        scan_tables:
+            Also scan table/view-level grants (implies schema scan).
+        """
+        # 1. Identify
+        ptype, pid, pname = self.find_principal(identifier)
+        log.info("Principal: %s (%s, id=%s)", pname, ptype, pid)
+
+        # 2. Resolve group memberships
+        memberships, id_to_name = self.resolve_group_memberships(pid, ptype, pname)
+        group_ids = {m.group_id for m in memberships}
+        group_names = {m.group_name for m in memberships}
+        log.info("Found %d group membership(s)", len(memberships))
+
+        # 3. Discover workspaces
+        workspaces = self.ws_discovery.discover(explicit_workspace_urls)
+
+        # 4. Workspace assignments
+        ws_roles = self.get_workspace_assignments(workspaces, pid, group_ids, id_to_name)
+        log.info("Found %d workspace role(s)", len(ws_roles))
+
+        # 5. Dead-end groups — memberships with no workspace access
+        groups_with_access = {
+            r.via_group_id for r in ws_roles if r.via_group != "(direct)"
+        }
+        dead_ends = [
+            m.group_name for m in memberships
+            if m.group_id not in groups_with_access
+        ]
+
+        # 6. Scan UC permissions
+        perms = self.scan_permissions(
+            ws_roles, pname, group_names,
+            scan_schemas=scan_schemas or scan_tables,
+            scan_tables=scan_tables,
+        )
+        log.info("Found %d UC permission(s)", len(perms))
+
+        return PrincipalAuditResult(
+            principal_type=ptype,
+            principal_id=pid,
+            principal_name=pname,
+            groups=memberships,
+            workspace_roles=ws_roles,
+            permissions=perms,
+            dead_end_groups=dead_ends,
+        )

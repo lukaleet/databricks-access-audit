@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "databricks-group-audit"
-version = "0.1.0"
+version = "0.2.0"
 description = "Audit Databricks group membership and Unity Catalog permissions across workspaces."
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -12,7 +12,7 @@ requires-python = ">=3.9"
 authors = [
     {name = "Lukasz Maron"},
 ]
-keywords = ["databricks", "unity-catalog", "scim", "audit", "permissions", "security"]
+keywords = ["databricks", "unity-catalog", "scim", "audit", "permissions", "security", "principal"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: System Administrators",

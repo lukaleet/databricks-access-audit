@@ -134,3 +134,50 @@ class RedundancyResult:
     additional_privileges: List[str]
     redundancy_level: RedundancyLevel
     recommendation: str
+
+
+# ---------------------------------------------------------------------------
+# Principal audit models (reverse / "who can access what" perspective)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class GroupMembership:
+    """A group that a principal belongs to."""
+    group_id: str
+    group_name: str
+    path: List[str] = field(default_factory=list)
+    is_direct: bool = True
+
+
+@dataclass
+class WorkspaceRole:
+    """A workspace assignment granted through a group (or directly)."""
+    workspace_id: str
+    workspace_name: str
+    workspace_url: str
+    permission_level: str  # USER, ADMIN
+    via_group: str  # group name that provides this access
+    via_group_id: str = ""
+
+
+@dataclass
+class EffectivePermission:
+    """A Unity Catalog permission traced to the group that grants it."""
+    securable_type: str  # CATALOG, SCHEMA, TABLE
+    securable_name: str  # e.g. "main", "main.default", "main.default.orders"
+    privileges: List[str] = field(default_factory=list)
+    via_group: str = ""  # group name holding the grant
+    workspace_name: str = ""
+    workspace_url: str = ""
+
+
+@dataclass
+class PrincipalAuditResult:
+    """Complete audit for a single principal (user, SP, or group)."""
+    principal_type: str  # USER, SERVICE_PRINCIPAL, GROUP
+    principal_id: str
+    principal_name: str  # email or display name
+    groups: List[GroupMembership] = field(default_factory=list)
+    workspace_roles: List[WorkspaceRole] = field(default_factory=list)
+    permissions: List[EffectivePermission] = field(default_factory=list)
+    dead_end_groups: List[str] = field(default_factory=list)
