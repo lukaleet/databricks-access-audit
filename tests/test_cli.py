@@ -262,6 +262,7 @@ def test_principal_audit_not_found_returns_error(capsys):
     with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/v1/token",
                  json={"access_token": "mock-token", "expires_in": 3600})
+        rsps.add(responses_lib.GET, f"{base}/workspaces", json=[])
         for resource in ("Users", "ServicePrincipals", "Groups"):
             rsps.add(responses_lib.GET, f"{base}/scim/v2/{resource}",
                      json={"Resources": [], "totalResults": 0, "itemsPerPage": 100})

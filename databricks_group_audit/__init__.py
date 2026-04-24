@@ -45,6 +45,7 @@ from databricks_group_audit.redundancy import RedundancyDetector
 from databricks_group_audit.revoke import RevokeScriptGenerator
 from databricks_group_audit._classification import classify_grant, build_member_lookups
 from databricks_group_audit.principal_auditor import PrincipalAuditor
+from databricks_group_audit.elevate import PermissionElevator
 
 # Optional SDK client — only available when databricks-sdk is installed
 try:
@@ -69,6 +70,7 @@ __all__ = [
     "RedundancyDetector",
     "RevokeScriptGenerator",
     "PrincipalAuditor",
+    "PermissionElevator",
     # Models
     "MemberType",
     "GroupMember",

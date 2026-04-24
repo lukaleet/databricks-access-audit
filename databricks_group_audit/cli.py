@@ -66,6 +66,26 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     p.add_argument("--retry-base-delay", type=float, default=1.0)
     p.add_argument("--retry-max-delay", type=float, default=60.0)
 
+    # Permission elevation
+    p.add_argument(
+        "--auto-elevate",
+        action="store_true",
+        help=(
+            "Temporarily grant the audit SP Workspace Admin on any workspace "
+            "where it lacks that role, then restore the prior state after the "
+            "audit completes (success or failure).  Requires Account Admin. "
+            "Metastore Admin must still be granted manually."
+        ),
+    )
+    p.add_argument(
+        "--dry-run-elevation",
+        action="store_true",
+        help=(
+            "Preview which workspaces would be elevated (--auto-elevate) without "
+            "writing any permission changes.  Implies --auto-elevate."
+        ),
+    )
+
     return p.parse_args(argv)
 
 
@@ -85,6 +105,44 @@ def _build_client(args: argparse.Namespace) -> Any:
     )
 
 
+def _elevation_context(args: argparse.Namespace, client: Any, workspaces: List):
+    """Return a configured PermissionElevator, or a no-op context when not needed."""
+    import contextlib
+    from databricks_group_audit.elevate import PermissionElevator
+
+    use_elevation = args.auto_elevate or args.dry_run_elevation
+    if not use_elevation:
+        return contextlib.nullcontext(None)
+
+    dry_run = args.dry_run_elevation
+    if dry_run:
+        print("Permission elevation: DRY RUN — no changes will be written.")
+    else:
+        print("Permission elevation enabled — temporary Workspace Admin grants will be applied.")
+
+    elevator = PermissionElevator(client, args.client_id, dry_run=dry_run)
+    elevator.__enter__()
+
+    for ws in workspaces:
+        elevator.ensure_workspace_admin(ws.workspace_id, ws.workspace_name)
+
+    # Return a context that only runs __exit__ (entry already done above).
+    return _AlreadyEnteredContext(elevator)
+
+
+class _AlreadyEnteredContext:
+    """Wrap an already-entered context manager so `with` only calls __exit__."""
+
+    def __init__(self, inner: Any) -> None:
+        self._inner = inner
+
+    def __enter__(self) -> Any:
+        return self._inner
+
+    def __exit__(self, *args: Any) -> bool:
+        return self._inner.__exit__(*args)
+
+
 def _run_principal_audit(args: argparse.Namespace) -> int:
     """Run the principal-centric audit."""
     from databricks_group_audit.workspace import WorkspaceDiscovery
@@ -94,14 +152,18 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
     ws_disc = WorkspaceDiscovery(client, cloud_provider=args.cloud)
     auditor = PrincipalAuditor(client, workspace_discovery=ws_disc, cloud_provider=args.cloud)
 
+    # Discover workspaces up-front so we can elevate before scanning.
+    workspaces = ws_disc.discover(args.workspace_urls)
+
     print(f"Auditing principal: {args.principal} ...")
     try:
-        result = auditor.audit(
-            identifier=args.principal,
-            explicit_workspace_urls=args.workspace_urls,
-            scan_schemas=args.scan_schemas,
-            scan_tables=args.scan_tables,
-        )
+        with _elevation_context(args, client, workspaces):
+            result = auditor.audit(
+                identifier=args.principal,
+                explicit_workspace_urls=args.workspace_urls,
+                scan_schemas=args.scan_schemas,
+                scan_tables=args.scan_tables,
+            )
     except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
@@ -184,29 +246,32 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     print(f"  Scanning {len(workspaces)} workspace(s)")
 
     cat_scanner = CatalogPermissionScanner(client, resolver)
-    catalog_grants = cat_scanner.scan_all_workspaces(workspaces, args.group, group_node, members)
-    print(f"  Found {len(catalog_grants)} catalog grant(s)")
 
     schema_grants: List = []
-    if args.scan_schemas or args.scan_tables:
-        sch_scanner = SchemaPermissionScanner(client)
-        upstream = cat_scanner.get_groups_containing_target(args.group)
-        accessible = {(g.catalog_name, g.workspace_url) for g in catalog_grants
-                      if g.grant_source in (GrantSource.DIRECT, GrantSource.UPSTREAM)}
-        for cat_name, ws_url in accessible:
-            ws = WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), "")
-            schema_grants.extend(sch_scanner.scan_schemas(ws, cat_name, args.group, members, upstream))
-        print(f"  Found {len(schema_grants)} schema grant(s)")
-
     table_grants: List = []
-    if args.scan_tables:
-        tbl_scanner = TablePermissionScanner(client)
-        for cat_name, ws_url in accessible:
-            ws = WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), "")
-            for sch in sch_scanner.get_schemas(ws, cat_name):
-                sname = sch.get("name", "")
-                table_grants.extend(tbl_scanner.scan_tables(ws, cat_name, sname, args.group, members, upstream))
-        print(f"  Found {len(table_grants)} table grant(s)")
+
+    with _elevation_context(args, client, workspaces):
+        catalog_grants = cat_scanner.scan_all_workspaces(workspaces, args.group, group_node, members)
+        print(f"  Found {len(catalog_grants)} catalog grant(s)")
+
+        if args.scan_schemas or args.scan_tables:
+            sch_scanner = SchemaPermissionScanner(client)
+            upstream = cat_scanner.get_groups_containing_target(args.group)
+            accessible = {(g.catalog_name, g.workspace_url) for g in catalog_grants
+                          if g.grant_source in (GrantSource.DIRECT, GrantSource.UPSTREAM)}
+            for cat_name, ws_url in accessible:
+                ws = WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), "")
+                schema_grants.extend(sch_scanner.scan_schemas(ws, cat_name, args.group, members, upstream))
+            print(f"  Found {len(schema_grants)} schema grant(s)")
+
+        if args.scan_tables:
+            tbl_scanner = TablePermissionScanner(client)
+            for cat_name, ws_url in accessible:
+                ws = WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), "")
+                for sch in sch_scanner.get_schemas(ws, cat_name):
+                    sname = sch.get("name", "")
+                    table_grants.extend(tbl_scanner.scan_tables(ws, cat_name, sname, args.group, members, upstream))
+            print(f"  Found {len(table_grants)} table grant(s)")
 
     detector = RedundancyDetector()
     redundancy = detector.detect_redundancy(catalog_grants, args.group)

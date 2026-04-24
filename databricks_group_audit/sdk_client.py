@@ -200,9 +200,13 @@ class DatabricksSDKClient:
             }
 
         # --- Fallback: raw API via SDK's internal HTTP client ------------
+        # The SDK's api_client.do() uses body= for request payload, while the
+        # rest of the codebase passes json= (requests-style).  Convert here.
         log.debug("SDK fallback to raw API: %s %s", method, endpoint)
         url = f"/api/2.0/accounts/{self.account_id}{endpoint}"
-        resp = self._account.api_client.do(method, url, **kwargs)
+        fallback_kwargs = dict(kwargs)
+        body = fallback_kwargs.pop("json", None)
+        resp = self._account.api_client.do(method, url, body=body, **fallback_kwargs)
         return resp if isinstance(resp, dict) else {}
 
     # =====================================================================

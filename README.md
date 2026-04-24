@@ -149,11 +149,80 @@ Output:
   --output             text | json  (default: text)
   --revoke-script      Print REVOKE SQL for redundant grants (group audit only)
 
+Permission elevation:
+  --auto-elevate       Temporarily grant the audit SP Workspace Admin on any
+                       workspace where it lacks that role, then restore the
+                       prior state after the audit completes (success or
+                       failure).  Requires Account Admin.  Metastore Admin
+                       must still be granted manually.
+  --dry-run-elevation  Preview which workspaces would be elevated without
+                       writing any permission changes.  Implies --auto-elevate.
+
 Client:
   --no-sdk             Force raw HTTP client even if databricks-sdk is installed
   --max-retries        Retry attempts on 429/5xx (default: 5; raw client only)
   --retry-base-delay   Base delay in seconds (default: 1.0)
   --retry-max-delay    Maximum delay cap in seconds (default: 60.0)
+```
+
+## Just-in-Time Permission Elevation
+
+Getting Workspace Admin on every workspace is a hard prerequisite for a full audit but granting it permanently can be undesirable. The `--auto-elevate` flag automates the lifecycle:
+
+1. **Before the audit** — for each workspace where the SP lacks Workspace Admin, the tool calls the Account API to grant it temporarily.
+2. **During the audit** — all workspace and Unity Catalog APIs are called with Workspace Admin in place.
+3. **After the audit** — regardless of whether the audit succeeded or failed, the tool restores each workspace to its prior state:
+   - If the SP had **no assignment** before elevation, the assignment is **deleted**.
+   - If the SP had a **USER-level** assignment before elevation, it is **restored to USER**.
+
+This cleanup guarantee is implemented as a context manager `__exit__`, so it runs unconditionally even if the audit raises an exception.
+
+### Usage
+
+```bash
+# Elevate automatically, then restore
+databricks-group-audit --group "data-engineers" --cloud azure --auto-elevate
+
+# Preview which workspaces would be elevated (no writes)
+databricks-group-audit --group "data-engineers" --cloud azure --dry-run-elevation
+```
+
+### Scope and limitations
+
+| What is managed | How |
+|---|---|
+| **Workspace Admin** | Granted temporarily per-workspace; restored after the audit |
+| **Metastore Admin** | **Not managed.** Must be granted manually before running the tool |
+| **Account Admin** | **Not managed.** Hard prerequisite — must be in place before using `--auto-elevate` |
+
+The SP can only be elevated on workspaces discovered through the Account API (workspaces with a known numeric workspace ID). Workspaces supplied via `--workspace-urls` have no known ID and are skipped with a warning — the SP must already be a Workspace Admin on those.
+
+If cleanup fails (e.g. due to a network error), the tool:
+- Logs an ERROR with explicit manual revocation instructions (workspace name, SP SCIM ID, and the `DELETE /permissionassignments/principals/{id}` endpoint to call).
+- Raises `RuntimeError` so the failure is never silently swallowed.
+
+### Programmatic usage
+
+```python
+from databricks_group_audit import create_client, PermissionElevator, WorkspaceDiscovery
+
+client = create_client(cloud="azure", client_id="...",
+                       client_secret="...", account_id="...")
+workspaces = WorkspaceDiscovery(client, "azure").discover()
+
+with PermissionElevator(client, sp_application_id="<client-id>") as elev:
+    for ws in workspaces:
+        elev.ensure_workspace_admin(ws.workspace_id, ws.workspace_name)
+    # ... run audit ...
+# prior workspace assignments are restored here, success or failure
+```
+
+Dry-run mode (preview only, no writes):
+
+```python
+with PermissionElevator(client, sp_application_id="<client-id>", dry_run=True) as elev:
+    for ws in workspaces:
+        elev.ensure_workspace_admin(ws.workspace_id, ws.workspace_name)
 ```
 
 ## Python API
@@ -351,7 +420,8 @@ databricks_group_audit/
 ├── _classification.py     # classify_grant() and build_member_lookups() shared helpers
 ├── redundancy.py          # Privilege hierarchy expansion and redundancy detection
 ├── revoke.py              # REVOKE SQL generation from RedundancyResult objects
-└── principal_auditor.py   # BFS reverse-lookup from user/SP/group
+├── principal_auditor.py   # BFS reverse-lookup from user/SP/group
+└── elevate.py             # Just-in-time Workspace Admin elevation with cleanup guarantee
 ```
 
 **Client protocol:** `AuditClient` is a structural `Protocol` in `client.py`. Both `DatabricksAPIClient` and `DatabricksSDKClient` satisfy it — all scanners, resolvers, and the auditor accept either backend without modification.
