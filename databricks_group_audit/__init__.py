@@ -16,6 +16,7 @@ __version__ = "0.3.0"
 
 from databricks_group_audit.models import (
     MemberType,
+    PrincipalSource,
     GroupMember,
     GroupNode,
     WorkspaceInfo,
@@ -62,6 +63,7 @@ except ImportError:
     SDK_AVAILABLE = False
 
 __all__ = [
+    "PrincipalSource",
     # Clients
     "AuditClient",
     "DatabricksAPIClient",

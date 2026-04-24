@@ -444,6 +444,60 @@ databricks_group_audit/
 
 **SCIM performance:** `GroupMembershipResolver` bulk-fetches all users and service principals in two paginated calls before resolving individual members, avoiding N+1 API calls. For accounts with fewer than ~10 000 users this is significantly faster than per-member lookups.
 
+## Identity Source Tagging (Internal vs. IdP-Synced)
+
+Every user, service principal, and group in Databricks has an origin: either it was created directly inside Databricks (*Databricks-managed / internal*) or it was provisioned by an external identity provider via SCIM (*IdP-synced / external*).
+
+The tool reads the SCIM `externalId` field — the standard SCIM indicator for IdP-provisioned principals — and tags every member accordingly.
+
+| Source | Indicator | Examples |
+|---|---|---|
+| **IdP-synced** (`external`) | `externalId` present and non-empty | Users/groups from Azure Entra ID, Okta, AWS IAM Identity Center, OneLogin |
+| **Databricks-managed** (`internal`) | `externalId` absent or empty | Accounts created in the Databricks UI, OAuth service principals, programmatically created SPs |
+
+### Group audit output
+
+```
+  Users: 12 (8 IdP-synced, 4 Databricks-managed)  |  SPs: 2 (0 IdP-synced, 2 Databricks-managed)
+```
+
+JSON output adds `users_external`, `users_internal`, `sps_external`, `sps_internal` to the group audit result.
+
+### Principal audit output
+
+```
+  Principal: alice@example.com (USER, external)
+
+  Group memberships (3, 2 IdP-synced, 1 Databricks-managed):
+    * data-engineers (direct, external)
+    - all-data-team (transitive, external)
+    - local-admins (transitive, internal)
+```
+
+JSON output adds `"source": "external"/"internal"` to each group in the `groups` array and a top-level `"principal_source"` field.
+
+### Why this matters
+
+* **Shadow accounts**: Internal (Databricks-managed) users that don't correspond to any IdP identity may be orphaned service accounts, test accounts, or users who bypassed the provisioning process.
+* **IdP off-boarding gaps**: If an IdP user was removed from the IdP but their Databricks account wasn't deprovisioned, they'll appear as `internal` (no longer externally managed).
+* **Compliance**: Many security policies require that all human users be provisioned through the corporate IdP. Internal users are exceptions that need justification.
+* **Migration readiness**: Accounts mid-migration to Unity Catalog need all groups to be `external` (account-level, IdP-managed) — `internal` groups are candidates for migration.
+
+### Python API
+
+The `source` property is available on `GroupMember`, `GroupNode`, `GroupMembership`, and the `principal_source` property on `PrincipalAuditResult`:
+
+```python
+from databricks_group_audit import PrincipalSource
+
+node = resolver.resolve_group("data-engineers")
+members = resolver.get_all_members_flat(node)
+
+external = [u for u in members["users"] if u.source == PrincipalSource.EXTERNAL]
+internal = [u for u in members["users"] if u.source == PrincipalSource.INTERNAL]
+print(f"{len(external)} IdP-synced, {len(internal)} Databricks-managed")
+```
+
 ## Privilege Escalation Detection
 
 The `--escalation-check` flag adds a security pass to the principal audit.  After collecting all effective permissions it flags any grant that contains `ALL_PRIVILEGES` or `MANAGE` — the two privileges that represent meaningful escalation vectors in Unity Catalog:

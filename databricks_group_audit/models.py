@@ -17,6 +17,26 @@ class MemberType(Enum):
     GROUP = "Group"
 
 
+class PrincipalSource(Enum):
+    """Origin of a Databricks principal (user, SP, or group).
+
+    ``EXTERNAL`` means the principal was provisioned by an external identity
+    provider (Azure Entra ID, Okta, AWS SSO, etc.) via SCIM — indicated by a
+    non-empty ``externalId`` field in the SCIM response.
+
+    ``INTERNAL`` means the principal was created directly inside Databricks
+    (the SCIM ``externalId`` field is absent or empty).  This includes
+    Databricks OAuth service principals and manually created accounts.
+    """
+    EXTERNAL = "external"   # has SCIM externalId → provisioned by an IdP
+    INTERNAL = "internal"   # no externalId       → Databricks-managed
+
+
+def _source_from_external_id(external_id: Optional[str]) -> PrincipalSource:
+    """Return :class:`PrincipalSource` based on whether ``externalId`` is set."""
+    return PrincipalSource.EXTERNAL if external_id else PrincipalSource.INTERNAL
+
+
 @dataclass
 class GroupMember:
     """A single member (user or service principal) of a group."""
@@ -26,6 +46,13 @@ class GroupMember:
     email: Optional[str] = None
     application_id: Optional[str] = None
     parent_groups: List[str] = field(default_factory=list)
+    # SCIM externalId — non-empty when provisioned by an external IdP.
+    external_id: Optional[str] = None
+
+    @property
+    def source(self) -> PrincipalSource:
+        """Whether this member is IdP-synced or Databricks-managed."""
+        return _source_from_external_id(self.external_id)
 
 
 @dataclass
@@ -37,6 +64,13 @@ class GroupNode:
     direct_service_principals: List[GroupMember] = field(default_factory=list)
     nested_groups: Dict[str, GroupNode] = field(default_factory=dict)
     parent_path: List[str] = field(default_factory=list)
+    # SCIM externalId — non-empty when provisioned by an external IdP.
+    external_id: Optional[str] = None
+
+    @property
+    def source(self) -> PrincipalSource:
+        """Whether this group is IdP-synced or Databricks-managed."""
+        return _source_from_external_id(self.external_id)
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +181,12 @@ class GroupMembership:
     group_name: str
     path: List[str] = field(default_factory=list)
     is_direct: bool = True
+    # SCIM externalId of the group — non-empty when provisioned by an IdP.
+    external_id: Optional[str] = None
+
+    @property
+    def source(self) -> "PrincipalSource":
+        return _source_from_external_id(self.external_id)
 
 
 @dataclass
@@ -182,6 +222,12 @@ class PrincipalAuditResult:
     permissions: List[EffectivePermission] = field(default_factory=list)
     dead_end_groups: List[str] = field(default_factory=list)
     escalation_findings: List["EscalationFinding"] = field(default_factory=list)
+    # SCIM externalId of the principal — non-empty when provisioned by an IdP.
+    principal_external_id: Optional[str] = None
+
+    @property
+    def principal_source(self) -> "PrincipalSource":
+        return _source_from_external_id(self.principal_external_id)
 
 
 # ---------------------------------------------------------------------------

@@ -278,6 +278,7 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
             "timestamp": datetime.now().isoformat(),
             "groups": [{
                 "name": g.group_name, "direct": g.is_direct, "path": g.path,
+                "source": g.source.value,
             } for g in result.groups],
             "workspace_roles": [{
                 "workspace": r.workspace_name, "permission": r.permission_level,
@@ -289,6 +290,7 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
                 "workspace": p.workspace_name,
             } for p in result.permissions],
             "dead_end_groups": result.dead_end_groups,
+        "principal_source": result.principal_source.value,
         }
         if args.escalation_check:
             out["escalation_findings"] = [{
@@ -307,14 +309,20 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
             } for f in local_findings]
         print(json.dumps(out, indent=2))
     else:
+        p_src = result.principal_source.value
+        ext_groups = sum(1 for g in result.groups if g.external_id)
+        int_groups = len(result.groups) - ext_groups
+
         print(f"\n{'='*60}")
-        print(f"  Principal: {result.principal_name} ({result.principal_type})")
+        print(f"  Principal: {result.principal_name} ({result.principal_type}, {p_src})")
         print(f"{'='*60}")
 
-        print(f"\n  Group memberships ({len(result.groups)}):")
+        print(f"\n  Group memberships ({len(result.groups)}, "
+              f"{ext_groups} IdP-synced, {int_groups} Databricks-managed):")
         for g in result.groups:
             tag = "direct" if g.is_direct else "transitive"
-            print(f"    {'*' if g.is_direct else '-'} {g.group_name} ({tag})")
+            src_tag = g.source.value
+            print(f"    {'*' if g.is_direct else '-'} {g.group_name} ({tag}, {src_tag})")
             print(f"      path: {' -> '.join(g.path)}")
 
         print(f"\n  Workspace access ({len(result.workspace_roles)}):")
@@ -420,12 +428,19 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     # Optional: workspace-local group check
     local_findings = _run_local_group_check(args, client, workspaces)
 
+    ext_users = sum(1 for u in members["users"] if u.external_id)
+    ext_sps = sum(1 for sp in members["service_principals"] if sp.external_id)
+
     if args.output == "json":
         result: Dict[str, Any] = {
             "group": args.group,
             "timestamp": datetime.now().isoformat(),
             "users": len(members["users"]),
+            "users_external": ext_users,
+            "users_internal": len(members["users"]) - ext_users,
             "service_principals": len(members["service_principals"]),
+            "sps_external": ext_sps,
+            "sps_internal": len(members["service_principals"]) - ext_sps,
             "catalog_grants": len(catalog_grants),
             "schema_grants": len(schema_grants),
             "table_grants": len(table_grants),
@@ -448,9 +463,15 @@ def _run_group_audit(args: argparse.Namespace) -> int:
             } for f in local_findings]
         print(json.dumps(result, indent=2))
     else:
+        int_users = len(members["users"]) - ext_users
+        int_sps = len(members["service_principals"]) - ext_sps
+
         print(f"\n{'='*60}")
         print(f"  Audit complete for group: {args.group}")
-        print(f"  Users: {len(members['users'])}  |  SPs: {len(members['service_principals'])}")
+        print(f"  Users: {len(members['users'])} "
+              f"({ext_users} IdP-synced, {int_users} Databricks-managed)"
+              f"  |  SPs: {len(members['service_principals'])} "
+              f"({ext_sps} IdP-synced, {int_sps} Databricks-managed)")
         print(f"  Catalog grants: {len(catalog_grants)}  |  Schema: {len(schema_grants)}  |  Table: {len(table_grants)}")
         full = sum(1 for r in redundancy if r.redundancy_level.value == "Full")
         partial = sum(1 for r in redundancy if r.redundancy_level.value == "Partial")

@@ -52,10 +52,12 @@ class PrincipalAuditor:
     # Step 1 — Identify the principal
     # ------------------------------------------------------------------
 
-    def find_principal(self, identifier: str) -> Tuple[str, str, str]:
+    def find_principal(self, identifier: str) -> Tuple[str, str, str, Optional[str]]:
         """Look up a principal by email, application ID, or display name.
 
-        Returns ``(principal_type, principal_id, display_name)``.
+        Returns ``(principal_type, principal_id, display_name, external_id)``.
+        ``external_id`` is the SCIM ``externalId`` field — non-empty when the
+        principal was provisioned by an external IdP.
         Raises ``ValueError`` when no match is found.
         """
         identifier = identifier.strip()
@@ -68,7 +70,8 @@ class PrincipalAuditor:
                     params={"filter": f'emails.value eq "{identifier}"'},
                 )
                 for u in resp.get("Resources", []):
-                    return "USER", u["id"], u.get("displayName", identifier)
+                    return ("USER", u["id"], u.get("displayName", identifier),
+                            u.get("externalId") or None)
             except Exception as exc:
                 log.warning("User lookup failed for '%s': %s", identifier, exc)
 
@@ -83,7 +86,8 @@ class PrincipalAuditor:
                     params={"filter": filt},
                 )
                 for sp in resp.get("Resources", []):
-                    return "SERVICE_PRINCIPAL", sp["id"], sp.get("displayName", identifier)
+                    return ("SERVICE_PRINCIPAL", sp["id"], sp.get("displayName", identifier),
+                            sp.get("externalId") or None)
             except Exception as exc:
                 log.warning("SP lookup (%s) failed: %s", filt, exc)
 
@@ -94,7 +98,8 @@ class PrincipalAuditor:
                 params={"filter": f'displayName eq "{identifier}"'},
             )
             for g in resp.get("Resources", []):
-                return "GROUP", g["id"], g.get("displayName", identifier)
+                return ("GROUP", g["id"], g.get("displayName", identifier),
+                        g.get("externalId") or None)
         except Exception as exc:
             log.warning("Group lookup failed for '%s': %s", identifier, exc)
 
@@ -114,12 +119,14 @@ class PrincipalAuditor:
         all_groups = self.api.scim_list_all("Groups")
 
         id_to_name: Dict[str, str] = {}
+        id_to_external: Dict[str, Optional[str]] = {}
         child_to_parents: Dict[str, Set[str]] = {}
 
         for g in all_groups:
             gid = g.get("id", "")
             gname = g.get("displayName", "")
             id_to_name[gid] = gname
+            id_to_external[gid] = g.get("externalId") or None
             for m in g.get("members", []):
                 cid = m.get("value", "")
                 if cid:
@@ -143,6 +150,7 @@ class PrincipalAuditor:
             gname = id_to_name.get(gid, gid)
             memberships.append(GroupMembership(
                 group_id=gid, group_name=gname, path=list(path), is_direct=is_direct,
+                external_id=id_to_external.get(gid),
             ))
             for parent_id in child_to_parents.get(gid, set()):
                 if parent_id not in visited:
@@ -366,8 +374,9 @@ class PrincipalAuditor:
             Also scan table/view-level grants (implies schema scan).
         """
         # 1. Identify
-        ptype, pid, pname = self.find_principal(identifier)
-        log.info("Principal: %s (%s, id=%s)", pname, ptype, pid)
+        ptype, pid, pname, p_ext_id = self.find_principal(identifier)
+        log.info("Principal: %s (%s, id=%s, source=%s)", pname, ptype, pid,
+                 "external" if p_ext_id else "internal")
 
         # 2. Resolve group memberships
         memberships, id_to_name = self.resolve_group_memberships(pid, ptype, pname)
@@ -425,6 +434,7 @@ class PrincipalAuditor:
             principal_type=ptype,
             principal_id=pid,
             principal_name=pname,
+            principal_external_id=p_ext_id,
             groups=memberships,
             workspace_roles=ws_roles,
             permissions=perms,

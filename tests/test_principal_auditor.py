@@ -136,7 +136,7 @@ class TestFindPrincipal:
     def test_find_user_by_email(self, mock_client):
         _add_scim_endpoints(responses)
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
-        ptype, pid, name = auditor.find_principal("alice@example.com")
+        ptype, pid, name, _ext_id = auditor.find_principal("alice@example.com")
         assert ptype == "USER"
         assert pid == "user-1"
         assert name == "Alice Smith"
@@ -145,7 +145,7 @@ class TestFindPrincipal:
     def test_find_sp_by_app_id(self, mock_client):
         _add_scim_endpoints(responses)
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
-        ptype, pid, name = auditor.find_principal("app-etl-001")
+        ptype, pid, name, _ext_id = auditor.find_principal("app-etl-001")
         assert ptype == "SERVICE_PRINCIPAL"
         assert pid == "sp-1"
         assert name == "ETL-Bot"
@@ -154,7 +154,7 @@ class TestFindPrincipal:
     def test_find_sp_by_display_name(self, mock_client):
         _add_scim_endpoints(responses)
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
-        ptype, pid, name = auditor.find_principal("ETL-Bot")
+        ptype, pid, name, _ext_id = auditor.find_principal("ETL-Bot")
         assert ptype == "SERVICE_PRINCIPAL"
         assert pid == "sp-1"
 
@@ -162,7 +162,7 @@ class TestFindPrincipal:
     def test_find_group_by_name(self, mock_client):
         _add_scim_endpoints(responses)
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
-        ptype, pid, name = auditor.find_principal("data-engineers")
+        ptype, pid, name, _ext_id = auditor.find_principal("data-engineers")
         # "data-engineers" has no @ so User lookup is skipped; SP lookup fails;
         # but SP by displayName may match first if SP has that name. Since no SP
         # named "data-engineers" exists, it falls through to group.

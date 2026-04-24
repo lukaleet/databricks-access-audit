@@ -122,7 +122,12 @@ class GroupMembershipResolver:
             return None
 
         group_name = group_data.get("displayName", group_id)
-        node = GroupNode(id=group_id, display_name=group_name, parent_path=list(parent_path))
+        node = GroupNode(
+            id=group_id,
+            display_name=group_name,
+            parent_path=list(parent_path),
+            external_id=group_data.get("externalId") or None,
+        )
 
         current_path = parent_path + [group_name]
         for member in group_data.get("members", []):
@@ -133,29 +138,34 @@ class GroupMembershipResolver:
             if "Users/" in ref:
                 user_data = self._get_user_by_id(mid)
                 email = None
+                external_id = None
                 if user_data:
                     emails = user_data.get("emails", [])
-                    email = None
                     for _e in emails:
                         v = _e.get("value")
                         if v and (_e.get("primary") or email is None):
                             email = v
                     display = user_data.get("displayName", display)
+                    external_id = user_data.get("externalId") or None
                 node.direct_users.append(
                     GroupMember(id=mid, display_name=display, member_type=MemberType.USER,
-                                email=email, parent_groups=list(current_path))
+                                email=email, parent_groups=list(current_path),
+                                external_id=external_id)
                 )
 
             elif "ServicePrincipals/" in ref:
                 sp_data = self._get_sp_by_id(mid)
                 app_id = None
+                external_id = None
                 if sp_data:
                     app_id = sp_data.get("applicationId")
                     display = sp_data.get("displayName", display)
+                    external_id = sp_data.get("externalId") or None
                 node.direct_service_principals.append(
                     GroupMember(id=mid, display_name=display,
                                 member_type=MemberType.SERVICE_PRINCIPAL,
-                                application_id=app_id, parent_groups=list(current_path))
+                                application_id=app_id, parent_groups=list(current_path),
+                                external_id=external_id)
                 )
 
             elif "Groups/" in ref:
