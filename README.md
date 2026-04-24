@@ -3,16 +3,16 @@
 > Audit Databricks group membership and Unity Catalog permissions across all workspaces in your account.
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
-[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE.py)
 
 ## Why?
 
-Databricks admins have no single tool to answer:
+Databricks provides per-object SQL commands (`SHOW GRANTS ON CATALOG ...`) and a basic account console UI, but no single tool to answer:
 
 - *"What can this group actually access across all workspaces?"*
 - *"Are there personal grants that duplicate what the group already provides?"*
-- *"Which users have the most individual catalog-level grants?"*
 - *"What can a specific user, SP, or group access across the entire account?"*
+- *"Which users have individual catalog grants that are fully covered by their group membership?"*
 
 This tool fills that gap with two complementary audit modes:
 
@@ -21,145 +21,72 @@ This tool fills that gap with two complementary audit modes:
 | **Group audit** | `--group "data-engineers"` | What does this group see, and who has redundant personal grants? |
 | **Principal audit** | `--principal "alice@example.com"` | What can this user/SP/group access across all workspaces? |
 
-## What it does
+## Prerequisites
 
-### Group Audit
+**Python:** 3.9 or later.
 
-```
-┌────────────────────┐
-│  Service Principal │  OAuth client-credentials flow
-│  (client_id/secret)│  with retry on 429/5xx
-└────────┬───────────┘
-         │
-         ▼
-┌────────────────────┐     ┌──────────────────────┐
-│  Account SCIM API  │────▶│  Group Hierarchy Tree │
-│  (paginated)       │     │  Users + SPs + Nested │
-└────────┬───────────┘     └──────────────────────┘
-         │
-         ▼
-┌────────────────────┐     ┌──────────────────────┐
-│  Account API       │────▶│  Workspace List       │
-│  /workspaces       │     │  (or explicit URLs)   │
-└────────┬───────────┘     └──────────────────────┘
-         │
-         ▼
-┌────────────────────────────────────────────────────┐
-│  Per-Workspace Unity Catalog API                    │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
-│  │ Catalogs │─▶│ Schemas  │─▶│ Tables / Views   │  │
-│  │ (dedup)  │  │(optional)│  │   (optional)     │  │
-│  └──────────┘  └──────────┘  └──────────────────┘  │
-└────────┬───────────────────────────────────────────┘
-         │
-         ▼
-┌────────────────────────────────────────────────────┐
-│  Grant Classification                               │
-│  • Direct    → group itself has the grant           │
-│  • Upstream  → parent group has the grant           │
-│  • Member    → individual user/SP personal grant    │
-└────────┬───────────────────────────────────────────┘
-         │
-         ▼
-┌────────────────────┐     ┌──────────────────────┐
-│  Redundancy        │────▶│  REVOKE SQL Script   │
-│  Detection         │     │  (copy-paste ready)  │
-│  (Full / Partial)  │     └──────────────────────┘
-└────────────────────┘
-```
+**Databricks account:** Unity Catalog must be enabled. The tool uses the Account API and the per-workspace Unity Catalog API — it does **not** scan Hive Metastore or workspace-local permissions.
 
-### Principal Audit (Reverse Lookup)
+**Service Principal permissions:**  The SP running the audit must be an **Account Admin**, or hold all of the following:
 
-Starting from a user email, service principal, or group name, walks *upward*
-through the group hierarchy to build a complete access map:
+| Scope | Required access |
+|---|---|
+| Account SCIM API | Read Groups, Users, and Service Principals |
+| Account workspaces API | List all workspaces (`GET /workspaces`) |
+| Account permission assignments | Read per-workspace permission assignments |
+| Each workspace | `CAN_USE` or higher on the workspace |
+| Unity Catalog | `BROWSE` on each catalog, or Metastore Admin |
 
-```
-alice@example.com
-├── member of: data-engineers (⭐ direct)
-│   ├── workspace: prod-ws (USER)
-│   │   └── catalog main → USE_CATALOG, SELECT
-│   └── workspace: dev-ws (USER)
-│       └── catalog dev → ALL_PRIVILEGES
-├── member of: all-data-team (↳ transitive via data-engineers)
-│   └── workspace: prod-ws (ADMIN)
-│       └── catalog main → ALL_PRIVILEGES
-└── member of: compliance-readers (⭐ direct)
-    └── ⚠️ no workspace access (dead-end group)
-        └── catalog audit_log → SELECT (metastore-level only)
-```
-
-The six-step process:
-
-1. **Find principal** — resolve user by email, SP by app-ID or display name, group by name (SCIM filter)
-2. **Resolve memberships** — BFS upward through all SCIM groups to find every direct + transitive membership
-3. **Discover workspaces** — via Account API or explicit URLs
-4. **Map workspace access** — query `/permissionassignments` for each workspace, match against principal + group IDs
-5. **Scan UC grants** — for each accessible workspace, scan catalog (optionally schema/table) grants matching the principal's groups
-6. **Detect dead ends** — groups the principal belongs to that have no workspace assignment
+Account Admin is the easiest way to satisfy all of these with a single role assignment.
 
 ## Installation
 
-```bash
-# Core package (uses raw HTTP with requests — zero extra dependencies)
-pip install databricks-group-audit
-
-# With Databricks SDK support (recommended — auto auth, pagination, retries)
-pip install "databricks-group-audit[sdk]"
-
-# All extras (SDK + dev tools + PySpark notebook support)
-pip install "databricks-group-audit[all]"
-```
-
-Or install from source:
+The package is not yet published to PyPI. Install from source:
 
 ```bash
 git clone https://github.com/yourusername/databricks-group-audit.git
 cd databricks-group-audit
+
+# Core install (raw HTTP client only — no extra dependencies beyond requests)
+pip install -e .
+
+# Recommended: include the Databricks SDK for automatic auth and retries
+pip install -e ".[sdk]"
+
+# Full development install
 pip install -e ".[sdk,dev]"
 ```
 
-### Client Backends
+### Client backends
 
-The tool ships with two interchangeable API clients:
+The tool ships two interchangeable API backends, selected automatically by `create_client()`:
 
-| Client | Install | Auth | Pagination | Retries |
+| Client | Requires | Auth | Pagination | Retries |
 |---|---|---|---|---|
-| `DatabricksAPIClient` | `requests` (included) | Manual OAuth + token cache | Manual SCIM page walking | Exponential backoff |
+| `DatabricksAPIClient` | `requests` (always included) | Manual OAuth + per-host token cache | Manual SCIM page walking | Exponential backoff (configurable) |
 | `DatabricksSDKClient` | `databricks-sdk` (optional) | Automatic via SDK | Automatic iterators | Built-in SDK retries |
 
-Use the `create_client()` factory to automatically pick the best available backend:
-
-```python
-from databricks_group_audit import create_client
-
-# Returns DatabricksSDKClient when SDK is installed, else DatabricksAPIClient
-client = create_client(
-    cloud="azure",
-    client_id="...",
-    client_secret="...",
-    account_id="...",
-)
-
-# Force raw HTTP even when SDK is installed
-client = create_client(cloud="azure", ..., prefer_sdk=False)
-```
-
-The CLI uses `create_client()` by default. Pass `--no-sdk` to force the raw HTTP backend.
+`create_client()` returns `DatabricksSDKClient` when `databricks-sdk` is installed, and falls back to `DatabricksAPIClient` otherwise. Pass `prefer_sdk=False` or `--no-sdk` to force the raw HTTP backend.
 
 ## Quick Start
+
+### Credentials
+
+All three credential flags can be set as environment variables:
+
+```bash
+export DATABRICKS_CLIENT_ID="your-sp-client-id"
+export DATABRICKS_CLIENT_SECRET="your-sp-secret"
+export DATABRICKS_ACCOUNT_ID="your-account-id"
+```
 
 ### CLI — Group Audit
 
 ```bash
-# Set credentials as env vars (or pass via flags)
-export DATABRICKS_CLIENT_ID="your-sp-client-id"
-export DATABRICKS_CLIENT_SECRET="your-sp-secret"
-export DATABRICKS_ACCOUNT_ID="your-account-id"
-
-# Basic audit
+# Scan all workspaces, catalog level only
 databricks-group-audit --group "data-engineers" --cloud azure
 
-# Deep scan with REVOKE script
+# Deep scan including schema and table grants, with REVOKE script
 databricks-group-audit \
     --group "data-engineers" \
     --cloud azure \
@@ -167,15 +94,15 @@ databricks-group-audit \
     --scan-tables \
     --revoke-script
 
-# JSON output for CI/CD pipelines
+# JSON output (progress lines go to stdout before the JSON block)
 databricks-group-audit --group "data-engineers" --output json
 
-# Scan specific workspaces only
+# Scan specific workspaces instead of all discovered ones
 databricks-group-audit \
     --group "data-engineers" \
     --workspace-urls "https://adb-123.azuredatabricks.net,https://adb-456.azuredatabricks.net"
 
-# Force raw HTTP client (skip SDK even if installed)
+# Force raw HTTP client even when databricks-sdk is installed
 databricks-group-audit --group "data-engineers" --no-sdk
 ```
 
@@ -185,10 +112,10 @@ databricks-group-audit --group "data-engineers" --no-sdk
 # Audit a user by email
 databricks-group-audit --principal "alice@example.com" --cloud azure
 
-# Audit a service principal by app-ID or display name
+# Audit a service principal by display name or application ID
 databricks-group-audit --principal "ETL-Bot" --cloud azure
 
-# Audit a group (reverse: shows what the group can access, not who's in it)
+# Audit a group (shows what it can access, not who is in it)
 databricks-group-audit --principal "data-engineers" --cloud azure
 
 # Deep scan with JSON output
@@ -200,11 +127,40 @@ databricks-group-audit \
     --output json
 ```
 
-> **Note:** `--group` and `--principal` are mutually exclusive. Use `--group`
-> to audit a group's grants and membership; use `--principal` to audit what
-> a specific identity can access.
+> `--group` and `--principal` are mutually exclusive. Use `--group` to audit a group's grants and redundancy; use `--principal` to reverse-lookup what a specific identity can reach.
 
-### Python — Group Audit
+### All CLI flags
+
+```
+Credentials (or set via env vars):
+  --client-id          DATABRICKS_CLIENT_ID
+  --client-secret      DATABRICKS_CLIENT_SECRET
+  --account-id         DATABRICKS_ACCOUNT_ID
+
+Target (mutually exclusive):
+  --group NAME         Display name of the group to audit
+  --principal ID       User email, SP app-ID/display name, or group name
+
+Scan scope:
+  --cloud              azure | aws | gcp  (default: azure)
+  --workspace-urls     Comma-separated URLs; omit to scan all discovered workspaces
+  --scan-schemas       Also scan schema-level grants
+  --scan-tables        Also scan table/view-level grants (implies --scan-schemas)
+
+Output:
+  --output             text | json  (default: text)
+  --revoke-script      Print REVOKE SQL for redundant grants (group audit only)
+
+Client:
+  --no-sdk             Force raw HTTP client even if databricks-sdk is installed
+  --max-retries        Retry attempts on 429/5xx (default: 5; raw client only)
+  --retry-base-delay   Base delay in seconds (default: 1.0)
+  --retry-max-delay    Maximum delay cap in seconds (default: 60.0)
+```
+
+## Python API
+
+### Group audit
 
 ```python
 from databricks_group_audit import (
@@ -216,7 +172,6 @@ from databricks_group_audit import (
     RevokeScriptGenerator,
 )
 
-# create_client() picks the best available backend automatically
 client = create_client(
     cloud="azure",
     client_id="...",
@@ -226,7 +181,7 @@ client = create_client(
 
 resolver = GroupMembershipResolver(client)
 node = resolver.resolve_group("data-engineers")
-members = resolver.get_all_members_flat(node)
+members = resolver.get_all_members_flat(node)  # {"users": [...], "service_principals": [...]}
 
 workspaces = WorkspaceDiscovery(client, "azure").discover()
 
@@ -237,26 +192,22 @@ redundancy = RedundancyDetector().detect_redundancy(grants, "data-engineers")
 print(RevokeScriptGenerator.generate(redundancy, include_partial=True))
 ```
 
-### Python — Principal Audit
+### Principal audit
 
 ```python
-from databricks_group_audit import create_client, PrincipalAuditor
-from databricks_group_audit.workspace import WorkspaceDiscovery
+from databricks_group_audit import create_client, PrincipalAuditor, WorkspaceDiscovery
 
 client = create_client(cloud="azure", client_id="...",
                        client_secret="...", account_id="...")
-ws_disc = WorkspaceDiscovery(client, "azure")
-auditor = PrincipalAuditor(client, workspace_discovery=ws_disc, cloud_provider="azure")
+
+auditor = PrincipalAuditor(
+    client,
+    workspace_discovery=WorkspaceDiscovery(client, "azure"),
+    cloud_provider="azure",
+)
 
 result = auditor.audit("alice@example.com", scan_schemas=True)
 
-print(f"Principal: {result.principal_name} ({result.principal_type})")
-print(f"Groups:      {len(result.groups)}")
-print(f"Workspaces:  {len(result.workspace_roles)}")
-print(f"Permissions: {len(result.permissions)}")
-print(f"Dead ends:   {result.dead_end_groups}")
-
-# Inspect individual results
 for g in result.groups:
     tag = "direct" if g.is_direct else "transitive"
     print(f"  {g.group_name} ({tag}) — path: {' → '.join(g.path)}")
@@ -266,57 +217,79 @@ for r in result.workspace_roles:
 
 for p in result.permissions:
     print(f"  [{p.securable_type}] {p.securable_name}: {', '.join(p.privileges)} via {p.via_group}")
+
+if result.dead_end_groups:
+    print(f"  Dead-end groups (no workspace access): {result.dead_end_groups}")
 ```
 
-### Databricks Notebook
+## Databricks Notebook
 
-Import the included `Databricks Group Audit Tool` notebook into your workspace.
-Fill in the widgets at the top and **Run All**.
+Import `Databricks Group Audit Tool.ipynb` into your workspace and **Run All**.
 
-The notebook auto-detects the installed package. When `pip install databricks-group-audit`
-is available, it imports from the package and skips inline class definitions. Otherwise
-it falls back to self-contained inline code — no external dependencies beyond `requests`.
+The notebook auto-detects whether the package is installed. When available it imports from the package; otherwise it falls back to self-contained inline definitions — the only required dependency is `requests`.
 
-| Widget | Description |
-|---|---|
-| `secret_scope` | *(optional)* Secret scope with `client_id`, `client_secret`, `account_id` keys |
-| `client_id` | Service Principal application (client) ID |
-| `client_secret` | Service Principal secret |
-| `account_id` | Databricks Account ID (auto-detected if blank) |
-| `cloud_provider` | `azure` / `aws` / `gcp` |
-| `target_group` | Group display name to audit |
-| `principal_identifier` | *(optional)* User email, SP name, or group name for reverse lookup |
-| `workspace_urls` | *(optional)* Comma-separated workspace URLs |
-| `scan_schemas` | `true`/`false` |
-| `scan_tables` | `true`/`false` |
-| `export_delta_path` | *(optional)* Delta path for historical export |
-| `max_retries` | Retry attempts for 429/5xx (default: 5) |
-| `retry_base_delay` | Base delay in seconds (default: 1.0) |
-| `retry_max_delay` | Max delay cap in seconds (default: 60.0) |
+### Widgets
 
-## Output
+| Widget | Type | Description |
+|---|---|---|
+| `secret_scope` | text | *(optional)* Secret scope containing `client_id`, `client_secret`, `account_id` keys — takes priority over plain-text widgets |
+| `client_id` | text | Service Principal application (client) ID |
+| `client_secret` | text | Service Principal secret |
+| `account_id` | text | Databricks account ID (auto-detected from workspace context if blank) |
+| `cloud_provider` | dropdown | `azure` / `aws` / `gcp` |
+| `target_group` | text | Group display name to audit |
+| `principal_identifier` | text | *(optional)* User email, SP name/app-ID, or group name for the principal reverse-lookup |
+| `workspace_urls` | text | *(optional)* Comma-separated workspace URLs; blank to scan all |
+| `scan_schemas` | dropdown | `true` / `false` |
+| `scan_tables` | dropdown | `true` / `false` |
+| `export_delta_path` | text | *(optional)* Delta table path for historical export (e.g. `abfss://container@account.dfs.core.windows.net/audit`) |
+| `max_retries` | text | Retry attempts on 429/5xx (default: `5`) |
+| `retry_base_delay` | text | Base retry delay in seconds (default: `1.0`) |
+| `retry_max_delay` | text | Maximum retry delay cap in seconds (default: `60.0`) |
 
-### Group Audit DataFrames (Notebook)
+### Output DataFrames — Group Audit
 
 | DataFrame | Contents |
 |---|---|
-| `df_permissions` | All catalog-level grants (direct, upstream, member) |
-| `df_membership` | Users & SPs with full inheritance paths |
-| `df_inheritance` | Permission source trace |
-| `df_redundancy` | Overlap analysis with revoke recommendations |
-| `df_schema_grants` | Schema-level grants (when enabled) |
-| `df_table_grants` | Table/view-level grants (when enabled) |
-| `revoke_sql` | Auto-generated REVOKE cleanup script |
+| `df_permissions` | All catalog-level grants (direct, upstream, member-direct) |
+| `df_membership` | Users and SPs with full inheritance paths |
+| `df_inheritance` | Permission source trace per principal |
+| `df_redundancy` | Redundancy analysis with revoke recommendations |
+| `df_schema_grants` | Schema-level grants (populated when `scan_schemas=true`) |
+| `df_table_grants` | Table/view-level grants (populated when `scan_tables=true`) |
+| `revoke_sql` | Auto-generated REVOKE SQL script (string) |
 
-### Principal Audit DataFrames (Notebook)
+### Output DataFrames — Principal Audit
 
 | DataFrame | Contents |
 |---|---|
-| `df_principal_groups` | All group memberships (direct + transitive) with inheritance path |
-| `df_principal_ws` | Workspace access roles with source group |
+| `df_principal_groups` | All group memberships (direct + transitive) with full inheritance path |
+| `df_principal_ws` | Workspace access roles with the source group |
 | `df_principal_perms` | UC permissions (catalog/schema/table) with granting group and workspace |
 
-### Principal Audit JSON Output (CLI)
+### Delta export
+
+When `export_delta_path` is set, all DataFrames are appended to partitioned Delta tables under that path with `audit_timestamp` and `target_group` columns added. This supports incremental audit history and change tracking over time.
+
+## Output Reference
+
+### CLI — JSON (group audit)
+
+```json
+{
+  "group": "data-engineers",
+  "timestamp": "2025-01-15T10:30:00",
+  "users": 12,
+  "service_principals": 2,
+  "catalog_grants": 8,
+  "schema_grants": 0,
+  "table_grants": 0,
+  "full_redundancy": 3,
+  "partial_redundancy": 1
+}
+```
+
+### CLI — JSON (principal audit)
 
 ```json
 {
@@ -324,8 +297,8 @@ it falls back to self-contained inline code — no external dependencies beyond 
   "principal_type": "USER",
   "timestamp": "2025-01-15T10:30:00",
   "groups": [
-    {"name": "data-engineers", "direct": true, "path": ["alice@example.com", "data-engineers"]},
-    {"name": "all-data-team", "direct": false, "path": ["alice@example.com", "data-engineers", "all-data-team"]}
+    {"name": "data-engineers", "direct": true,  "path": ["alice@example.com", "data-engineers"]},
+    {"name": "all-data-team",  "direct": false, "path": ["alice@example.com", "data-engineers", "all-data-team"]}
   ],
   "workspace_roles": [
     {"workspace": "prod-ws", "permission": "USER", "via_group": "data-engineers"}
@@ -340,33 +313,59 @@ it falls back to self-contained inline code — no external dependencies beyond 
 
 ## Grant Classification
 
-For each catalog (and optionally schema/table), every grant is classified:
+Each grant on a catalog, schema, or table is classified relative to the target group:
 
-| Type | Meaning |
+| Classification | Meaning |
 |---|---|
 | **Direct** | The target group itself holds this grant |
-| **Upstream** | A parent group of the target holds this grant (inherited) |
-| **Member Direct** | An individual user or SP *within* the group has a personal grant |
+| **Upstream** | A parent (ancestor) group of the target holds this grant |
+| **Member Direct** | An individual user or SP within the target group has a personal grant |
+
+Principal matching handles backtick-quoted names, case-insensitive email addresses, display names, and service principal application IDs.
 
 ## Redundancy Detection
 
-Member-direct grants are compared against the group's effective privileges
-(with hierarchy expansion, e.g. `ALL_PRIVILEGES` implies `SELECT`):
+Redundancy is computed at the **catalog level**. Member-direct grants are compared against the group's effective privileges after privilege hierarchy expansion (e.g. `ALL_PRIVILEGES` implies `SELECT`, `MODIFY` implies `SELECT`):
 
-| Level | Meaning | Action |
+| Level | Meaning | Recommended action |
 |---|---|---|
-| **Full** | All member privileges covered by group | Safe to REVOKE |
-| **Partial** | Some overlap, some unique | Review recommended |
+| **Full** | Every member privilege is covered by the group | Safe to REVOKE — `--revoke-script` generates the SQL |
+| **Partial** | Some overlap, some privileges unique to the member | Review: the tool lists which privileges are redundant and which are unique |
 | **None** | No overlap | No action needed |
 
-## Single-Workspace Alternative: INFORMATION_SCHEMA
+The `--revoke-script` flag generates copy-paste REVOKE SQL for both full and partial redundancy findings.
 
-If you only need to audit permissions within a **single workspace** and don't
-need membership correlation or redundancy detection, Databricks Unity Catalog
-provides built-in system views you can query directly via SQL:
+## Architecture
+
+```
+databricks_group_audit/
+├── __init__.py            # Public API exports
+├── __main__.py            # python -m entry point
+├── cli.py                 # argparse CLI (--group / --principal modes)
+├── client.py              # AuditClient protocol, DatabricksAPIClient, create_client()
+├── sdk_client.py          # DatabricksSDKClient (optional — requires databricks-sdk)
+├── models.py              # All dataclasses and enums
+├── group_resolver.py      # Recursive SCIM walker with bulk pre-fetch and caching
+├── workspace.py           # Multi-cloud workspace discovery and URL resolution
+├── catalog_scanner.py     # Catalog-level permission scanning
+├── schema_scanner.py      # Schema-level permission scanning
+├── table_scanner.py       # Table/view-level permission scanning
+├── _classification.py     # classify_grant() and build_member_lookups() shared helpers
+├── redundancy.py          # Privilege hierarchy expansion and redundancy detection
+├── revoke.py              # REVOKE SQL generation from RedundancyResult objects
+└── principal_auditor.py   # BFS reverse-lookup from user/SP/group
+```
+
+**Client protocol:** `AuditClient` is a structural `Protocol` in `client.py`. Both `DatabricksAPIClient` and `DatabricksSDKClient` satisfy it — all scanners, resolvers, and the auditor accept either backend without modification.
+
+**SCIM performance:** `GroupMembershipResolver` bulk-fetches all users and service principals in two paginated calls before resolving individual members, avoiding N+1 API calls. For accounts with fewer than ~10 000 users this is significantly faster than per-member lookups.
+
+## When Not to Use This Tool
+
+If you only need to query permissions within a **single workspace**, Databricks Unity Catalog provides built-in system views you can query directly via SQL, without any external tooling:
 
 ```sql
--- Catalog-level grants
+-- Catalog-level grants in the current workspace
 SELECT * FROM system.information_schema.catalog_privileges
 WHERE grantee = 'data-engineers';
 
@@ -379,56 +378,55 @@ SELECT * FROM system.information_schema.table_privileges
 WHERE grantee = 'data-engineers';
 ```
 
-These views cover the current workspace only. This tool adds value when you need:
+Use this tool when you need what `INFORMATION_SCHEMA` does not provide:
 
 - **Cross-workspace aggregation** — scan all workspaces from a single entry point
-- **Recursive group membership** — resolve nested groups, users, and service principals via SCIM
-- **Upstream group detection** — find grants inherited from parent groups
-- **Redundancy detection** — identify personal grants that duplicate what the group already provides
+- **Recursive group membership resolution** — nested groups, users, and SPs via SCIM
+- **Upstream group detection** — grants inherited through ancestor groups
+- **Redundancy detection** — personal grants that duplicate what the group already provides
 - **REVOKE script generation** — automated cleanup recommendations
 - **Principal reverse lookup** — map any identity to all accessible resources across the account
 
+## Known Limitations
+
+- **Unity Catalog only.** Workspace-level object permissions (jobs, clusters, SQL warehouses, notebooks, MLflow experiments) are not scanned.
+- **Account-level SCIM groups only.** Workspace-local groups are not distinguished from account-level groups. If your account still has workspace-local groups that haven't been migrated, results for those groups may be incomplete.
+- **Redundancy detection is catalog-level.** Schema and table grants are reported but not included in the redundancy/REVOKE analysis.
+- **No stale-grant detection.** The tool reports current grants; it does not query `system.access.audit` to identify grants that have never been used.
+- **No privilege escalation detection.** The tool does not flag when a principal transitively acquires `ALL_PRIVILEGES` or `IS_ADMIN` through nested group membership.
+
 ## Multi-Cloud Support
 
-| Cloud | Account Host | Workspace Domain |
+| Cloud | Account host | Workspace domain |
 |---|---|---|
 | Azure | `accounts.azuredatabricks.net` | `.azuredatabricks.net` |
-| AWS | `accounts.cloud.databricks.com` | `adb-<id>.cloud.databricks.com` |
+| AWS | `accounts.cloud.databricks.com` | `adb-<workspace-id>.cloud.databricks.com` |
 | GCP | `accounts.gcp.databricks.com` | `.gcp.databricks.com` |
 
-> **Note:** AWS workspace URLs use the `adb-<workspace-id>` format. The tool
-> prefers the `deployment_url` field returned by the Account API and falls
-> back to constructing from the workspace ID when unavailable.
+For AWS workspaces, the tool prefers the `deployment_url` field returned by the Account API (the canonical `adb-<id>` format) and falls back to constructing from `workspace_id` when that field is absent.
 
-## Architecture
-
-```
-databricks_group_audit/
-├── __init__.py            # Public API exports (v0.3.0)
-├── __main__.py            # python -m entry point
-├── cli.py                 # argparse CLI (--group / --principal / --no-sdk)
-├── client.py              # AuditClient protocol + raw HTTP client + create_client() factory
-├── sdk_client.py          # DatabricksSDKClient (optional, requires databricks-sdk)
-├── models.py              # 18 dataclasses + 4 enums
-├── group_resolver.py      # SCIM walking with bulk pre-fetch + caching
-├── workspace.py           # Multi-cloud workspace discovery
-├── catalog_scanner.py     # Catalog-level permission scanning
-├── schema_scanner.py      # Schema-level scanning
-├── table_scanner.py       # Table/view-level scanning
-├── _classification.py     # Shared classify_grant + build_member_lookups
-├── redundancy.py          # Privilege hierarchy + redundancy detection
-├── revoke.py              # REVOKE SQL generation
-└── principal_auditor.py   # Reverse lookup from user/SP/group
-```
+Only `RUNNING` workspaces are scanned. Workspaces in `NOT_RUNNING`, `PROVISIONING`, `FAILED`, `BANNED`, `CANCELLING`, or `DELETED` state are automatically skipped.
 
 ## Development
 
 ```bash
 pip install -e ".[sdk,dev]"
+
+# Run all tests
 pytest
+
+# Run a single test file
+pytest tests/test_catalog_scanner.py
+
+# Run a single test by name
+pytest tests/test_redundancy.py::test_full_redundancy
+
+# Lint
 ruff check .
 ```
 
+Tests use the `responses` library for HTTP mocking — no real Databricks connection is required.
+
 ## License
 
-Apache 2.0
+Apache 2.0 — see [LICENSE.py](LICENSE.py).
