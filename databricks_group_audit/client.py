@@ -1,14 +1,37 @@
-"""HTTP client with OAuth authentication and retry logic."""
+"""HTTP client with OAuth authentication and retry logic.
+
+This module provides:
+
+* :class:`DatabricksAPIClient` — raw HTTP client with manual OAuth, pagination,
+  and exponential-backoff retry.  Zero external dependencies beyond ``requests``.
+* :func:`create_client` — factory that returns a
+  :class:`~databricks_group_audit.sdk_client.DatabricksSDKClient` when
+  ``databricks-sdk`` is installed, falling back to the raw HTTP client otherwise.
+
+Typical usage::
+
+    from databricks_group_audit.client import create_client
+
+    client = create_client(
+        cloud="azure",
+        client_id="...",
+        client_secret="...",
+        account_id="...",
+    )
+"""
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 import requests
+
+log = logging.getLogger(__name__)
 
 ACCOUNT_HOST_MAP = {
     "azure": "https://accounts.azuredatabricks.net",
@@ -16,6 +39,39 @@ ACCOUNT_HOST_MAP = {
     "gcp": "https://accounts.gcp.databricks.com",
 }
 
+
+# ---------------------------------------------------------------------------
+# Structural protocol shared by both client implementations
+# ---------------------------------------------------------------------------
+
+@runtime_checkable
+class AuditClient(Protocol):
+    """Structural type satisfied by both :class:`DatabricksAPIClient`
+    and :class:`~databricks_group_audit.sdk_client.DatabricksSDKClient`.
+
+    Modules should type-hint their ``api_client`` parameter as
+    ``AuditClient`` for maximum flexibility.
+    """
+
+    account_id: str
+    account_host: str
+
+    def account_api(
+        self, method: str, endpoint: str, **kwargs: Any
+    ) -> Any: ...
+
+    def workspace_api(
+        self, workspace_host: str, method: str, endpoint: str, **kwargs: Any
+    ) -> Dict[str, Any]: ...
+
+    def scim_list_all(
+        self, resource: str, params: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]: ...
+
+
+# ---------------------------------------------------------------------------
+# Token cache
+# ---------------------------------------------------------------------------
 
 @dataclass
 class TokenCache:
@@ -36,6 +92,10 @@ class TokenCache:
             self.token = token
             self.expires_at = datetime.now() + timedelta(seconds=max(expires_in - 60, 10))
 
+
+# ---------------------------------------------------------------------------
+# Raw HTTP client
+# ---------------------------------------------------------------------------
 
 class DatabricksAPIClient:
     """Databricks API client with SP OAuth and exponential-backoff retry.
@@ -162,7 +222,7 @@ class DatabricksAPIClient:
 
     # -- High-level API methods --------------------------------------------
 
-    def account_api(self, method: str, endpoint: str, **kwargs: Any) -> Dict[str, Any]:
+    def account_api(self, method: str, endpoint: str, **kwargs: Any) -> Any:
         token = self._get_account_token()
         url = f"{self.account_host}/api/2.0/accounts/{self.account_id}{endpoint}"
         resp = self._request_with_retry(method, url, token, **kwargs)
@@ -209,3 +269,64 @@ class DatabricksAPIClient:
             start_index += per_page
 
         return all_resources
+
+
+# ---------------------------------------------------------------------------
+# Client factory
+# ---------------------------------------------------------------------------
+
+def create_client(
+    cloud: str,
+    client_id: str,
+    client_secret: str,
+    account_id: str,
+    prefer_sdk: bool = True,
+    **kwargs: Any,
+) -> AuditClient:
+    """Create the best available API client.
+
+    When *prefer_sdk* is ``True`` (default) and ``databricks-sdk`` is
+    installed, returns a
+    :class:`~databricks_group_audit.sdk_client.DatabricksSDKClient` which
+    benefits from automatic auth, pagination, and retries.  Falls back to
+    :class:`DatabricksAPIClient` (raw HTTP) when the SDK is unavailable.
+
+    Parameters
+    ----------
+    cloud : str
+        ``"azure"``, ``"aws"``, or ``"gcp"``.
+    client_id, client_secret, account_id : str
+        Service-principal credentials and Databricks account ID.
+    prefer_sdk : bool
+        Set to ``False`` to force the raw HTTP client even when the SDK
+        is available.
+    **kwargs
+        Forwarded to the chosen client's constructor (e.g. ``max_retries``).
+    """
+    if prefer_sdk:
+        try:
+            from databricks_group_audit.sdk_client import (
+                DatabricksSDKClient,
+                SDK_AVAILABLE,
+            )
+
+            if SDK_AVAILABLE:
+                log.info("Using Databricks SDK client")
+                return DatabricksSDKClient.for_cloud(
+                    cloud=cloud,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    account_id=account_id,
+                    **kwargs,
+                )
+        except Exception as exc:
+            log.debug("SDK client unavailable, falling back to raw HTTP: %s", exc)
+
+    log.info("Using raw HTTP client")
+    return DatabricksAPIClient.for_cloud(
+        cloud=cloud,
+        client_id=client_id,
+        client_secret=client_secret,
+        account_id=account_id,
+        **kwargs,
+    )

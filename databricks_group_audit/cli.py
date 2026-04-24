@@ -1,10 +1,16 @@
 """CLI entry point for databricks-group-audit.
 
-Usage (group audit):
+Usage (group audit)::
+
     databricks-group-audit --group "data-engineers" --cloud azure
 
-Usage (principal audit):
+Usage (principal audit)::
+
     databricks-group-audit --principal "alice@example.com" --cloud azure
+
+Usage (force raw HTTP instead of SDK)::
+
+    databricks-group-audit --group "data-engineers" --no-sdk
 """
 
 from __future__ import annotations
@@ -51,7 +57,11 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     p.add_argument("--revoke-script", action="store_true",
                    help="Print REVOKE SQL for redundant grants (group audit only)")
 
-    # Retry tuning
+    # Client selection
+    p.add_argument("--no-sdk", action="store_true",
+                   help="Force the raw HTTP client even when databricks-sdk is installed")
+
+    # Retry tuning (applies to raw HTTP client; SDK manages its own retries)
     p.add_argument("--max-retries", type=int, default=5)
     p.add_argument("--retry-base-delay", type=float, default=1.0)
     p.add_argument("--retry-max-delay", type=float, default=60.0)
@@ -59,22 +69,28 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
-def _run_principal_audit(args: argparse.Namespace) -> int:
-    """Run the principal-centric audit."""
-    from databricks_group_audit.client import DatabricksAPIClient
-    from databricks_group_audit.workspace import WorkspaceDiscovery
-    from databricks_group_audit.principal_auditor import PrincipalAuditor
+def _build_client(args: argparse.Namespace) -> Any:
+    """Create the API client using the factory."""
+    from databricks_group_audit.client import create_client
 
-    client = DatabricksAPIClient.for_cloud(
+    return create_client(
         cloud=args.cloud,
         client_id=args.client_id,
         client_secret=args.client_secret,
         account_id=args.account_id,
+        prefer_sdk=not args.no_sdk,
         max_retries=args.max_retries,
         base_delay=args.retry_base_delay,
         max_delay=args.retry_max_delay,
     )
 
+
+def _run_principal_audit(args: argparse.Namespace) -> int:
+    """Run the principal-centric audit."""
+    from databricks_group_audit.workspace import WorkspaceDiscovery
+    from databricks_group_audit.principal_auditor import PrincipalAuditor
+
+    client = _build_client(args)
     ws_disc = WorkspaceDiscovery(client, cloud_provider=args.cloud)
     auditor = PrincipalAuditor(client, workspace_discovery=ws_disc, cloud_provider=args.cloud)
 
@@ -143,7 +159,6 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
 
 def _run_group_audit(args: argparse.Namespace) -> int:
     """Run the group-centric audit (original behavior)."""
-    from databricks_group_audit.client import DatabricksAPIClient
     from databricks_group_audit.group_resolver import GroupMembershipResolver
     from databricks_group_audit.workspace import WorkspaceDiscovery
     from databricks_group_audit.catalog_scanner import CatalogPermissionScanner
@@ -153,15 +168,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     from databricks_group_audit.revoke import RevokeScriptGenerator
     from databricks_group_audit.models import GrantSource, WorkspaceInfo
 
-    client = DatabricksAPIClient.for_cloud(
-        cloud=args.cloud,
-        client_id=args.client_id,
-        client_secret=args.client_secret,
-        account_id=args.account_id,
-        max_retries=args.max_retries,
-        base_delay=args.retry_base_delay,
-        max_delay=args.retry_max_delay,
-    )
+    client = _build_client(args)
 
     resolver = GroupMembershipResolver(client)
     print(f"Resolving group: {args.group} ...")

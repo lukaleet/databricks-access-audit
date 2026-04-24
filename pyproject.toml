@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "databricks-group-audit"
-version = "0.2.0"
+version = "0.3.0"
 description = "Audit Databricks group membership and Unity Catalog permissions across workspaces."
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -30,6 +30,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+sdk = [
+    "databricks-sdk>=0.20.0",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov",
@@ -38,6 +41,9 @@ dev = [
 ]
 notebook = [
     "pyspark>=3.4",
+]
+all = [
+    "databricks-group-audit[sdk,dev,notebook]",
 ]
 
 [project.scripts]

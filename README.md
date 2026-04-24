@@ -100,7 +100,14 @@ The six-step process:
 ## Installation
 
 ```bash
+# Core package (uses raw HTTP with requests — zero extra dependencies)
 pip install databricks-group-audit
+
+# With Databricks SDK support (recommended — auto auth, pagination, retries)
+pip install "databricks-group-audit[sdk]"
+
+# All extras (SDK + dev tools + PySpark notebook support)
+pip install "databricks-group-audit[all]"
 ```
 
 Or install from source:
@@ -108,8 +115,36 @@ Or install from source:
 ```bash
 git clone https://github.com/yourusername/databricks-group-audit.git
 cd databricks-group-audit
-pip install -e ".[dev]"
+pip install -e ".[sdk,dev]"
 ```
+
+### Client Backends
+
+The tool ships with two interchangeable API clients:
+
+| Client | Install | Auth | Pagination | Retries |
+|---|---|---|---|---|
+| `DatabricksAPIClient` | `requests` (included) | Manual OAuth + token cache | Manual SCIM page walking | Exponential backoff |
+| `DatabricksSDKClient` | `databricks-sdk` (optional) | Automatic via SDK | Automatic iterators | Built-in SDK retries |
+
+Use the `create_client()` factory to automatically pick the best available backend:
+
+```python
+from databricks_group_audit import create_client
+
+# Returns DatabricksSDKClient when SDK is installed, else DatabricksAPIClient
+client = create_client(
+    cloud="azure",
+    client_id="...",
+    client_secret="...",
+    account_id="...",
+)
+
+# Force raw HTTP even when SDK is installed
+client = create_client(cloud="azure", ..., prefer_sdk=False)
+```
+
+The CLI uses `create_client()` by default. Pass `--no-sdk` to force the raw HTTP backend.
 
 ## Quick Start
 
@@ -139,6 +174,9 @@ databricks-group-audit --group "data-engineers" --output json
 databricks-group-audit \
     --group "data-engineers" \
     --workspace-urls "https://adb-123.azuredatabricks.net,https://adb-456.azuredatabricks.net"
+
+# Force raw HTTP client (skip SDK even if installed)
+databricks-group-audit --group "data-engineers" --no-sdk
 ```
 
 ### CLI — Principal Audit
@@ -170,7 +208,7 @@ databricks-group-audit \
 
 ```python
 from databricks_group_audit import (
-    DatabricksAPIClient,
+    create_client,
     GroupMembershipResolver,
     WorkspaceDiscovery,
     CatalogPermissionScanner,
@@ -178,7 +216,8 @@ from databricks_group_audit import (
     RevokeScriptGenerator,
 )
 
-client = DatabricksAPIClient.for_cloud(
+# create_client() picks the best available backend automatically
+client = create_client(
     cloud="azure",
     client_id="...",
     client_secret="...",
@@ -201,10 +240,11 @@ print(RevokeScriptGenerator.generate(redundancy, include_partial=True))
 ### Python — Principal Audit
 
 ```python
-from databricks_group_audit import DatabricksAPIClient, PrincipalAuditor
+from databricks_group_audit import create_client, PrincipalAuditor
 from databricks_group_audit.workspace import WorkspaceDiscovery
 
-client = DatabricksAPIClient.for_cloud(cloud="azure", ...)
+client = create_client(cloud="azure", client_id="...",
+                       client_secret="...", account_id="...")
 ws_disc = WorkspaceDiscovery(client, "azure")
 auditor = PrincipalAuditor(client, workspace_discovery=ws_disc, cloud_provider="azure")
 
@@ -364,10 +404,11 @@ These views cover the current workspace only. This tool adds value when you need
 
 ```
 databricks_group_audit/
-├── __init__.py            # Public API exports (v0.2.0)
+├── __init__.py            # Public API exports (v0.3.0)
 ├── __main__.py            # python -m entry point
-├── cli.py                 # argparse CLI (--group / --principal)
-├── client.py              # HTTP client with OAuth, retry, pagination
+├── cli.py                 # argparse CLI (--group / --principal / --no-sdk)
+├── client.py              # AuditClient protocol + raw HTTP client + create_client() factory
+├── sdk_client.py          # DatabricksSDKClient (optional, requires databricks-sdk)
 ├── models.py              # 18 dataclasses + 4 enums
 ├── group_resolver.py      # SCIM walking with bulk pre-fetch + caching
 ├── workspace.py           # Multi-cloud workspace discovery
@@ -383,7 +424,7 @@ databricks_group_audit/
 ## Development
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[sdk,dev]"
 pytest
 ruff check .
 ```
