@@ -320,7 +320,7 @@ The notebook auto-detects whether the package is installed. When available it im
 
 | Widget | Type | Description |
 |---|---|---|
-| `secret_scope` | text | *(optional)* Secret scope containing `client_id`, `client_secret`, `account_id` keys - takes priority over plain-text widgets |
+| `secret_scope` | text | *(optional)* Databricks secret scope whose keys `client_id`, `client_secret`, `account_id` take priority over plain-text widgets and environment variables |
 | `client_id` | text | Service Principal application (client) ID |
 | `client_secret` | text | Service Principal secret |
 | `account_id` | text | Databricks account ID (auto-detected from workspace context if blank) |
