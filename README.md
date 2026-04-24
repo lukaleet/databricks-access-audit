@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/lukaleet/databricks-group-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/lukaleet/databricks-group-audit/actions/workflows/ci.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
-[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE.py)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 
 ## Why?
 
@@ -770,4 +770,4 @@ Tests use the `responses` library for HTTP mocking - no real Databricks connecti
 
 ## License
 
-Apache 2.0 - see [LICENSE.py](LICENSE.py).
+Apache 2.0 - see [LICENSE](LICENSE).
