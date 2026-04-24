@@ -51,8 +51,9 @@ all = [
 databricks-group-audit = "databricks_group_audit.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/databricks-group-audit"
-Issues = "https://github.com/yourusername/databricks-group-audit/issues"
+Homepage = "https://github.com/lukaleet/databricks-group-audit"
+Issues = "https://github.com/lukaleet/databricks-group-audit/issues"
+Changelog = "https://github.com/lukaleet/databricks-group-audit/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 include = ["databricks_group_audit*"]

@@ -2,6 +2,7 @@
 
 > Audit Databricks group membership and Unity Catalog permissions across all workspaces in your account.
 
+[![CI](https://github.com/lukaleet/databricks-group-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/lukaleet/databricks-group-audit/actions/workflows/ci.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE.py)
 
@@ -42,7 +43,7 @@ The simplest setup that is guaranteed to work: grant the SP **Account Admin**, a
 The package is not yet published to PyPI. Install from source:
 
 ```bash
-git clone https://github.com/yourusername/databricks-group-audit.git
+git clone https://github.com/lukaleet/databricks-group-audit.git
 cd databricks-group-audit
 
 # Core install (raw HTTP client only - no extra dependencies beyond requests)
