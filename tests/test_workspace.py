@@ -1,5 +1,7 @@
 """Tests for WorkspaceDiscovery, especially _resolve_workspace_url."""
 
+from __future__ import annotations
+
 import pytest
 import responses
 
