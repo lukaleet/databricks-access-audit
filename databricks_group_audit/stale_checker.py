@@ -170,15 +170,18 @@ class StaleGrantChecker:
                 f"Statement execution API returned no statement_id: {resp}"
             )
 
-        # Poll until terminal state or timeout.
-        elapsed = 0.0
+        # Poll until terminal state or wall-clock timeout.
+        # time.monotonic() is used rather than accumulated sleep durations so
+        # that (a) the timeout is accurate even when time.sleep() overshoots,
+        # and (b) a poll_interval of 0 (used in tests) cannot produce an
+        # infinite loop if the mock never reaches a terminal state.
+        deadline = time.monotonic() + self.max_wait
         while resp.get("status", {}).get("state", "") not in _TERMINAL_STATES:
-            if elapsed >= self.max_wait:
+            if time.monotonic() >= deadline:
                 raise RuntimeError(
                     f"Statement {stmt_id} did not complete within {self.max_wait:.0f} s."
                 )
             time.sleep(self.poll_interval)
-            elapsed += self.poll_interval
             resp = self.api.workspace_api(
                 self.workspace_url, "GET",
                 f"/api/2.0/sql/statements/{stmt_id}",

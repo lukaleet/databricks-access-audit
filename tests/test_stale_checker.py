@@ -105,6 +105,17 @@ def test_execute_statement_polls_until_succeeded():
     assert client.workspace_api.call_count == 2
 
 
+def test_execute_statement_timeout_raises():
+    """A statement that stays RUNNING past max_wait must raise RuntimeError."""
+    # Two RUNNING responses; with max_wait=0.0 the deadline expires before the
+    # second GET is issued, so the RuntimeError is raised on the first poll.
+    running = {"statement_id": "stmt-1", "status": {"state": "RUNNING"}}
+    checker, client = _make_checker(ws_api_responses=[running, running], poll_interval=0.0)
+    checker.max_wait = 0.0  # deadline is already in the past by the time the loop runs
+    with pytest.raises(RuntimeError, match="did not complete"):
+        checker._execute_statement("SELECT 1")
+
+
 def test_execute_statement_failed_raises():
     resp = {
         "statement_id": "stmt-1",
