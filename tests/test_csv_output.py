@@ -16,11 +16,13 @@ from databricks_group_audit.models import (
     EffectivePermission,
     EscalationFinding,
     GrantSource,
+    GroupMembership,
     PrincipalAuditResult,
     RedundancyLevel,
     RedundancyResult,
     SchemaGrant,
     TableGrant,
+    WorkspaceRole,
 )
 
 # ---------------------------------------------------------------------------
@@ -179,6 +181,24 @@ def test_group_csv_privileges_pipe_separated():
     assert rows[1][5] == "USE_CATALOG|SELECT|MODIFY"
 
 
+def test_group_csv_redundancy_header_has_additional_privileges():
+    buf = io.StringIO()
+    write_group_audit_csv([], [], [], [_redundancy()], output=buf)
+    rows = _csv_rows(buf)
+    headers = [r for r in rows if "redundancy_level" in r]
+    assert headers, "redundancy header row not found"
+    assert "additional_privileges" in headers[0]
+
+
+def test_group_csv_redundancy_row_column_count():
+    buf = io.StringIO()
+    write_group_audit_csv([], [], [], [_redundancy()], output=buf)
+    rows = _csv_rows(buf)
+    data_rows = [r for r in rows if r and "Full" in r]
+    assert data_rows, "redundancy data row not found"
+    assert len(data_rows[0]) == 9  # 9 columns including additional_privileges
+
+
 # ---------------------------------------------------------------------------
 # write_principal_audit_csv
 # ---------------------------------------------------------------------------
@@ -194,39 +214,95 @@ def _perm():
     )
 
 
-def _principal_result(perms=None, escalations=None):
+def _group_membership():
+    return GroupMembership(group_id="g-1", group_name="data-engineers", is_direct=True)
+
+
+def _workspace_role():
+    return WorkspaceRole(
+        workspace_id="ws-1",
+        workspace_name="ws1",
+        workspace_url="https://ws1.azuredatabricks.net",
+        permission_level="USER",
+        via_group="data-engineers",
+    )
+
+
+def _principal_result(perms=None, escalations=None, groups=None, workspace_roles=None):
     r = PrincipalAuditResult(
         principal_type="USER",
         principal_id="u-1",
         principal_name="alice@example.com",
         permissions=perms or [_perm()],
+        groups=groups or [],
+        workspace_roles=workspace_roles or [],
     )
     r.escalation_findings = escalations or []
     return r
 
 
-def test_principal_csv_headers():
+def test_principal_csv_group_memberships_header():
     buf = io.StringIO()
     write_principal_audit_csv(_principal_result(), [], output=buf)
     rows = _csv_rows(buf)
-    assert rows[0] == ["securable_type", "securable_name", "privileges", "via_group", "workspace"]
+    assert rows[0] == ["group_id", "group_name", "is_direct", "path", "source"]
+
+
+def test_principal_csv_workspace_roles_header():
+    buf = io.StringIO()
+    write_principal_audit_csv(_principal_result(), [], output=buf)
+    rows = _csv_rows(buf)
+    # blank at [1], then workspace_roles header
+    assert rows[2] == ["workspace_id", "workspace_name", "permission_level", "via_group"]
+
+
+def test_principal_csv_permissions_header():
+    buf = io.StringIO()
+    write_principal_audit_csv(_principal_result(), [], output=buf)
+    rows = _csv_rows(buf)
+    # groups_hdr[0], blank[1], roles_hdr[2], blank[3], perms_hdr[4]
+    assert rows[4] == ["securable_type", "securable_name", "privileges", "via_group", "workspace"]
 
 
 def test_principal_csv_permission_row():
     buf = io.StringIO()
     write_principal_audit_csv(_principal_result(), [], output=buf)
     rows = _csv_rows(buf)
-    assert rows[1][0] == "CATALOG"
-    assert rows[1][1] == "main"
-    assert rows[1][3] == "data-engineers"
-    assert rows[1][4] == "ws1"
+    # groups_hdr[0], blank[1], roles_hdr[2], blank[3], perms_hdr[4], perm_row[5]
+    assert rows[5][0] == "CATALOG"
+    assert rows[5][1] == "main"
+    assert rows[5][3] == "data-engineers"
+    assert rows[5][4] == "ws1"
 
 
-def test_principal_csv_no_escalations_no_extra_rows():
+def test_principal_csv_no_escalations_section_count():
     buf = io.StringIO()
     write_principal_audit_csv(_principal_result(), [], output=buf)
     rows = _csv_rows(buf)
-    assert len(rows) == 2  # header + 1 permission
+    # 3 sections: groups_hdr, blank, roles_hdr, blank, perms_hdr + 1 perm row = 6
+    assert len(rows) == 6
+
+
+def test_principal_csv_group_membership_row():
+    result = _principal_result(groups=[_group_membership()])
+    buf = io.StringIO()
+    write_principal_audit_csv(result, [], output=buf)
+    rows = _csv_rows(buf)
+    assert rows[1][0] == "g-1"
+    assert rows[1][1] == "data-engineers"
+    assert rows[1][2] == "True"
+
+
+def test_principal_csv_workspace_role_row():
+    result = _principal_result(workspace_roles=[_workspace_role()])
+    buf = io.StringIO()
+    write_principal_audit_csv(result, [], output=buf)
+    rows = _csv_rows(buf)
+    # groups_hdr[0], blank[1], roles_hdr[2], role_row[3]
+    assert rows[3][0] == "ws-1"
+    assert rows[3][1] == "ws1"
+    assert rows[3][2] == "USER"
+    assert rows[3][3] == "data-engineers"
 
 
 def test_principal_csv_escalation_section():
@@ -245,6 +321,7 @@ def test_principal_csv_escalation_section():
     rows = _csv_rows(buf)
     row_texts = [",".join(r) for r in rows]
     assert any("ALL_PRIVILEGES" in t for t in row_texts)
+    assert any("privilege" in t for t in row_texts)  # escalation header present
 
 
 # ---------------------------------------------------------------------------
@@ -313,3 +390,14 @@ def test_diff_csv_empty_diff_only_header():
     write_diff_csv(_simple_diff(), output=buf)
     rows = [r for r in _csv_rows(buf) if any(r)]  # skip blank rows
     assert len(rows) == 1  # just the header
+
+
+def test_diff_csv_member_section_header_uses_external_id():
+    diff = _simple_diff(members_added=[{
+        "id": "u-99", "display_name": "NewUser", "type": "USER", "external_id": "ext-123",
+    }])
+    buf = io.StringIO()
+    write_diff_csv(diff, output=buf)
+    rows = _csv_rows(buf)
+    headers = [r for r in rows if r and r[0] == "change_type" and "external_id" in r]
+    assert headers, "member section header with 'external_id' not found"

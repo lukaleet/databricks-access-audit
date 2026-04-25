@@ -39,12 +39,14 @@ def write_group_audit_csv(
         w.writerow([])
         w.writerow(["catalog", "principal", "principal_type",
                     "member_privileges", "group_effective_privileges",
-                    "redundant_privileges", "redundancy_level", "recommendation"])
+                    "redundant_privileges", "additional_privileges",
+                    "redundancy_level", "recommendation"])
         for r in redundancy:
             w.writerow([r.catalog_name, r.principal, r.principal_type,
                         "|".join(r.member_privileges),
                         "|".join(r.group_effective_privileges),
                         "|".join(r.redundant_privileges),
+                        "|".join(r.additional_privileges),
                         r.redundancy_level.value, r.recommendation])
 
 
@@ -53,11 +55,31 @@ def write_principal_audit_csv(
     escalation_findings: List,
     output: Optional[TextIO] = None,
 ) -> None:
-    """Write principal audit results as CSV.  Permissions first, then escalations."""
+    """Write principal audit results as CSV.
+
+    Sections (separated by blank rows):
+    1. Group memberships
+    2. Workspace roles
+    3. UC permissions
+    4. Escalation findings (only when present)
+    """
     out = output or sys.stdout
     w = csv.writer(out)
 
+    # Group memberships
+    w.writerow(["group_id", "group_name", "is_direct", "path", "source"])
+    for g in result.groups:
+        w.writerow([g.group_id, g.group_name, g.is_direct,
+                    " -> ".join(g.path), g.source.value])
+
+    # Workspace roles
+    w.writerow([])
+    w.writerow(["workspace_id", "workspace_name", "permission_level", "via_group"])
+    for r in result.workspace_roles:
+        w.writerow([r.workspace_id, r.workspace_name, r.permission_level, r.via_group])
+
     # Permissions table
+    w.writerow([])
     w.writerow(["securable_type", "securable_name", "privileges", "via_group", "workspace"])
     for p in result.permissions:
         w.writerow([p.securable_type, p.securable_name,
@@ -92,7 +114,7 @@ def write_diff_csv(diff: Any, output: Optional[TextIO] = None) -> None:
 
     if diff.members_added or diff.members_removed:
         w.writerow([])
-        w.writerow(["change_type", "id_or_group_id", "name", "type", "source", "", "", ""])
+        w.writerow(["change_type", "id_or_group_id", "name", "type", "external_id", "", "", ""])
         for m in diff.members_added:
             w.writerow(["MEMBER_ADDED",
                         m.get("id", m.get("group_id", "")),
