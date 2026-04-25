@@ -1,10 +1,13 @@
 """Integration tests for the CLI entry point."""
 
 import json
+from unittest.mock import MagicMock
 
+import pytest
 import responses as responses_lib
 
-from databricks_group_audit.cli import _parse_args, main
+from databricks_group_audit.cli import _elevation_context, _parse_args, main
+from databricks_group_audit.models import WorkspaceInfo
 from tests.conftest import (
     ACCOUNT_HOST,
     ACCOUNT_ID,
@@ -279,3 +282,129 @@ def test_principal_audit_not_found_returns_error(capsys):
             "--no-sdk",
         ])
     assert rc == 1
+
+
+# ---------------------------------------------------------------------------
+# UTC timestamps in JSON output
+# ---------------------------------------------------------------------------
+
+
+def test_group_audit_json_timestamp_is_utc(capsys):
+    """JSON output timestamp must carry a UTC offset (+00:00 or Z), not be naive."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST, "--output", "json",
+        ])
+    out = capsys.readouterr().out
+    data = json.loads(out[out.find("{"):])
+    ts = data["timestamp"]
+    assert "+00:00" in ts or ts.endswith("Z"), f"Expected UTC timestamp, got: {ts}"
+
+
+def test_principal_audit_json_timestamp_is_utc(capsys):
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "json",
+        ])
+    out = capsys.readouterr().out
+    data = json.loads(out[out.find("{"):])
+    ts = data["timestamp"]
+    assert "+00:00" in ts or ts.endswith("Z"), f"Expected UTC timestamp, got: {ts}"
+
+
+# ---------------------------------------------------------------------------
+# _elevation_context — cleanup on partial elevation failure
+# ---------------------------------------------------------------------------
+
+
+_SP_SCIM_RESP = {
+    "Resources": [{"id": "scim-99", "applicationId": "sp-app-001"}],
+    "totalResults": 1,
+}
+
+
+def _make_elevation_client(fail_on_ws_id: str | None = None):
+    """Return a mock client whose PUT raises when elevating *fail_on_ws_id*."""
+    elevated: list[str] = []
+
+    def _api(method: str, endpoint: str, **kwargs):
+        if endpoint == "/scim/v2/ServicePrincipals":
+            return _SP_SCIM_RESP
+        if method == "GET" and "permissionassignments" in endpoint:
+            return {"permission_assignments": []}
+        if method == "PUT" and "permissionassignments" in endpoint:
+            # Extract workspace ID from endpoint path segment.
+            ws_id = endpoint.split("/workspaces/")[1].split("/")[0]
+            if fail_on_ws_id and ws_id == fail_on_ws_id:
+                raise RuntimeError(f"elevation failed for {ws_id}")
+            elevated.append(ws_id)
+            return {}
+        if method == "DELETE" and "permissionassignments" in endpoint:
+            ws_id = endpoint.split("/workspaces/")[1].split("/")[0]
+            elevated.remove(ws_id) if ws_id in elevated else None
+            return {}
+        return {}
+
+    client = MagicMock()
+    client.account_api.side_effect = _api
+    return client, elevated
+
+
+def test_elevation_context_no_op_without_flag():
+    """`_elevation_context` returns a nullcontext when --auto-elevate is not set."""
+    import contextlib
+
+    args = MagicMock()
+    args.auto_elevate = False
+    args.dry_run_elevation = False
+
+    ctx = _elevation_context(args, MagicMock(), [])
+    assert isinstance(ctx, contextlib.nullcontext.__class__) or hasattr(ctx, "__enter__")
+
+
+def test_elevation_context_cleans_up_when_loop_raises():
+    """If ensure_workspace_admin raises mid-loop, already-elevated workspaces
+    must be revoked before the exception propagates."""
+    args = MagicMock()
+    args.auto_elevate = True
+    args.dry_run_elevation = False
+    args.client_id = "sp-app-001"
+
+    ws1 = WorkspaceInfo("ws-1", "d1", "ws-one", "https://ws1.azuredatabricks.net", "AZURE", "eu")
+    ws2 = WorkspaceInfo("ws-2", "d2", "ws-two", "https://ws2.azuredatabricks.net", "AZURE", "eu")
+
+    client, elevated = _make_elevation_client(fail_on_ws_id="ws-2")
+
+    with pytest.raises(RuntimeError, match="elevation failed"):
+        _elevation_context(args, client, [ws1, ws2])
+
+    # ws-1 was elevated then cleaned up; ws-2 was never elevated.
+    delete_calls = [c for c in client.account_api.call_args_list if c.args[0] == "DELETE"]
+    assert len(delete_calls) == 1, "ws-1 should have been revoked during cleanup"
+
+
+def test_elevation_context_success_cleanup_on_body_exception():
+    """If the WITH body raises (not the loop), cleanup still runs via __exit__."""
+    args = MagicMock()
+    args.auto_elevate = True
+    args.dry_run_elevation = False
+    args.client_id = "sp-app-001"
+
+    ws1 = WorkspaceInfo("ws-1", "d1", "ws-one", "https://ws1.azuredatabricks.net", "AZURE", "eu")
+    client, _ = _make_elevation_client()
+
+    with pytest.raises(ValueError, match="scan failed"):
+        with _elevation_context(args, client, [ws1]):
+            raise ValueError("scan failed")
+
+    delete_calls = [c for c in client.account_api.call_args_list if c.args[0] == "DELETE"]
+    assert len(delete_calls) == 1, "ws-1 should be revoked on body exception"

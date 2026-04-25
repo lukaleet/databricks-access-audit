@@ -19,7 +19,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 
@@ -192,8 +192,14 @@ def _elevation_context(args: argparse.Namespace, client: Any, workspaces: List):
     elevator = PermissionElevator(client, args.client_id, dry_run=dry_run)
     elevator.__enter__()
 
-    for ws in workspaces:
-        elevator.ensure_workspace_admin(ws.workspace_id, ws.workspace_name)
+    try:
+        for ws in workspaces:
+            elevator.ensure_workspace_admin(ws.workspace_id, ws.workspace_name)
+    except Exception:
+        # Ensure already-elevated workspaces are revoked even if the loop
+        # fails mid-way (e.g. a network error on the second workspace).
+        elevator.__exit__(*sys.exc_info())
+        raise
 
     # Return a context that only runs __exit__ (entry already done above).
     return _AlreadyEnteredContext(elevator)
@@ -385,7 +391,7 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
         out: Dict[str, Any] = {
             "principal": result.principal_name,
             "principal_type": result.principal_type,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "groups": [{
                 "name": g.group_name, "direct": g.is_direct, "path": g.path,
                 "source": g.source.value,
@@ -521,16 +527,18 @@ def _run_group_audit(args: argparse.Namespace) -> int:
                 )
             print(f"  Found {len(schema_grants)} schema grant(s)")
 
-        if args.scan_tables:
-            tbl_scanner = TablePermissionScanner(client)
-            for cat_name, ws_url in accessible:
-                ws = WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), "")
-                for sch in sch_scanner.get_schemas(ws, cat_name):
-                    sname = sch.get("name", "")
-                    table_grants.extend(
-                        tbl_scanner.scan_tables(ws, cat_name, sname, args.group, members, upstream)
-                    )
-            print(f"  Found {len(table_grants)} table grant(s)")
+            if args.scan_tables:
+                tbl_scanner = TablePermissionScanner(client)
+                for cat_name, ws_url in accessible:
+                    ws = WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), "")
+                    for sch in sch_scanner.get_schemas(ws, cat_name):
+                        sname = sch.get("name", "")
+                        table_grants.extend(
+                            tbl_scanner.scan_tables(
+                                ws, cat_name, sname, args.group, members, upstream
+                            )
+                        )
+                print(f"  Found {len(table_grants)} table grant(s)")
 
     detector = RedundancyDetector()
     redundancy = detector.detect_redundancy(catalog_grants, args.group)
@@ -577,7 +585,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     elif args.output == "json":
         result: Dict[str, Any] = {
             "group": args.group,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "users": len(members["users"]),
             "users_external": ext_users,
             "users_internal": len(members["users"]) - ext_users,
