@@ -207,7 +207,11 @@ class DatabricksSDKClient:
         fallback_kwargs = dict(kwargs)
         body = fallback_kwargs.pop("json", None)
         resp = self._account.api_client.do(method, url, body=body, **fallback_kwargs)
-        return resp if isinstance(resp, dict) else {}
+        if not isinstance(resp, dict):
+            log.debug("account_api fallback: expected dict, got %s — returning {}",
+                      type(resp).__name__)
+            return {}
+        return resp
 
     # =====================================================================
     # workspace_api  — compatibility layer
@@ -316,7 +320,11 @@ class DatabricksSDKClient:
         fallback_kwargs = dict(kwargs)
         body = fallback_kwargs.pop("json", None)
         resp = ws.api_client.do(method, endpoint, body=body, **fallback_kwargs)
-        return resp if isinstance(resp, dict) else {}
+        if not isinstance(resp, dict):
+            log.debug("workspace_api fallback: expected dict, got %s — returning {}",
+                      type(resp).__name__)
+            return {}
+        return resp
 
     # =====================================================================
     # scim_list_all  — compatibility layer
@@ -346,9 +354,16 @@ class DatabricksSDKClient:
 
     @staticmethod
     def _to_dict(obj: Any) -> Dict[str, Any]:
-        """Convert an SDK dataclass to a plain dict."""
+        """Convert an SDK dataclass or plain dict to a plain dict.
+
+        SDK response objects expose ``as_dict()``.  Plain dicts (e.g. from
+        the raw HTTP fallback path) are returned as-is.  Any other type
+        produces an empty dict and a DEBUG log so callers never see None
+        but SDK-version surprises are still observable in verbose logs.
+        """
         if hasattr(obj, "as_dict"):
             return obj.as_dict()
         if isinstance(obj, dict):
             return obj
+        log.debug("_to_dict: unexpected type %s, returning {}", type(obj).__name__)
         return {}
