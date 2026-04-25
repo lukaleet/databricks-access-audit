@@ -368,7 +368,7 @@ def test_elevation_context_no_op_without_flag():
     args.dry_run_elevation = False
 
     ctx = _elevation_context(args, MagicMock(), [])
-    assert isinstance(ctx, contextlib.nullcontext.__class__) or hasattr(ctx, "__enter__")
+    assert isinstance(ctx, contextlib.nullcontext)
 
 
 def test_elevation_context_cleans_up_when_loop_raises():
