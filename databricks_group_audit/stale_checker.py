@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import logging
 import time
+from datetime import date, timedelta
 from typing import Any, Dict, List, Set
 
 from databricks_group_audit.client import AuditClient
@@ -62,11 +63,12 @@ log = logging.getLogger(__name__)
 # SQL statement execution terminal states.
 _TERMINAL_STATES = frozenset({"SUCCEEDED", "FAILED", "CANCELLED", "CLOSED"})
 
-# Query returns one row per principal that had *any* auditable event in the
-# configured window.  We identify users by email and service principals by
-# their application ID (subject field) or display name (service_principal_name).
-# Using COALESCE with three alternatives covers the variations across cloud
-# providers and Databricks Runtime versions.
+# One row per principal that had *any* auditable event in the lookback window.
+# ``{lookback}`` is substituted with ``max_lookback_days`` at call time — a
+# longer window than ``stale_days`` so that principals with some historical
+# activity (but outside the stale threshold) still get a ``last_access`` date
+# rather than reporting ``None``.  The stale threshold is applied in Python
+# after the query returns.
 _ACTIVITY_QUERY = """\
 SELECT
   COALESCE(
@@ -76,7 +78,7 @@ SELECT
   ) AS principal,
   DATE(MAX(event_time)) AS last_seen_date
 FROM system.access.audit
-WHERE event_time >= DATEADD(DAY, -{days}, CURRENT_TIMESTAMP())
+WHERE event_time >= DATEADD(DAY, -{lookback}, CURRENT_TIMESTAMP())
   AND COALESCE(
     user_identity.email,
     user_identity.service_principal_name,
@@ -119,6 +121,7 @@ class StaleGrantChecker:
         stale_days: int = 90,
         poll_interval: float = 2.0,
         max_wait: float = 300.0,
+        max_lookback_days: int = 0,
     ) -> None:
         self.api = api_client
         self.workspace_url = workspace_url.rstrip("/")
@@ -126,6 +129,13 @@ class StaleGrantChecker:
         self.stale_days = stale_days
         self.poll_interval = poll_interval
         self.max_wait = max_wait
+        # Query window for audit history.  Must be >= stale_days so that
+        # principals with activity older than stale_days (but within this
+        # window) get a real last_access date instead of None.
+        self.max_lookback_days = (
+            max_lookback_days if max_lookback_days > 0
+            else max(stale_days * 3, 365)
+        )
 
     # ------------------------------------------------------------------
     # Statement execution
@@ -191,8 +201,32 @@ class StaleGrantChecker:
         return [dict(zip(columns, row)) for row in data_array]
 
     # ------------------------------------------------------------------
-    # Active principal lookup
+    # Activity lookup
     # ------------------------------------------------------------------
+
+    def _get_activity_by_principal(self) -> Dict[str, str]:
+        """Return ``{principal: last_seen_date_iso}`` for all principals seen
+        within ``max_lookback_days``.
+
+        Both the original-case and lowercased forms of each principal are
+        stored so that callers can do case-insensitive lookups with a plain
+        ``dict.get``.
+
+        Raises :class:`RuntimeError` when the statement execution API fails so
+        that :meth:`check_catalog_grants` can catch it and avoid producing
+        false stale findings.
+        """
+        sql = _ACTIVITY_QUERY.format(lookback=self.max_lookback_days)
+        rows = self._execute_statement(sql)
+        activity: Dict[str, str] = {}
+        for row in rows:
+            principal = row.get("principal")
+            last_seen = row.get("last_seen_date")
+            if principal and last_seen:
+                date_str = str(last_seen)
+                activity[principal] = date_str
+                activity[principal.lower()] = date_str
+        return activity
 
     def get_active_principals(self) -> Set[str]:
         """Return the set of principals with any auditable activity in the
@@ -206,15 +240,9 @@ class StaleGrantChecker:
         that :meth:`check_catalog_grants` can catch it and avoid producing
         false stale findings.
         """
-        sql = _ACTIVITY_QUERY.format(days=self.stale_days)
-        rows = self._execute_statement(sql)
-        active: Set[str] = set()
-        for row in rows:
-            principal = row.get("principal")
-            if principal:
-                active.add(principal)
-                active.add(principal.lower())  # case-insensitive fallback
-        return active
+        stale_threshold = (date.today() - timedelta(days=self.stale_days)).isoformat()
+        activity = self._get_activity_by_principal()
+        return {p for p, d in activity.items() if d >= stale_threshold}
 
     # ------------------------------------------------------------------
     # Cross-reference with grants
@@ -233,11 +261,12 @@ class StaleGrantChecker:
         grants are not included because groups do not appear in the audit log
         as individual principals.
 
-        A grant is stale when the principal does not appear in
-        ``system.access.audit`` for *any* event in the last ``stale_days``
-        days — not just catalog-specific events.  This is intentionally
-        conservative: a principal without any recorded activity is a stronger
-        signal than one who accessed a different catalog.
+        A grant is stale when the principal's last recorded activity in
+        ``system.access.audit`` predates the ``stale_days`` threshold.
+        ``StaleFinding.last_access`` is populated with the ISO date of the
+        principal's most recent activity within ``max_lookback_days`` when
+        that date exists, or ``None`` when the principal does not appear in
+        the audit log at all within the lookback window.
 
         Parameters
         ----------
@@ -264,16 +293,21 @@ class StaleGrantChecker:
             return []
 
         try:
-            active = self.get_active_principals()
+            activity = self._get_activity_by_principal()
         except Exception as exc:
             log.error("Stale-check failed: could not query audit log: %s", exc)
             return []
 
+        stale_threshold = (date.today() - timedelta(days=self.stale_days)).isoformat()
+
         findings: List[StaleFinding] = []
         for grant in member_grants:
-            principal_lower = grant.principal.lower()
-            if grant.principal in active or principal_lower in active:
-                continue  # recently active — not stale
+            last_seen = (
+                activity.get(grant.principal)
+                or activity.get(grant.principal.lower())
+            )
+            if last_seen and last_seen >= stale_threshold:
+                continue  # active within the stale window
 
             findings.append(StaleFinding(
                 principal=grant.principal,
@@ -282,7 +316,9 @@ class StaleGrantChecker:
                 privileges=list(grant.privileges),
                 workspace_name=workspace_name,
                 workspace_url=workspace_url,
-                last_access=None,  # not seen in audit window
+                # ISO date when last seen (but outside threshold), or None if
+                # not seen at all within max_lookback_days.
+                last_access=last_seen,
                 stale_days=self.stale_days,
             ))
 

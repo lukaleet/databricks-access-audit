@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -9,11 +10,18 @@ import pytest
 from databricks_group_audit.models import CatalogGrant, GrantSource
 from databricks_group_audit.stale_checker import StaleGrantChecker
 
+# Dates relative to today so that active/stale classification stays correct
+# regardless of when the test suite runs.
+_TODAY = date.today().isoformat()
+_RECENT = (date.today() - timedelta(days=10)).isoformat()   # within 90-day window
+_OLD = (date.today() - timedelta(days=180)).isoformat()     # outside 90-day window
+
 WS_URL = "https://adb-123.azuredatabricks.net"
 WAREHOUSE_ID = "wh-abc123"
 
 
-def _make_checker(ws_api_responses=None, stale_days=90, poll_interval=0.0):
+def _make_checker(ws_api_responses=None, stale_days=90, poll_interval=0.0,
+                  max_lookback_days=0):
     """Return a StaleGrantChecker backed by a mock client."""
     client = MagicMock()
     if ws_api_responses is not None:
@@ -24,6 +32,7 @@ def _make_checker(ws_api_responses=None, stale_days=90, poll_interval=0.0):
         warehouse_id=WAREHOUSE_ID,
         stale_days=stale_days,
         poll_interval=poll_interval,
+        max_lookback_days=max_lookback_days,
     )
     return checker, client
 
@@ -138,8 +147,8 @@ def test_execute_statement_empty_columns_returns_empty():
 
 def test_get_active_principals_returns_set():
     resp = _succeeded_response(rows=[
-        ["alice@example.com", "2024-01-10"],
-        ["sp-etl-bot", "2024-01-11"],
+        ["alice@example.com", _RECENT],
+        ["sp-etl-bot", _RECENT],
     ])
     checker, _ = _make_checker(ws_api_responses=[resp])
     active = checker.get_active_principals()
@@ -148,7 +157,7 @@ def test_get_active_principals_returns_set():
 
 
 def test_get_active_principals_case_insensitive():
-    resp = _succeeded_response(rows=[["Alice@Example.COM", "2024-01-15"]])
+    resp = _succeeded_response(rows=[["Alice@Example.COM", _RECENT]])
     checker, _ = _make_checker(ws_api_responses=[resp])
     active = checker.get_active_principals()
     # Both original and lowercased should be present
@@ -156,12 +165,20 @@ def test_get_active_principals_case_insensitive():
 
 
 def test_get_active_principals_skips_null_principal():
-    resp = _succeeded_response(rows=[[None, "2024-01-15"], ["alice@example.com", "2024-01-10"]])
+    resp = _succeeded_response(rows=[[None, _RECENT], ["alice@example.com", _RECENT]])
     checker, _ = _make_checker(ws_api_responses=[resp])
     active = checker.get_active_principals()
     # None-principal row is skipped; alice@example.com (+ its lowercase) are present
     assert "alice@example.com" in active
     assert None not in active
+
+
+def test_get_active_principals_excludes_old_activity():
+    """Principals whose last activity predates the stale threshold are NOT active."""
+    resp = _succeeded_response(rows=[["alice@example.com", _OLD]])
+    checker, _ = _make_checker(ws_api_responses=[resp])
+    active = checker.get_active_principals()
+    assert "alice@example.com" not in active
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +193,7 @@ def test_no_member_grants_returns_empty():
 
 
 def test_active_principal_not_stale():
-    resp = _succeeded_response(rows=[["alice@example.com", "2024-01-10"]])
+    resp = _succeeded_response(rows=[["alice@example.com", _RECENT]])
     checker, _ = _make_checker(ws_api_responses=[resp])
 
     grants = [_member_grant("alice@example.com")]
@@ -210,7 +227,7 @@ def test_stale_finding_carries_grant_metadata():
 
 
 def test_mixed_active_and_inactive():
-    resp = _succeeded_response(rows=[["alice@example.com", "2024-01-15"]])
+    resp = _succeeded_response(rows=[["alice@example.com", _RECENT]])
     checker, _ = _make_checker(ws_api_responses=[resp])
 
     grants = [
@@ -223,7 +240,7 @@ def test_mixed_active_and_inactive():
 
 
 def test_case_insensitive_match_prevents_false_stale():
-    resp = _succeeded_response(rows=[["Alice@Example.COM", "2024-01-15"]])
+    resp = _succeeded_response(rows=[["Alice@Example.COM", _RECENT]])
     checker, _ = _make_checker(ws_api_responses=[resp])
 
     grants = [_member_grant("alice@example.com")]
@@ -241,6 +258,58 @@ def test_audit_query_error_returns_empty_stale():
     # Error during query → no findings (conservative: don't flag stale on error)
     findings = checker.check_catalog_grants(grants, "prod", WS_URL)
     assert findings == []
+
+
+def test_stale_principal_last_access_populated():
+    """last_access is the ISO date from the audit log when the principal has
+    some history but outside the stale threshold."""
+    resp = _succeeded_response(rows=[["bob@example.com", _OLD]])
+    checker, _ = _make_checker(ws_api_responses=[resp])
+
+    grants = [_member_grant("bob@example.com")]
+    findings = checker.check_catalog_grants(grants, "prod", WS_URL)
+    assert len(findings) == 1
+    assert findings[0].last_access == _OLD
+
+
+def test_stale_principal_no_history_last_access_none():
+    """last_access is None when the principal does not appear in the audit log
+    at all (never seen within max_lookback_days)."""
+    resp = _succeeded_response(rows=[])  # bob has no audit history
+    checker, _ = _make_checker(ws_api_responses=[resp])
+
+    grants = [_member_grant("bob@example.com")]
+    findings = checker.check_catalog_grants(grants, "prod", WS_URL)
+    assert len(findings) == 1
+    assert findings[0].last_access is None
+
+
+def test_max_lookback_days_default_is_at_least_stale_days():
+    """Default max_lookback_days is ≥ stale_days (avoids missing recent history)."""
+    checker, _ = _make_checker(stale_days=90)
+    assert checker.max_lookback_days >= 90
+
+
+def test_max_lookback_days_explicit_override():
+    checker, _ = _make_checker(stale_days=30, max_lookback_days=180)
+    assert checker.max_lookback_days == 180
+
+
+def test_mixed_last_access_some_with_date_some_none():
+    """alice has known old history; bob has no history at all."""
+    resp = _succeeded_response(rows=[["alice@example.com", _OLD]])
+    checker, _ = _make_checker(ws_api_responses=[resp])
+
+    grants = [
+        _member_grant("alice@example.com"),
+        _member_grant("bob@example.com"),
+    ]
+    findings = checker.check_catalog_grants(grants, "prod", WS_URL)
+    assert len(findings) == 2
+    alice_f = next(f for f in findings if f.principal == "alice@example.com")
+    bob_f = next(f for f in findings if f.principal == "bob@example.com")
+    assert alice_f.last_access == _OLD
+    assert bob_f.last_access is None
 
 
 def test_sp_principal_type_preserved():
