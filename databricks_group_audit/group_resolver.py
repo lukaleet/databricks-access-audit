@@ -91,7 +91,7 @@ class GroupMembershipResolver:
                     self._user_cache[u.get("id", "")] = u
                 log.info("Pre-fetched %d users", len(self._user_cache))
             except Exception as exc:
-                log.warning("Bulk user fetch failed, falling back to per-member: %s", exc)
+                log.info("Bulk user fetch unavailable, falling back to per-member: %s", exc)
 
         if not self._sp_cache:
             try:
@@ -99,7 +99,7 @@ class GroupMembershipResolver:
                     self._sp_cache[sp.get("id", "")] = sp
                 log.info("Pre-fetched %d service principals", len(self._sp_cache))
             except Exception as exc:
-                log.warning("Bulk SP fetch failed, falling back to per-member: %s", exc)
+                log.info("Bulk SP fetch unavailable, falling back to per-member: %s", exc)
 
     # -- Recursive resolver ------------------------------------------------
 
