@@ -64,7 +64,7 @@ import logging
 from dataclasses import dataclass
 from typing import List, Optional
 
-from databricks_group_audit.client import AuditClient
+from databricks_group_audit.client import AuditClient, _scim_filter_escape
 
 log = logging.getLogger(__name__)
 
@@ -168,7 +168,7 @@ class PermissionElevator:
         resp = self.api.account_api(
             "GET",
             "/scim/v2/ServicePrincipals",
-            params={"filter": f'applicationId eq "{self.sp_application_id}"'},
+            params={"filter": f'applicationId eq "{_scim_filter_escape(self.sp_application_id)}"'},
         )
         resources = resp.get("Resources", [])
         if not resources:

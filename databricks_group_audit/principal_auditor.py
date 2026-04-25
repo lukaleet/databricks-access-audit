@@ -10,7 +10,7 @@ import logging
 from collections import deque
 from typing import Dict, List, Optional, Set, Tuple
 
-from databricks_group_audit.client import AuditClient
+from databricks_group_audit.client import AuditClient, _scim_filter_escape
 from databricks_group_audit.models import (
     EffectivePermission,
     GroupMembership,
@@ -66,7 +66,7 @@ class PrincipalAuditor:
             try:
                 resp = self.api.account_api(
                     "GET", "/scim/v2/Users",
-                    params={"filter": f'emails.value eq "{identifier}"'},
+                    params={"filter": f'emails.value eq "{_scim_filter_escape(identifier)}"'},
                 )
                 for u in resp.get("Resources", []):
                     return ("USER", u["id"], u.get("displayName", identifier),
@@ -75,9 +75,10 @@ class PrincipalAuditor:
                 log.warning("User lookup failed for '%s': %s", identifier, exc)
 
         # --- Try Service Principal by applicationId or displayName ---
+        safe = _scim_filter_escape(identifier)
         for filt in (
-            f'applicationId eq "{identifier}"',
-            f'displayName eq "{identifier}"',
+            f'applicationId eq "{safe}"',
+            f'displayName eq "{safe}"',
         ):
             try:
                 resp = self.api.account_api(
@@ -94,7 +95,7 @@ class PrincipalAuditor:
         try:
             resp = self.api.account_api(
                 "GET", "/scim/v2/Groups",
-                params={"filter": f'displayName eq "{identifier}"'},
+                params={"filter": f'displayName eq "{_scim_filter_escape(identifier)}"'},
             )
             for g in resp.get("Resources", []):
                 return ("GROUP", g["id"], g.get("displayName", identifier),

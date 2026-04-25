@@ -1,7 +1,32 @@
 """Tests for GroupMembershipResolver."""
 
+from databricks_group_audit.client import _scim_filter_escape
 from databricks_group_audit.group_resolver import GroupMembershipResolver
 from databricks_group_audit.models import MemberType
+
+# ---------------------------------------------------------------------------
+# _scim_filter_escape — unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_scim_filter_escape_plain_string():
+    assert _scim_filter_escape("data-engineers") == "data-engineers"
+
+
+def test_scim_filter_escape_double_quote():
+    assert _scim_filter_escape('group"with"quotes') == 'group\\"with\\"quotes'
+
+
+def test_scim_filter_escape_backslash():
+    assert _scim_filter_escape("back\\slash") == "back\\\\slash"
+
+
+def test_scim_filter_escape_both():
+    assert _scim_filter_escape('back\\"slash') == 'back\\\\\\"slash'
+
+
+def test_scim_filter_escape_empty():
+    assert _scim_filter_escape("") == ""
 
 
 def test_resolve_group_finds_direct_members(mock_scim):

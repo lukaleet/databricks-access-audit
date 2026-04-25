@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, List, Optional, Set
 
-from databricks_group_audit.client import AuditClient
+from databricks_group_audit.client import AuditClient, _scim_filter_escape
 from databricks_group_audit.models import GroupMember, GroupNode, MemberType
 
 log = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class GroupMembershipResolver:
         try:
             resp = self.api_client.account_api(
                 "GET", "/scim/v2/Groups",
-                params={"filter": f'displayName eq "{name}"'},
+                params={"filter": f'displayName eq "{_scim_filter_escape(name)}"'},
             )
             resources = resp.get("Resources", [])
             return resources[0] if resources else None

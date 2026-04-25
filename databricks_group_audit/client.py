@@ -40,6 +40,17 @@ ACCOUNT_HOST_MAP = {
 }
 
 
+def _scim_filter_escape(value: str) -> str:
+    """Escape a string value for use inside a SCIM filter expression.
+
+    Per RFC 7644 §3.4.2.2, only backslashes and double-quotes need escaping
+    inside a filter string literal.  Without this, a group or principal name
+    that contains a double-quote character would produce a malformed filter and
+    could allow unexpected SCIM query results.
+    """
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
 # ---------------------------------------------------------------------------
 # Structural protocol shared by both client implementations
 # ---------------------------------------------------------------------------
