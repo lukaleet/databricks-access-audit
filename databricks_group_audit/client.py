@@ -182,9 +182,7 @@ class DatabricksAPIClient:
         return token
 
     def _get_workspace_token(self, workspace_host: str) -> str:
-        if workspace_host not in self._workspace_token_caches:
-            self._workspace_token_caches[workspace_host] = TokenCache()
-        cache = self._workspace_token_caches[workspace_host]
+        cache = self._workspace_token_caches.setdefault(workspace_host, TokenCache())
         cached = cache.get_token()
         if cached:
             return cached
