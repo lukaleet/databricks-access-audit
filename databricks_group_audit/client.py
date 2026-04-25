@@ -26,7 +26,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 import requests
@@ -94,14 +94,14 @@ class TokenCache:
 
     def get_token(self) -> Optional[str]:
         with self.lock:
-            if self.token and self.expires_at and datetime.now() < self.expires_at:
+            if self.token and self.expires_at and datetime.now(timezone.utc) < self.expires_at:
                 return self.token
             return None
 
     def set_token(self, token: str, expires_in: int) -> None:
         with self.lock:
             self.token = token
-            self.expires_at = datetime.now() + timedelta(seconds=max(expires_in - 60, 10))
+            self.expires_at = datetime.now(timezone.utc) + timedelta(seconds=max(expires_in - 60, 10))
 
 
 # ---------------------------------------------------------------------------
