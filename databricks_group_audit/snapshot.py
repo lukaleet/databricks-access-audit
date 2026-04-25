@@ -155,8 +155,22 @@ def save_snapshot(data: Dict, path: str) -> None:
 
 
 def load_snapshot(path: str) -> Dict:
-    """Load a snapshot dict from *path*."""
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    """Load a snapshot dict from *path*.
+
+    Raises
+    ------
+    ValueError
+        If the file's ``version`` field does not match :data:`SNAPSHOT_VERSION`,
+        indicating the file was written by an incompatible tool version.
+    """
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    version = data.get("version")
+    if version != SNAPSHOT_VERSION:
+        raise ValueError(
+            f"Snapshot version mismatch: expected '{SNAPSHOT_VERSION}', "
+            f"got '{version}'. Re-run the audit to create a compatible snapshot."
+        )
+    return data
 
 
 # ---------------------------------------------------------------------------

@@ -6,6 +6,8 @@ import json
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from databricks_group_audit.models import (
     AuditDiff,
     CatalogGrant,
@@ -195,6 +197,24 @@ def test_load_parses_json(tmp_path):
     Path(path).write_text(json.dumps(data), encoding="utf-8")
     loaded = load_snapshot(path)
     assert loaded["target"] == "grp"
+
+
+def test_load_snapshot_version_mismatch_raises(tmp_path):
+    """Loading a snapshot whose version doesn't match SNAPSHOT_VERSION raises ValueError."""
+    path = str(tmp_path / "old.json")
+    data = {"version": "99", "mode": "group", "target": "grp", "grants": []}
+    Path(path).write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(ValueError, match="Snapshot version mismatch"):
+        load_snapshot(path)
+
+
+def test_load_snapshot_missing_version_raises(tmp_path):
+    """A snapshot file with no version field is also rejected."""
+    path = str(tmp_path / "no_version.json")
+    data = {"mode": "group", "target": "grp", "grants": []}
+    Path(path).write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(ValueError, match="Snapshot version mismatch"):
+        load_snapshot(path)
 
 
 # ---------------------------------------------------------------------------
