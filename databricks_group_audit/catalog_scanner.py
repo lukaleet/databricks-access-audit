@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Set, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, List, Optional, Set
 
 from databricks_group_audit._classification import build_member_lookups, classify_grant
 from databricks_group_audit.client import AuditClient
@@ -54,19 +55,19 @@ def classify_catalog_grant(
 class CatalogPermissionScanner:
     """Scan catalog permissions across workspaces.
 
-    Deduplication is keyed on ``(workspace_url, catalog_name)`` so that
-    identically-named catalogs attached to different metastores (different
-    workspaces) are each scanned independently.  A single workspace seeing
-    the same catalog twice is still deduplicated.
+    Each workspace is scanned independently so that workspace-catalog bindings
+    are respected: the same catalog name can be attached to different subsets
+    of workspaces, and must be scanned from every workspace that can see it.
+
+    Duplicate workspace URLs in the input list are silently deduplicated by
+    :meth:`scan_all_workspaces` before dispatch.  Within a single
+    :meth:`scan_workspace` call, duplicate catalog names from the UC API
+    response are skipped via a local seen-set.
     """
 
     def __init__(self, api_client: AuditClient, group_resolver: GroupMembershipResolver):
         self.api_client = api_client
         self.group_resolver = group_resolver
-        # (workspace_url, catalog_name) — prevents re-scanning the same
-        # catalog from the same workspace context while allowing the same
-        # catalog name to be scanned from a different workspace/metastore.
-        self._scanned_catalogs: Set[Tuple[str, str]] = set()
 
     def _get_catalogs(self, workspace: WorkspaceInfo) -> List[dict]:
         try:
@@ -159,15 +160,13 @@ class CatalogPermissionScanner:
         grants: List[CatalogGrant] = []
         catalogs = self._get_catalogs(workspace)
         lookups = build_member_lookups(all_members)
+        seen_names: Set[str] = set()  # guard against duplicate catalog names in the API response
 
         for cat in catalogs:
             name = cat.get("name", "")
-            if not name:
+            if not name or name in seen_names:
                 continue
-            key = (workspace.workspace_url, name)
-            if key in self._scanned_catalogs:
-                continue
-            self._scanned_catalogs.add(key)
+            seen_names.add(name)
 
             for g in self._get_catalog_grants(workspace, name):
                 privs = g.get("privileges") or []
@@ -187,21 +186,47 @@ class CatalogPermissionScanner:
         target_group_name: str,
         group_node: GroupNode,
         all_members: Dict[str, List[GroupMember]],
+        max_workers: int = 8,
     ) -> List[CatalogGrant]:
-        """Scan all workspaces, computing upstream groups exactly once."""
-        self._scanned_catalogs.clear()
+        """Scan all workspaces in parallel, computing upstream groups exactly once.
+
+        Duplicate workspace URLs are silently deduplicated before dispatch so
+        that a workspace listed more than once is only scanned once.
+        Workers are capped at the number of unique workspaces to avoid
+        spawning idle threads.
+        """
         # Fetch upstream groups once — the SCIM hierarchy is account-level and
         # does not change between workspaces, so fetching N times would be wasteful.
         upstream_groups = self.get_groups_containing_target(target_group_name)
 
-        all_grants: List[CatalogGrant] = []
+        # Deduplicate by URL while preserving order.
+        seen_urls: Set[str] = set()
+        unique_workspaces: List[WorkspaceInfo] = []
         for ws in workspaces:
-            try:
-                all_grants.extend(
-                    self.scan_workspace(
-                        ws, target_group_name, group_node, all_members, upstream_groups
-                    )
-                )
-            except Exception as exc:
-                log.warning("Skipping workspace %s due to error: %s", ws.workspace_name, exc)
+            if ws.workspace_url not in seen_urls:
+                seen_urls.add(ws.workspace_url)
+                unique_workspaces.append(ws)
+
+        n = len(unique_workspaces)
+        if n == 0:
+            return []
+
+        all_grants: List[CatalogGrant] = []
+        workers = min(max_workers, n)
+
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {
+                pool.submit(
+                    self.scan_workspace,
+                    ws, target_group_name, group_node, all_members, upstream_groups,
+                ): ws
+                for ws in unique_workspaces
+            }
+            for fut in as_completed(futures):
+                ws = futures[fut]
+                try:
+                    all_grants.extend(fut.result())
+                except Exception as exc:
+                    log.warning("Skipping workspace %s due to error: %s", ws.workspace_name, exc)
+
         return all_grants

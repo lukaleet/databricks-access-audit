@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
@@ -81,6 +82,17 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     # Client selection
     p.add_argument("--no-sdk", action="store_true",
                    help="Force the raw HTTP client even when databricks-sdk is installed")
+
+    p.add_argument(
+        "--workers",
+        type=int,
+        default=8,
+        metavar="N",
+        help=(
+            "Number of parallel threads used to scan workspaces, schemas, and tables "
+            "(default: 8).  Set to 1 to scan sequentially."
+        ),
+    )
 
     # Retry tuning (applies to raw HTTP client; SDK manages its own retries)
     p.add_argument("--max-retries", type=int, default=5)
@@ -511,33 +523,61 @@ def _run_group_audit(args: argparse.Namespace) -> int:
 
     with _elevation_context(args, client, workspaces):
         catalog_grants = cat_scanner.scan_all_workspaces(
-            workspaces, args.group, group_node, members
+            workspaces, args.group, group_node, members, max_workers=args.workers
         )
         print(f"  Found {len(catalog_grants)} catalog grant(s)")
 
         if args.scan_schemas or args.scan_tables:
             sch_scanner = SchemaPermissionScanner(client)
             upstream = cat_scanner.get_groups_containing_target(args.group)
-            accessible = {(g.catalog_name, g.workspace_url) for g in catalog_grants
-                          if g.grant_source in (GrantSource.DIRECT, GrantSource.UPSTREAM)}
-            for cat_name, ws_url in accessible:
-                ws = WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), "")
-                schema_grants.extend(
-                    sch_scanner.scan_schemas(ws, cat_name, args.group, members, upstream)
-                )
+            accessible = sorted({
+                (g.catalog_name, g.workspace_url) for g in catalog_grants
+                if g.grant_source in (GrantSource.DIRECT, GrantSource.UPSTREAM)
+            })
+            workers = max(1, min(args.workers, len(accessible)))
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                sch_futures = {
+                    pool.submit(
+                        sch_scanner.scan_schemas,
+                        WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), ""),
+                        cat_name, args.group, members, upstream,
+                    ): (cat_name, ws_url)
+                    for cat_name, ws_url in accessible
+                }
+                for fut in as_completed(sch_futures):
+                    cat_name, ws_url = sch_futures[fut]
+                    try:
+                        schema_grants.extend(fut.result())
+                    except Exception as exc:
+                        log.warning("Schema scan failed for %s on %s: %s", cat_name, ws_url, exc)
             print(f"  Found {len(schema_grants)} schema grant(s)")
 
             if args.scan_tables:
                 tbl_scanner = TablePermissionScanner(client)
+                # Collect (catalog, workspace_url, schema) triples first, then fan out.
+                triples = []
                 for cat_name, ws_url in accessible:
                     ws = WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), "")
                     for sch in sch_scanner.get_schemas(ws, cat_name):
                         sname = sch.get("name", "")
-                        table_grants.extend(
-                            tbl_scanner.scan_tables(
-                                ws, cat_name, sname, args.group, members, upstream
-                            )
-                        )
+                        if sname:
+                            triples.append((cat_name, ws_url, sname))
+                tbl_workers = max(1, min(args.workers, len(triples)))
+                with ThreadPoolExecutor(max_workers=tbl_workers) as pool:
+                    tbl_futures = {
+                        pool.submit(
+                            tbl_scanner.scan_tables,
+                            WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), ""),
+                            cat_name, sname, args.group, members, upstream,
+                        ): (cat_name, sname)
+                        for cat_name, ws_url, sname in triples
+                    }
+                    for fut in as_completed(tbl_futures):
+                        cat_name, sname = tbl_futures[fut]
+                        try:
+                            table_grants.extend(fut.result())
+                        except Exception as exc:
+                            log.warning("Table scan failed for %s.%s: %s", cat_name, sname, exc)
                 print(f"  Found {len(table_grants)} table grant(s)")
 
     detector = RedundancyDetector()

@@ -246,18 +246,18 @@ def test_upstream_nonexistent_group(mock_uc):
 # Workspace scanning — deduplication
 # ---------------------------------------------------------------------------
 
-def test_scan_deduplicates_catalogs_within_same_workspace(mock_uc):
-    """Scanning the same workspace twice should not return grants on the second call."""
+def test_scan_all_workspaces_deduplicates_duplicate_url(mock_uc):
+    """Passing the same workspace URL twice must scan it only once."""
     rsps, client = mock_uc
     resolver = GroupMembershipResolver(client)
     node = resolver.resolve_group("data-engineers")
     members = resolver.get_all_members_flat(node)
     scanner = CatalogPermissionScanner(client, resolver)
     ws = _ws()
-    grants1 = scanner.scan_workspace(ws, "data-engineers", node, members)
-    grants2 = scanner.scan_workspace(ws, "data-engineers", node, members)
-    assert len(grants1) > 0
-    assert len(grants2) == 0  # Same (workspace_url, catalog_name) already scanned
+    grants_once = scanner.scan_all_workspaces([ws], "data-engineers", node, members)
+    grants_dupe = scanner.scan_all_workspaces([ws, ws], "data-engineers", node, members)
+    assert len(grants_once) > 0
+    assert len(grants_dupe) == len(grants_once)  # duplicate URL silently deduplicated
 
 
 def test_scan_different_workspaces_same_catalog_name(mock_uc):

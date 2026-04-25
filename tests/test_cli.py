@@ -75,6 +75,21 @@ def test_parse_args_no_sdk():
     assert args.no_sdk is True
 
 
+def test_parse_args_workers_default():
+    args = _parse_args([
+        "--group", "g", "--client-id", "c", "--client-secret", "s", "--account-id", "a",
+    ])
+    assert args.workers == 8
+
+
+def test_parse_args_workers_explicit():
+    args = _parse_args([
+        "--group", "g", "--client-id", "c", "--client-secret", "s",
+        "--account-id", "a", "--workers", "4",
+    ])
+    assert args.workers == 4
+
+
 def test_parse_args_workspace_urls():
     args = _parse_args([
         "--group", "g", "--client-id", "c", "--client-secret", "s",
