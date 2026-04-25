@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.9.0] - 2026-04-25
+
+### Added
+- **Parallel scanning** (`--workers N`, default 8) — workspace, schema, and table scans now fan out with `ThreadPoolExecutor`; each workspace is scanned from its own vantage point so workspace-catalog bindings are respected; duplicate workspace URLs are silently deduplicated before dispatch
+- `scan_all_workspaces` now accepts a `max_workers` parameter for programmatic use
+
+### Fixed
+- **SCIM filter injection** — group names, user emails, and SP identifiers are now escaped (backslash and double-quote) before being interpolated into SCIM filter expressions; unescaped values could produce malformed filters or match unintended principals
+- **UTC timestamps** — JSON output `timestamp` fields were naive local-time strings; they are now always UTC with `+00:00` offset
+- **Elevation cleanup leak** — if `ensure_workspace_admin` raised mid-loop, already-elevated workspaces were never revoked; the loop is now wrapped so cleanup runs unconditionally on any exception
+- **`StaleFinding.last_access`** — was always `None` because the SQL query only covered the `stale_days` window; an extended `max_lookback_days` window (default `max(stale_days × 3, 365)`) is now used for the query and active-vs-stale classification is done in Python, so stale-but-historically-seen principals get a real date
+- **Snapshot version validation** — `load_snapshot()` now raises `ValueError` on version mismatch instead of silently loading an incompatible schema
+- **CSV output gaps** — `write_group_audit_csv` was missing the `additional_privileges` column in the redundancy section; `write_principal_audit_csv` omitted the group-memberships and workspace-roles sections entirely; `write_diff_csv` labelled the `external_id` member column `"source"`
+- **Workspace token cache race** — `_get_workspace_token` used a non-atomic check-then-insert on `_workspace_token_caches`; replaced with `dict.setdefault()` so concurrent threads always share the same `TokenCache` object per host
+
+### Tests
+- 304 tests (up from 275): new tests for UTC timestamps, elevation cleanup, stale `last_access`, snapshot version validation, CSV column counts and section headers, `--workers` flag, parallel deduplication, and local-group pagination
+
+---
+
 ## [0.8.0] - 2026-04-24
 
 ### Added

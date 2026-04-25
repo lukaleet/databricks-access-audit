@@ -145,6 +145,8 @@ Scan scope:
   --workspace-urls     Comma-separated URLs; omit to scan all discovered workspaces
   --scan-schemas       Also scan schema-level grants
   --scan-tables        Also scan table/view-level grants (implies --scan-schemas)
+  --workers N          Parallel threads for workspace/schema/table scanning
+                       (default: 8; set to 1 for sequential)
 
 Output:
   --output             text | json | csv  (default: text)
