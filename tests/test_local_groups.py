@@ -255,3 +255,45 @@ def test_group_without_display_name_skipped(mock_client):
         findings = checker.check_workspace(_ws())
 
     assert findings == []
+
+
+# ---------------------------------------------------------------------------
+# Multi-page pagination
+# ---------------------------------------------------------------------------
+
+
+def test_pagination_fetches_all_pages(mock_client):
+    """_get_workspace_groups must follow pagination until totalResults is reached."""
+    page1 = [{"id": "g1", "displayName": "local-a", "members": []}]
+    page2 = [{"id": "g2", "displayName": "local-b", "members": []}]
+
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _account_scim_mock(rsps)
+        rsps.add(responses_lib.POST, f"{WORKSPACE_HOST}/oidc/v1/token",
+                 json={"access_token": "ws-tok", "expires_in": 3600})
+        # First page: 1 of 2 results
+        rsps.add(responses_lib.GET, f"{WORKSPACE_HOST}/api/2.0/preview/scim/v2/Groups",
+                 json={"Resources": page1, "totalResults": 2, "itemsPerPage": 1})
+        # Second page: 2nd result, totalResults still 2
+        rsps.add(responses_lib.GET, f"{WORKSPACE_HOST}/api/2.0/preview/scim/v2/Groups",
+                 json={"Resources": page2, "totalResults": 2, "itemsPerPage": 1})
+
+        checker = LocalGroupChecker(mock_client)
+        findings = checker.check_workspace(_ws())
+
+    assert len(findings) == 2
+    names = {f.group_name for f in findings}
+    assert names == {"local-a", "local-b"}
+
+
+# ---------------------------------------------------------------------------
+# check_all_workspaces with empty workspace list
+# ---------------------------------------------------------------------------
+
+
+def test_check_all_workspaces_empty_list(mock_client):
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _account_scim_mock(rsps)
+        checker = LocalGroupChecker(mock_client)
+        findings = checker.check_all_workspaces([])
+    assert findings == []
