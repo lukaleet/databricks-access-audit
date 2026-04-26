@@ -195,31 +195,30 @@ def test_workspace_api_catalogs():
 
 def test_workspace_api_catalog_grants():
     client, _, ws = _make_client()
-    pa = _sdk_obj(principal="data-engineers", privileges=["USE_CATALOG"])
-    grants_obj = MagicMock()
-    grants_obj.privilege_assignments = [pa]
-    ws.grants.get.return_value = grants_obj
-
+    ws.api_client.do.return_value = {
+        "privilege_assignments": [{"principal": "data-engineers", "privileges": ["USE_CATALOG"]}]
+    }
     resp = client.workspace_api(
         "https://ws.azuredatabricks.net", "GET",
         "/api/2.1/unity-catalog/permissions/catalog/main",
     )
     assert len(resp["privilege_assignments"]) == 1
     assert resp["privilege_assignments"][0]["principal"] == "data-engineers"
+    ws.api_client.do.assert_called_once_with(
+        "GET", "/api/2.1/unity-catalog/permissions/catalog/main"
+    )
 
 
 def test_workspace_api_catalog_grants_null_assignments():
-    """grants.privilege_assignments = None should return empty list."""
+    """Non-dict response from api_client.do (e.g. SDK quirk) returns {}."""
     client, _, ws = _make_client()
-    grants_obj = MagicMock()
-    grants_obj.privilege_assignments = None
-    ws.grants.get.return_value = grants_obj
+    ws.api_client.do.return_value = "unexpected string"
 
     resp = client.workspace_api(
         "https://ws.azuredatabricks.net", "GET",
         "/api/2.1/unity-catalog/permissions/catalog/main",
     )
-    assert resp["privilege_assignments"] == []
+    assert resp == {}
 
 
 # ---------------------------------------------------------------------------
@@ -245,16 +244,17 @@ def test_workspace_api_schemas():
 
 def test_workspace_api_schema_grants():
     client, _, ws = _make_client()
-    pa = _sdk_obj(principal="data-engineers", privileges=["USE_SCHEMA"])
-    grants_obj = MagicMock()
-    grants_obj.privilege_assignments = [pa]
-    ws.grants.get.return_value = grants_obj
-
+    ws.api_client.do.return_value = {
+        "privilege_assignments": [{"principal": "data-engineers", "privileges": ["USE_SCHEMA"]}]
+    }
     resp = client.workspace_api(
         "https://ws.azuredatabricks.net", "GET",
         "/api/2.1/unity-catalog/permissions/schema/main.bronze",
     )
     assert resp["privilege_assignments"][0]["privileges"] == ["USE_SCHEMA"]
+    ws.api_client.do.assert_called_once_with(
+        "GET", "/api/2.1/unity-catalog/permissions/schema/main.bronze"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -280,16 +280,17 @@ def test_workspace_api_tables():
 
 def test_workspace_api_table_grants():
     client, _, ws = _make_client()
-    pa = _sdk_obj(principal="alice@example.com", privileges=["SELECT"])
-    grants_obj = MagicMock()
-    grants_obj.privilege_assignments = [pa]
-    ws.grants.get.return_value = grants_obj
-
+    ws.api_client.do.return_value = {
+        "privilege_assignments": [{"principal": "alice@example.com", "privileges": ["SELECT"]}]
+    }
     resp = client.workspace_api(
         "https://ws.azuredatabricks.net", "GET",
         "/api/2.1/unity-catalog/permissions/table/main.bronze.events",
     )
     assert resp["privilege_assignments"][0]["principal"] == "alice@example.com"
+    ws.api_client.do.assert_called_once_with(
+        "GET", "/api/2.1/unity-catalog/permissions/table/main.bronze.events"
+    )
 
 
 # ---------------------------------------------------------------------------

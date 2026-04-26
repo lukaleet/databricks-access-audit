@@ -36,7 +36,6 @@ log = logging.getLogger(__name__)
 
 try:
     from databricks.sdk import AccountClient, WorkspaceClient
-    from databricks.sdk.service.catalog import SecurableType
 
     SDK_AVAILABLE = True
 except ImportError:
@@ -258,17 +257,13 @@ class DatabricksSDKClient:
             return {"catalogs": [self._to_dict(c) for c in items]}
 
         # --- Catalog grants ----------------------------------------------
+        # Use raw REST (not ws.grants.get) — the SDK's grants API goes through
+        # a gRPC shim that rejects SECURABLETYPE.CATALOG on some workspace
+        # versions, while the REST endpoint works on all versions.
         m = self._RE_CAT_GRANTS.match(endpoint)
         if m:
-            grants = ws.grants.get(
-                securable_type=SecurableType.CATALOG, full_name=m.group(1),
-            )
-            return {
-                "privilege_assignments": [
-                    self._to_dict(pa)
-                    for pa in (grants.privilege_assignments or [])
-                ],
-            }
+            resp = ws.api_client.do("GET", endpoint)
+            return resp if isinstance(resp, dict) else {}
 
         # --- Schemas -----------------------------------------------------
         if self._RE_SCHEMAS.match(endpoint):
@@ -279,15 +274,8 @@ class DatabricksSDKClient:
         # --- Schema grants -----------------------------------------------
         m = self._RE_SCHEMA_GRANTS.match(endpoint)
         if m:
-            grants = ws.grants.get(
-                securable_type=SecurableType.SCHEMA, full_name=m.group(1),
-            )
-            return {
-                "privilege_assignments": [
-                    self._to_dict(pa)
-                    for pa in (grants.privilege_assignments or [])
-                ],
-            }
+            resp = ws.api_client.do("GET", endpoint)
+            return resp if isinstance(resp, dict) else {}
 
         # --- Tables ------------------------------------------------------
         if self._RE_TABLES.match(endpoint):
@@ -303,15 +291,8 @@ class DatabricksSDKClient:
         # --- Table grants ------------------------------------------------
         m = self._RE_TABLE_GRANTS.match(endpoint)
         if m:
-            grants = ws.grants.get(
-                securable_type=SecurableType.TABLE, full_name=m.group(1),
-            )
-            return {
-                "privilege_assignments": [
-                    self._to_dict(pa)
-                    for pa in (grants.privilege_assignments or [])
-                ],
-            }
+            resp = ws.api_client.do("GET", endpoint)
+            return resp if isinstance(resp, dict) else {}
 
         # --- Fallback: raw API via SDK's workspace HTTP client -----------
         if not workspace_host.startswith("https://"):
