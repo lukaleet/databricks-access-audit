@@ -109,7 +109,7 @@ def _register_common_mocks(rsps):
     """Register account + workspace API mocks used by both audit paths."""
     base = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
 
-    rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/v1/token",
+    rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
              json={"access_token": "mock-token", "expires_in": 3600})
     rsps.add(responses_lib.POST, f"{WORKSPACE_HOST}/oidc/v1/token",
              json={"access_token": "ws-token", "expires_in": 3600})
@@ -229,7 +229,7 @@ def test_group_audit_unknown_group_returns_error(capsys):
     """Group not found → resolver returns None → CLI exits 1."""
     base = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
     with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
-        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/v1/token",
+        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
                  json={"access_token": "mock-token", "expires_in": 3600})
         # Return empty for all SCIM list calls so the group is never found.
         for resource in ("Groups", "Users", "ServicePrincipals"):
@@ -315,7 +315,7 @@ def test_principal_audit_not_found_returns_error(capsys):
     """Principal not found in any SCIM list → ValueError → CLI exits 1."""
     base = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
     with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
-        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/v1/token",
+        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
                  json={"access_token": "mock-token", "expires_in": 3600})
         rsps.add(responses_lib.GET, f"{base}/workspaces", json=[])
         for resource in ("Users", "ServicePrincipals", "Groups"):

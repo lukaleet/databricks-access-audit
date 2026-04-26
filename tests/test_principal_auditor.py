@@ -30,7 +30,7 @@ BASE = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
 
 def _add_scim_endpoints(rsps):
     """Register standard SCIM mock endpoints."""
-    rsps.add(responses.POST, f"{ACCOUNT_HOST}/oidc/v1/token",
+    rsps.add(responses.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
              json={"access_token": "mock-token", "expires_in": 3600})
 
     # Group list — supports filter queries by matching displayName or returning all
@@ -135,7 +135,7 @@ class TestFindPrincipal:
     def test_find_user_by_email(self, mock_client):
         _add_scim_endpoints(responses)
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
-        ptype, pid, name, _ext_id = auditor.find_principal("alice@example.com")
+        ptype, pid, name, _ext_id, _uc_name = auditor.find_principal("alice@example.com")
         assert ptype == "USER"
         assert pid == "user-1"
         assert name == "Alice Smith"
@@ -144,7 +144,7 @@ class TestFindPrincipal:
     def test_find_sp_by_app_id(self, mock_client):
         _add_scim_endpoints(responses)
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
-        ptype, pid, name, _ext_id = auditor.find_principal("app-etl-001")
+        ptype, pid, name, _ext_id, _uc_name = auditor.find_principal("app-etl-001")
         assert ptype == "SERVICE_PRINCIPAL"
         assert pid == "sp-1"
         assert name == "ETL-Bot"
@@ -153,7 +153,7 @@ class TestFindPrincipal:
     def test_find_sp_by_display_name(self, mock_client):
         _add_scim_endpoints(responses)
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
-        ptype, pid, name, _ext_id = auditor.find_principal("ETL-Bot")
+        ptype, pid, name, _ext_id, _uc_name = auditor.find_principal("ETL-Bot")
         assert ptype == "SERVICE_PRINCIPAL"
         assert pid == "sp-1"
 
@@ -161,7 +161,7 @@ class TestFindPrincipal:
     def test_find_group_by_name(self, mock_client):
         _add_scim_endpoints(responses)
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
-        ptype, pid, name, _ext_id = auditor.find_principal("data-engineers")
+        ptype, pid, name, _ext_id, _uc_name = auditor.find_principal("data-engineers")
         # "data-engineers" has no @ so User lookup is skipped; SP lookup fails;
         # but SP by displayName may match first if SP has that name. Since no SP
         # named "data-engineers" exists, it falls through to group.
@@ -174,6 +174,35 @@ class TestFindPrincipal:
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
         with pytest.raises(ValueError, match="not found"):
             auditor.find_principal("nobody@nowhere.com")
+
+    @responses.activate
+    def test_uc_name_is_username_when_different_from_display_name(self, mock_client):
+        """Azure AD guest users have a #ext# UPN as userName; uc_name must return it."""
+        guest_user = {
+            "id": "guest-1",
+            "displayName": "External User",
+            "userName": "external_gmail.com#ext#@tenant.onmicrosoft.com",
+            "emails": [{"value": "external@gmail.com"}],
+        }
+        rsps = responses
+        rsps.add(responses.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
+                 json={"access_token": "tok", "expires_in": 3600})
+        rsps.add(responses.GET, f"{BASE}/scim/v2/Users",
+                 json={"Resources": [guest_user], "totalResults": 1, "itemsPerPage": 100})
+        auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
+        ptype, pid, name, _ext_id, uc_name = auditor.find_principal("external@gmail.com")
+        assert ptype == "USER"
+        assert name == "External User"
+        assert uc_name == "external_gmail.com#ext#@tenant.onmicrosoft.com"
+
+    @responses.activate
+    def test_uc_name_falls_back_to_identifier_when_no_username(self, mock_client):
+        """When SCIM record has no userName, uc_name falls back to the lookup email."""
+        _add_scim_endpoints(responses)
+        auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
+        # Alice's mock record has no userName field
+        _ptype, _pid, _name, _ext_id, uc_name = auditor.find_principal("alice@example.com")
+        assert uc_name == "alice@example.com"
 
 
 # ---------------------------------------------------------------------------

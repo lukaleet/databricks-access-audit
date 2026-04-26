@@ -52,12 +52,16 @@ class PrincipalAuditor:
     # Step 1 — Identify the principal
     # ------------------------------------------------------------------
 
-    def find_principal(self, identifier: str) -> Tuple[str, str, str, Optional[str]]:
+    def find_principal(self, identifier: str) -> Tuple[str, str, str, Optional[str], str]:
         """Look up a principal by email, application ID, or display name.
 
-        Returns ``(principal_type, principal_id, display_name, external_id)``.
+        Returns ``(principal_type, principal_id, display_name, external_id, uc_name)``.
         ``external_id`` is the SCIM ``externalId`` field — non-empty when the
         principal was provisioned by an external IdP.
+        ``uc_name`` is the identifier used in Unity Catalog grant entries —
+        for users this is the SCIM ``userName`` (which may differ from the email
+        passed in, e.g. Azure AD guest UPNs like ``user_gmail.com#ext#@tenant``),
+        for SPs and groups it equals the display name.
         Raises ``ValueError`` when no match is found.
         """
         identifier = identifier.strip()
@@ -70,8 +74,9 @@ class PrincipalAuditor:
                     params={"filter": f'emails.value eq "{_scim_filter_escape(identifier)}"'},
                 )
                 for u in resp.get("Resources", []):
+                    uc_name = u.get("userName") or identifier
                     return ("USER", u["id"], u.get("displayName", identifier),
-                            u.get("externalId") or None)
+                            u.get("externalId") or None, uc_name)
             except Exception as exc:
                 log.warning("User lookup failed for '%s': %s", identifier, exc)
 
@@ -87,8 +92,9 @@ class PrincipalAuditor:
                     params={"filter": filt},
                 )
                 for sp in resp.get("Resources", []):
-                    return ("SERVICE_PRINCIPAL", sp["id"], sp.get("displayName", identifier),
-                            sp.get("externalId") or None)
+                    dname = sp.get("displayName", identifier)
+                    return ("SERVICE_PRINCIPAL", sp["id"], dname,
+                            sp.get("externalId") or None, dname)
             except Exception as exc:
                 log.warning("SP lookup (%s) failed: %s", filt, exc)
 
@@ -99,8 +105,8 @@ class PrincipalAuditor:
                 params={"filter": f'displayName eq "{_scim_filter_escape(identifier)}"'},
             )
             for g in resp.get("Resources", []):
-                return ("GROUP", g["id"], g.get("displayName", identifier),
-                        g.get("externalId") or None)
+                dname = g.get("displayName", identifier)
+                return ("GROUP", g["id"], dname, g.get("externalId") or None, dname)
         except Exception as exc:
             log.warning("Group lookup failed for '%s': %s", identifier, exc)
 
@@ -357,6 +363,7 @@ class PrincipalAuditor:
         scan_schemas: bool = False,
         scan_tables: bool = False,
         max_workers: int = 8,
+        principal_aliases: Optional[Set[str]] = None,
     ) -> List[EffectivePermission]:
         """For each workspace the principal can access, scan UC grants
         and return only those held by the principal or their groups.
@@ -368,8 +375,13 @@ class PrincipalAuditor:
 
         Principal matching is case-insensitive and strips backtick quoting
         uniformly at all securable levels.
+
+        ``principal_aliases`` supplements ``principal_name`` with additional
+        identifiers for the same principal (e.g. the SCIM ``userName`` for Azure
+        AD guest users whose UC grants are stored under their UPN rather than
+        their display name).
         """
-        relevant = group_names | {principal_name}
+        relevant = group_names | {principal_name} | (principal_aliases or set())
         relevant_lower = {n.lower() for n in relevant}
 
         # Deduplicate by workspace URL; first occurrence keeps the workspace metadata.
@@ -426,7 +438,7 @@ class PrincipalAuditor:
             Maximum number of parallel threads for workspace and UC scanning.
         """
         # 1. Identify
-        ptype, pid, pname, p_ext_id = self.find_principal(identifier)
+        ptype, pid, pname, p_ext_id, p_uc_name = self.find_principal(identifier)
         log.info("Principal: %s (%s, id=%s, source=%s)", pname, ptype, pid,
                  "external" if p_ext_id else "internal")
 
@@ -476,11 +488,15 @@ class PrincipalAuditor:
                 dead_ends.append(m.group_name)
 
         # 6. Scan UC permissions
+        # p_uc_name may differ from pname for Azure AD guest users whose UC
+        # grants are stored under their tenant UPN (user_gmail.com#ext#@tenant).
+        aliases: Set[str] = {p_uc_name} if p_uc_name != pname else set()
         perms = self.scan_permissions(
             ws_roles, pname, group_names,
             scan_schemas=scan_schemas or scan_tables,
             scan_tables=scan_tables,
             max_workers=max_workers,
+            principal_aliases=aliases,
         )
         log.info("Found %d UC permission(s)", len(perms))
 

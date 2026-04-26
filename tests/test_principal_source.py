@@ -136,7 +136,7 @@ def test_resolver_extracts_group_external_id(mock_client):
     user_with_ext = {**SCIM_USER_ALICE, "externalId": "entra-user-alice"}
 
     with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
-        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/v1/token",
+        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
                  json={"access_token": "tok", "expires_in": 3600})
         rsps.add(responses_lib.GET, f"{BASE}/scim/v2/Groups",
                  json={"Resources": [group_with_ext], "totalResults": 1})
@@ -167,7 +167,7 @@ def test_resolver_extracts_group_external_id(mock_client):
 def test_resolver_no_external_id_is_internal(mock_client):
     # Standard fixtures have no externalId
     with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
-        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/v1/token",
+        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
                  json={"access_token": "tok", "expires_in": 3600})
         rsps.add(responses_lib.GET, f"{BASE}/scim/v2/Groups",
                  json={"Resources": [SCIM_GROUP_DATA_ENGINEERS], "totalResults": 1})
@@ -203,7 +203,7 @@ def test_sp_external_id_extracted(mock_client):
     ]}
 
     with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
-        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/v1/token",
+        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
                  json={"access_token": "tok", "expires_in": 3600})
         rsps.add(responses_lib.GET, f"{BASE}/scim/v2/Groups",
                  json={"Resources": [group], "totalResults": 1})
@@ -234,14 +234,14 @@ def test_find_principal_returns_external_id(mock_client):
     user_ext = {**SCIM_USER_ALICE, "externalId": "okta-alice-99"}
 
     with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
-        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/v1/token",
+        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
                  json={"access_token": "tok", "expires_in": 3600})
         rsps.add(responses_lib.GET, f"{BASE}/scim/v2/Users",
                  json={"Resources": [user_ext], "totalResults": 1})
 
         from databricks_group_audit.principal_auditor import PrincipalAuditor
         auditor = PrincipalAuditor(mock_client)
-        ptype, pid, pname, ext_id = auditor.find_principal("alice@example.com")
+        ptype, pid, pname, ext_id, _uc = auditor.find_principal("alice@example.com")
 
     assert ptype == "USER"
     assert ext_id == "okta-alice-99"
@@ -249,14 +249,14 @@ def test_find_principal_returns_external_id(mock_client):
 
 def test_find_principal_internal_user_has_no_ext_id(mock_client):
     with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
-        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/v1/token",
+        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
                  json={"access_token": "tok", "expires_in": 3600})
         rsps.add(responses_lib.GET, f"{BASE}/scim/v2/Users",
                  json={"Resources": [SCIM_USER_ALICE], "totalResults": 1})
 
         from databricks_group_audit.principal_auditor import PrincipalAuditor
         auditor = PrincipalAuditor(mock_client)
-        _, _, _, ext_id = auditor.find_principal("alice@example.com")
+        _,  _,  _, ext_id, _ = auditor.find_principal("alice@example.com")
 
     assert ext_id is None
 

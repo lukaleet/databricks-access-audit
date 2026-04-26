@@ -30,7 +30,7 @@ def _ws(name="prod", url=WORKSPACE_HOST):
 
 
 def _account_scim_mock(rsps):
-    rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/v1/token",
+    rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
              json={"access_token": "tok", "expires_in": 3600})
     rsps.add(responses_lib.GET, f"{BASE}/scim/v2/Groups",
              json={"Resources": ALL_GROUPS, "totalResults": len(ALL_GROUPS),
