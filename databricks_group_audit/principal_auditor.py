@@ -122,6 +122,11 @@ class PrincipalAuditor:
         """Find every group the principal belongs to.
 
         Returns ``(memberships, id_to_name_map)``.
+
+        The Databricks SCIM list endpoint omits the ``members`` field, so we
+        first collect group IDs/names from the list, then fetch each group
+        individually to obtain members.  This is O(N) API calls where N is
+        the group count — unavoidable given the API constraint.
         """
         all_groups = self.api.scim_list_all("Groups")
 
@@ -134,7 +139,16 @@ class PrincipalAuditor:
             gname = g.get("displayName", "")
             id_to_name[gid] = gname
             id_to_external[gid] = g.get("externalId") or None
-            for m in g.get("members", []):
+
+        # Individual GETs required to get members (SCIM list omits them).
+        for gid in list(id_to_name):
+            try:
+                full = self.api.account_api("GET", f"/scim/v2/Groups/{gid}")
+            except Exception:
+                continue
+            # Refresh externalId from full record while we have it.
+            id_to_external[gid] = full.get("externalId") or None
+            for m in full.get("members", []):
                 cid = m.get("value", "")
                 if cid:
                     child_to_parents.setdefault(cid, set()).add(gid)

@@ -144,13 +144,22 @@ class DatabricksSDKClient:
         params = kwargs.get("params", {})
 
         # --- SCIM Groups -------------------------------------------------
+        # Use raw HTTP for group *listing* — the SDK's groups.list() omits
+        # the `members` field, which is required for upstream-group traversal
+        # in get_groups_containing_target().  Individual group GETs (by ID)
+        # via groups.get() do include members and are kept as typed calls.
         if endpoint == "/scim/v2/Groups":
-            filt = params.get("filter")
-            items = list(self._account.groups.list(filter=filt))
-            return {
-                "Resources": [self._to_dict(g) for g in items],
-                "totalResults": len(items),
-            }
+            query: Dict[str, Any] = {"count": self.SCIM_PAGE_SIZE}
+            if params.get("filter"):
+                query["filter"] = params["filter"]
+            if params.get("startIndex"):
+                query["startIndex"] = params["startIndex"]
+            resp = self._account.api_client.do(
+                "GET",
+                f"/api/2.0/accounts/{self.account_id}/scim/v2/Groups",
+                query=query,
+            )
+            return resp if isinstance(resp, dict) else {}
 
         m = self._RE_GROUP_BY_ID.match(endpoint)
         if m:
@@ -314,17 +323,24 @@ class DatabricksSDKClient:
     def scim_list_all(
         self, resource: str, params: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
-        """List all SCIM resources with automatic SDK pagination."""
+        """List all SCIM resources with automatic SDK pagination.
+
+        Groups are fetched via raw HTTP so that the ``members`` field is
+        included — the SDK's ``groups.list()`` iterator omits members.
+        Users and SPs do not need members so the typed SDK iterators are used.
+        """
         filt = (params or {}).get("filter")
 
         if resource == "Groups":
-            items = self._account.groups.list(filter=filt)
+            # Route through account_api which now uses raw HTTP for groups
+            return self.account_api(
+                "GET", "/scim/v2/Groups", params=params or {}
+            ).get("Resources", [])
         elif resource == "Users":
             items = self._account.users.list(filter=filt)
         elif resource == "ServicePrincipals":
             items = self._account.service_principals.list(filter=filt)
         else:
-            # Unknown resource — fall back to account_api
             return self.account_api(
                 "GET", f"/scim/v2/{resource}", params=params or {}
             ).get("Resources", [])

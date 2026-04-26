@@ -50,21 +50,31 @@ def _make_client() -> tuple[DatabricksSDKClient, MagicMock, MagicMock]:
 
 def test_account_api_groups_list():
     client, acct, _ = _make_client()
-    g = _sdk_obj(id="g1", displayName="engineers", members=[])
-    acct.groups.list.return_value = [g]
+    acct.api_client.do.return_value = {
+        "Resources": [{"id": "g1", "displayName": "engineers"}],
+        "totalResults": 1,
+    }
 
     resp = client.account_api("GET", "/scim/v2/Groups")
 
-    acct.groups.list.assert_called_once_with(filter=None)
+    acct.api_client.do.assert_called_once_with(
+        "GET",
+        "/api/2.0/accounts/acct-1/scim/v2/Groups",
+        query={"count": 100},
+    )
     assert resp["Resources"][0]["id"] == "g1"
     assert resp["totalResults"] == 1
 
 
 def test_account_api_groups_list_with_filter():
     client, acct, _ = _make_client()
-    acct.groups.list.return_value = []
+    acct.api_client.do.return_value = {"Resources": [], "totalResults": 0}
     client.account_api("GET", "/scim/v2/Groups", params={"filter": 'displayName eq "eng"'})
-    acct.groups.list.assert_called_once_with(filter='displayName eq "eng"')
+    acct.api_client.do.assert_called_once_with(
+        "GET",
+        "/api/2.0/accounts/acct-1/scim/v2/Groups",
+        query={"count": 100, "filter": 'displayName eq "eng"'},
+    )
 
 
 def test_account_api_group_by_id():
@@ -314,8 +324,10 @@ def test_workspace_api_unknown_endpoint_falls_back():
 
 def test_scim_list_all_groups():
     client, acct, _ = _make_client()
-    g = _sdk_obj(id="g1", displayName="eng")
-    acct.groups.list.return_value = [g]
+    acct.api_client.do.return_value = {
+        "Resources": [{"id": "g1", "displayName": "eng"}],
+        "totalResults": 1,
+    }
 
     result = client.scim_list_all("Groups")
     assert len(result) == 1
@@ -346,9 +358,13 @@ def test_scim_list_all_unknown_resource_uses_account_api():
 
 def test_scim_list_all_with_filter():
     client, acct, _ = _make_client()
-    acct.groups.list.return_value = []
+    acct.api_client.do.return_value = {"Resources": [], "totalResults": 0}
     client.scim_list_all("Groups", params={"filter": 'displayName eq "eng"'})
-    acct.groups.list.assert_called_once_with(filter='displayName eq "eng"')
+    acct.api_client.do.assert_called_once_with(
+        "GET",
+        "/api/2.0/accounts/acct-1/scim/v2/Groups",
+        query={"count": 100, "filter": 'displayName eq "eng"'},
+    )
 
 
 # ---------------------------------------------------------------------------

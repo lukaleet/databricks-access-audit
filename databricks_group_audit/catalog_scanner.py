@@ -98,14 +98,16 @@ class CatalogPermissionScanner:
     def get_groups_containing_target(self, target_group_name: str) -> Dict[str, str]:
         """Find ALL upstream (ancestor) groups of the target via BFS.
 
-        Fetches the full SCIM group list once and builds a child-to-parents
-        adjacency map, then walks upward so transitive ancestors are captured.
-        For example: if org-all → all-data-team → target, both are returned.
+        The Databricks SCIM list endpoint never returns the ``members`` field
+        (neither raw HTTP nor SDK), so we fetch the ID/name list first, then
+        do one individual GET per group to retrieve its members.  This is an
+        O(N) API call pattern where N is the total number of groups in the
+        account — unavoidable given the API constraint.  Results feed a
+        child-to-parents adjacency map used for BFS upward traversal.
         """
         all_groups = self.api_client.scim_list_all("Groups")
 
         id_to_name: Dict[str, str] = {}
-        child_to_parents: Dict[str, Set[str]] = {}
         target_id: Optional[str] = None
 
         for g in all_groups:
@@ -116,13 +118,22 @@ class CatalogPermissionScanner:
             id_to_name[gid] = gname
             if gname == target_group_name:
                 target_id = gid
-            for m in g.get("members", []):
-                child_id = m.get("value")
-                if child_id:
-                    child_to_parents.setdefault(child_id, set()).add(gid)
 
         if not target_id:
             return {}
+
+        # Fetch each group individually to obtain its members (SCIM list
+        # omits the members field on Databricks — individual GETs include it).
+        child_to_parents: Dict[str, Set[str]] = {}
+        for gid in id_to_name:
+            try:
+                full = self.api_client.account_api("GET", f"/scim/v2/Groups/{gid}")
+            except Exception:
+                continue
+            for m in full.get("members", []):
+                child_id = m.get("value")
+                if child_id:
+                    child_to_parents.setdefault(child_id, set()).add(gid)
 
         upstream: Dict[str, str] = {}
         queue: deque = deque([target_id])
