@@ -136,6 +136,31 @@ def test_parse_workspace_urls_detects_cloud(discovery):
     assert result[1].cloud == "AWS"
 
 
+def test_parse_workspace_urls_extracts_id_azure(discovery):
+    """Azure URL encodes workspace ID: adb-<id>.<shard>.azuredatabricks.net."""
+    disco, _ = discovery
+    result = disco.parse_workspace_urls(
+        "https://adb-2911063737282309.9.azuredatabricks.net"
+    )
+    assert result[0].workspace_id == "2911063737282309"
+
+
+def test_parse_workspace_urls_extracts_id_aws(discovery):
+    """AWS URL encodes workspace ID: adb-<id>.<shard>.cloud.databricks.com."""
+    disco, _ = discovery
+    result = disco.parse_workspace_urls(
+        "https://adb-5550123456789012.3.cloud.databricks.com"
+    )
+    assert result[0].workspace_id == "5550123456789012"
+
+
+def test_parse_workspace_urls_gcp_uses_manual(discovery):
+    """GCP URLs do not encode the workspace ID — falls back to 'manual'."""
+    disco, _ = discovery
+    result = disco.parse_workspace_urls("https://my-workspace.gcp.databricks.com")
+    assert result[0].workspace_id == "manual"
+
+
 def test_parse_workspace_urls_adds_scheme(discovery):
     disco, _ = discovery
     result = disco.parse_workspace_urls("my-ws.gcp.databricks.com")

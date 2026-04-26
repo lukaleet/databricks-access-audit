@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import List
 
 from databricks_group_audit.client import AuditClient
@@ -99,6 +100,20 @@ class WorkspaceDiscovery:
             ))
         return workspaces
 
+    @staticmethod
+    def _extract_workspace_id(host: str) -> str:
+        """Parse the workspace ID from an Azure or AWS hostname.
+
+        Both clouds embed the numeric workspace ID in the hostname:
+            adb-<workspace_id>.<shard>.azuredatabricks.net
+            adb-<workspace_id>.<shard>.cloud.databricks.com
+
+        Returns the extracted ID string, or ``"manual"`` for GCP and any
+        hostname that does not match the pattern.
+        """
+        m = re.match(r"^adb-(\d+)\.\d+\.", host)
+        return m.group(1) if m else "manual"
+
     def parse_workspace_urls(self, urls_str: str) -> List[WorkspaceInfo]:
         workspaces: List[WorkspaceInfo] = []
         for raw in urls_str.split(","):
@@ -115,8 +130,9 @@ class WorkspaceDiscovery:
                     detected_cloud = cloud_key
                     deployment = host.replace(domain, "")
                     break
+            workspace_id = self._extract_workspace_id(host)
             workspaces.append(WorkspaceInfo(
-                workspace_id="manual", deployment_name=deployment,
+                workspace_id=workspace_id, deployment_name=deployment,
                 workspace_name=deployment, workspace_url=url.rstrip("/"),
                 cloud=detected_cloud, region="unknown",
             ))
