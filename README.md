@@ -318,7 +318,17 @@ if result.dead_end_groups:
 
 ## Databricks Notebook
 
-Import `Databricks Group Audit Tool.ipynb` into your workspace. Install the package first (`%pip install databricks-group-audit`) then **Run All**.
+Import `Databricks Group Audit Tool.ipynb` into your workspace. The first cell installs the package — adjust the path to match your workspace location and run it, then **Run All**.
+
+```python
+# If the package is cloned into your Databricks workspace:
+%pip install -q "/Workspace/Users/your.name@company.com/databricks-group-audit-tool[sdk]"
+
+# Once published to PyPI:
+# %pip install -q "databricks-group-audit[sdk]"
+```
+
+> Do **not** use `pip install -e` (editable mode) on a Databricks cluster — the cluster's setuptools may not support PEP 660 and editable installs serve no purpose on a cluster where you are not editing the source.
 
 ### Widgets
 
