@@ -46,7 +46,7 @@ The tool audits Databricks group membership and Unity Catalog permissions across
 
 ### Data flow — principal audit
 
-`principal_auditor.py` resolves a user/SP/group via SCIM (returning a 4-tuple including `external_id`), BFS-walks upward through all group memberships, queries `/permissionassignments` per workspace, then scans UC grants. Dead-end groups (no workspace assignment) are detected and reported.
+`principal_auditor.py` resolves a user/SP/group via SCIM (returning a 4-tuple including `external_id`), BFS-walks upward through all group memberships, queries `/permissionassignments` per workspace in parallel (`get_workspace_assignments`, `ThreadPoolExecutor`), then scans UC grants per unique workspace URL in parallel (`scan_permissions` → `_scan_one_workspace`; workspace-level dedup happens upfront, catalog-level dedup is local to each worker). Dead-end groups (no workspace assignment) are detected and reported. `audit()` accepts `max_workers` and threads it to both parallel steps.
 
 ### Security and compliance features
 
@@ -80,4 +80,4 @@ All dataclasses and enums live in `models.py`:
 
 ### Tests
 
-Tests use the `responses` library (HTTP mocking, no real Databricks connection). `tests/conftest.py` defines shared SCIM/UC mock data and three fixtures: `mock_client`, `mock_scim`, `mock_uc`. Each module has its own test file. 313 tests total.
+Tests use the `responses` library (HTTP mocking, no real Databricks connection). `tests/conftest.py` defines shared SCIM/UC mock data and three fixtures: `mock_client`, `mock_scim`, `mock_uc`. Each module has its own test file. 317 tests total.

@@ -303,6 +303,46 @@ class TestWorkspaceAssignments:
 
         assert roles == []
 
+    @responses.activate
+    def test_parallel_two_workspaces_roles_merged(self, mock_client):
+        """Roles from two workspaces queried in parallel are all returned."""
+        WS2_HOST = "https://test-workspace-2.azuredatabricks.net"
+        _add_scim_endpoints(responses)
+        _add_workspace_endpoints(responses)
+        responses.add(responses.POST, f"{WS2_HOST}/oidc/v1/token",
+                      json={"access_token": "ws2-token", "expires_in": 3600})
+        responses.add(responses.GET, f"{BASE}/workspaces/ws-002/permissionassignments",
+                      json={"permission_assignments": [
+                          {"principal": {"principal_id": "group-1"}, "permissions": ["ADMIN"]},
+                      ]})
+
+        auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
+        workspaces = [
+            WorkspaceInfo("ws-001", "test", "test-ws", WORKSPACE_HOST, "AZURE", "eastus"),
+            WorkspaceInfo("ws-002", "test2", "test-ws-2", WS2_HOST, "AZURE", "eastus"),
+        ]
+
+        roles = auditor.get_workspace_assignments(
+            workspaces=workspaces,
+            principal_id="user-1",
+            group_ids={"group-1"},
+            id_to_name={"group-1": "data-engineers"},
+            max_workers=2,
+        )
+
+        ws_names = {r.workspace_name for r in roles}
+        assert "test-ws" in ws_names
+        assert "test-ws-2" in ws_names
+
+    @responses.activate
+    def test_empty_workspaces_returns_empty(self, mock_client):
+        auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
+        roles = auditor.get_workspace_assignments(
+            workspaces=[], principal_id="user-1",
+            group_ids=set(), id_to_name={},
+        )
+        assert roles == []
+
 
 # ---------------------------------------------------------------------------
 # Tests — scan_permissions
@@ -363,6 +403,41 @@ class TestScanPermissions:
             (p.securable_name, p.via_group) for p in perms
         ))
 
+    @responses.activate
+    def test_parallel_two_workspaces_perms_merged(self, mock_client):
+        """Permissions from two distinct workspace URLs are both collected."""
+        WS2_HOST = "https://test-workspace-2.azuredatabricks.net"
+        _add_scim_endpoints(responses)
+        _add_workspace_endpoints(responses)
+        responses.add(responses.POST, f"{WS2_HOST}/oidc/v1/token",
+                      json={"access_token": "ws2-token", "expires_in": 3600})
+        responses.add(responses.GET, f"{WS2_HOST}/api/2.1/unity-catalog/catalogs",
+                      json={"catalogs": [{"name": "ops"}]})
+        responses.add(responses.GET,
+                      f"{WS2_HOST}/api/2.1/unity-catalog/permissions/catalog/ops",
+                      json={"privilege_assignments": [
+                          {"principal": "alice@example.com", "privileges": ["USE_CATALOG"]},
+                      ]})
+
+        auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
+
+        from databricks_group_audit.models import WorkspaceRole
+        ws_roles = [
+            WorkspaceRole("ws-001", "test-ws", WORKSPACE_HOST, "USER", "(direct)", "user-1"),
+            WorkspaceRole("ws-002", "test-ws-2", WS2_HOST, "USER", "(direct)", "user-1"),
+        ]
+
+        perms = auditor.scan_permissions(
+            workspace_roles=ws_roles,
+            principal_name="alice@example.com",
+            group_names=set(),
+            max_workers=2,
+        )
+
+        ws_names = {p.workspace_name for p in perms}
+        assert "test-ws" in ws_names
+        assert "test-ws-2" in ws_names
+
 
 # ---------------------------------------------------------------------------
 # Tests — full audit orchestration
@@ -395,6 +470,30 @@ class TestAuditOrchestrator:
         assert result.principal_name == "Alice Smith"
         assert len(result.groups) >= 1
         assert any(g.group_name == "data-engineers" for g in result.groups)
+
+    @responses.activate
+    def test_full_audit_max_workers_one(self, mock_client):
+        """max_workers=1 forces serial execution; result must be correct."""
+        _add_scim_endpoints(responses)
+        _add_workspace_endpoints(responses)
+        responses.add(responses.GET, f"{BASE}/workspaces",
+                      json=[{
+                          "workspace_id": "ws-001",
+                          "deployment_name": "test-workspace",
+                          "workspace_name": "test-ws",
+                          "workspace_status": "RUNNING",
+                          "deployment_url": "test-workspace.azuredatabricks.net",
+                      }])
+
+        from databricks_group_audit.workspace import WorkspaceDiscovery
+        ws_disc = WorkspaceDiscovery(mock_client, cloud_provider="azure")
+        auditor = PrincipalAuditor(mock_client, workspace_discovery=ws_disc, cloud_provider="azure")
+
+        result = auditor.audit("alice@example.com", max_workers=1)
+
+        assert result.principal_type == "USER"
+        assert any(g.group_name == "data-engineers" for g in result.groups)
+        assert len(result.permissions) >= 1
 
     @responses.activate
     def test_nonexistent_principal_raises(self, mock_client):

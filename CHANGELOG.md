@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.11.0] - 2026-04-25
+
+### Added
+- **`--workers N` now also applies to principal audit** — `get_workspace_assignments` and `scan_permissions` in `PrincipalAuditor` now accept `max_workers` and fan out with `ThreadPoolExecutor`; workspace permission-assignment queries run in parallel and each unique workspace is UC-scanned independently in parallel; `audit()` accepts and threads `max_workers` through both calls; `_run_principal_audit` in `cli.py` passes `args.workers`
+
+### Changed
+- `scan_permissions` refactored: duplicate workspace URLs are now deduplicated upfront (replacing the inline `seen_ws` set); the per-workspace catalog scan is extracted into `_scan_one_workspace()` (all state local, safe for concurrent execution); `scanned_catalogs` is keyed only on catalog name within each workspace call rather than `(url, name)` globally
+
+### Tests
+- 317 tests (up from 313): `test_parallel_two_workspaces_roles_merged`, `test_empty_workspaces_returns_empty`, `test_parallel_two_workspaces_perms_merged`, `test_full_audit_max_workers_one` in `test_principal_auditor.py`
+
+---
+
 ## [0.10.0] - 2026-04-25
 
 ### Fixed

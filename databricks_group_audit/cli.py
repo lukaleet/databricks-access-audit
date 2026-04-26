@@ -361,6 +361,7 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
                 explicit_workspace_urls=args.workspace_urls,
                 scan_schemas=args.scan_schemas,
                 scan_tables=args.scan_tables,
+                max_workers=args.workers,
             )
     except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Set, Tuple
 
 from databricks_group_audit.client import AuditClient, _scim_filter_escape
@@ -168,13 +169,22 @@ class PrincipalAuditor:
         principal_id: str,
         group_ids: Set[str],
         id_to_name: Dict[str, str],
+        max_workers: int = 8,
     ) -> List[WorkspaceRole]:
         """Check each workspace for permission assignments matching the
-        principal or any of their groups."""
-        roles: List[WorkspaceRole] = []
+        principal or any of their groups.
+
+        Each workspace is queried in parallel via ``ThreadPoolExecutor``.
+        ``id_to_name`` and ``relevant_ids`` are read-only during parallel
+        execution so no locking is required.
+        """
+        if not workspaces:
+            return []
+
         relevant_ids = group_ids | {principal_id}
 
-        for ws in workspaces:
+        def _check_one(ws: WorkspaceInfo) -> List[WorkspaceRole]:
+            result: List[WorkspaceRole] = []
             try:
                 resp = self.api.account_api(
                     "GET",
@@ -186,7 +196,7 @@ class PrincipalAuditor:
                         continue
                     for perm in pa.get("permissions", []):
                         via = id_to_name.get(pid, pid)
-                        roles.append(WorkspaceRole(
+                        result.append(WorkspaceRole(
                             workspace_id=ws.workspace_id,
                             workspace_name=ws.workspace_name,
                             workspace_url=ws.workspace_url,
@@ -198,12 +208,146 @@ class PrincipalAuditor:
                 log.warning(
                     "Failed to get assignments for workspace %s: %s", ws.workspace_name, exc
                 )
+            return result
 
+        workers = max(1, min(max_workers, len(workspaces)))
+        roles: List[WorkspaceRole] = []
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(_check_one, ws): ws for ws in workspaces}
+            for fut in as_completed(futures):
+                roles.extend(fut.result())
         return roles
 
     # ------------------------------------------------------------------
     # Step 4 — Catalog / schema / table permissions per group
     # ------------------------------------------------------------------
+
+    def _scan_one_workspace(
+        self,
+        role: WorkspaceRole,
+        relevant: Set[str],
+        relevant_lower: Set[str],
+        scan_schemas: bool,
+        scan_tables: bool,
+    ) -> List[EffectivePermission]:
+        """Scan UC grants for a single workspace role.
+
+        All arguments are read-only; ``scanned_catalogs`` is local so this
+        method is safe to run concurrently with other workspace scans.
+        """
+        def _matches(p: str) -> bool:
+            clean = p.replace("`", "").strip()
+            return p in relevant or clean in relevant or clean.lower() in relevant_lower
+
+        perms: List[EffectivePermission] = []
+        # Catalog names within one workspace are unique, so a plain set suffices.
+        scanned_catalogs: Set[str] = set()
+
+        try:
+            catalogs = self.api.workspace_api(
+                role.workspace_url, "GET", "/api/2.1/unity-catalog/catalogs",
+            ).get("catalogs", [])
+        except Exception:
+            return perms
+
+        for cat in catalogs:
+            cname = cat.get("name", "")
+            if not cname or cname in scanned_catalogs:
+                continue
+            scanned_catalogs.add(cname)
+
+            try:
+                cat_grants = self.api.workspace_api(
+                    role.workspace_url, "GET",
+                    f"/api/2.1/unity-catalog/permissions/catalog/{cname}",
+                ).get("privilege_assignments") or []
+            except Exception:
+                cat_grants = []
+
+            for g in cat_grants:
+                principal = g.get("principal", "")
+                privs = g.get("privileges") or []
+                if privs and _matches(principal):
+                    perms.append(EffectivePermission(
+                        securable_type="CATALOG", securable_name=cname,
+                        privileges=privs, via_group=principal,
+                        workspace_name=role.workspace_name,
+                        workspace_url=role.workspace_url,
+                    ))
+
+            if not (scan_schemas or scan_tables):
+                continue
+
+            try:
+                schemas = self.api.workspace_api(
+                    role.workspace_url, "GET",
+                    "/api/2.1/unity-catalog/schemas",
+                    params={"catalog_name": cname},
+                ).get("schemas", [])
+            except Exception:
+                schemas = []
+
+            for sch in schemas:
+                sname = sch.get("name", "")
+                if not sname:
+                    continue
+                full_schema = f"{cname}.{sname}"
+                try:
+                    sgrants = self.api.workspace_api(
+                        role.workspace_url, "GET",
+                        f"/api/2.1/unity-catalog/permissions/schema/{full_schema}",
+                    ).get("privilege_assignments") or []
+                except Exception:
+                    sgrants = []
+
+                for sg in sgrants:
+                    principal = sg.get("principal", "")
+                    privs = sg.get("privileges") or []
+                    if privs and _matches(principal):
+                        perms.append(EffectivePermission(
+                            securable_type="SCHEMA", securable_name=full_schema,
+                            privileges=privs, via_group=principal,
+                            workspace_name=role.workspace_name,
+                            workspace_url=role.workspace_url,
+                        ))
+
+                if not scan_tables:
+                    continue
+
+                try:
+                    tables = self.api.workspace_api(
+                        role.workspace_url, "GET",
+                        "/api/2.1/unity-catalog/tables",
+                        params={"catalog_name": cname, "schema_name": sname},
+                    ).get("tables", [])
+                except Exception:
+                    tables = []
+
+                for tbl in tables:
+                    tname = tbl.get("name", "")
+                    if not tname:
+                        continue
+                    full_table = f"{cname}.{sname}.{tname}"
+                    try:
+                        tgrants = self.api.workspace_api(
+                            role.workspace_url, "GET",
+                            f"/api/2.1/unity-catalog/permissions/table/{full_table}",
+                        ).get("privilege_assignments") or []
+                    except Exception:
+                        tgrants = []
+
+                    for tg in tgrants:
+                        principal = tg.get("principal", "")
+                        privs = tg.get("privileges") or []
+                        if privs and _matches(principal):
+                            perms.append(EffectivePermission(
+                                securable_type="TABLE", securable_name=full_table,
+                                privileges=privs, via_group=principal,
+                                workspace_name=role.workspace_name,
+                                workspace_url=role.workspace_url,
+                            ))
+
+        return perms
 
     def scan_permissions(
         self,
@@ -212,142 +356,45 @@ class PrincipalAuditor:
         group_names: Set[str],
         scan_schemas: bool = False,
         scan_tables: bool = False,
+        max_workers: int = 8,
     ) -> List[EffectivePermission]:
         """For each workspace the principal can access, scan UC grants
         and return only those held by the principal or their groups.
 
-        Deduplication is keyed on ``(workspace_url, catalog_name)`` so that
-        identically-named catalogs in different workspaces / metastores are
-        each scanned independently.  Principal matching is case-insensitive
-        and strips backtick quoting uniformly at all securable levels.
+        Duplicate workspace URLs (same workspace via multiple group paths) are
+        deduplicated upfront before dispatch.  Each unique workspace is then
+        scanned in parallel via ``ThreadPoolExecutor``; catalog-level dedup
+        is local to each workspace scan so no locking is needed.
+
+        Principal matching is case-insensitive and strips backtick quoting
+        uniformly at all securable levels.
         """
-        perms: List[EffectivePermission] = []
         relevant = group_names | {principal_name}
-        # Pre-compute lowercased set once — reused at catalog / schema / table levels
         relevant_lower = {n.lower() for n in relevant}
 
-        def _matches(p: str) -> bool:
-            """Backtick-strip + case-insensitive membership check."""
-            clean = p.replace("`", "").strip()
-            return p in relevant or clean in relevant or clean.lower() in relevant_lower
-
+        # Deduplicate by workspace URL; first occurrence keeps the workspace metadata.
         seen_ws: Set[str] = set()
-        # (workspace_url, catalog_name) — same semantics as CatalogPermissionScanner
-        scanned_catalogs: Set[Tuple[str, str]] = set()
-
+        unique_roles: List[WorkspaceRole] = []
         for role in workspace_roles:
-            if role.workspace_url in seen_ws:
-                continue
-            seen_ws.add(role.workspace_url)
+            if role.workspace_url not in seen_ws:
+                seen_ws.add(role.workspace_url)
+                unique_roles.append(role)
 
-            try:
-                catalogs = self.api.workspace_api(
-                    role.workspace_url, "GET", "/api/2.1/unity-catalog/catalogs",
-                ).get("catalogs", [])
-            except Exception:
-                continue
+        if not unique_roles:
+            return []
 
-            for cat in catalogs:
-                cname = cat.get("name", "")
-                if not cname:
-                    continue
-                cat_key = (role.workspace_url, cname)
-                if cat_key in scanned_catalogs:
-                    continue
-                scanned_catalogs.add(cat_key)
-
-                try:
-                    cat_grants = self.api.workspace_api(
-                        role.workspace_url, "GET",
-                        f"/api/2.1/unity-catalog/permissions/catalog/{cname}",
-                    ).get("privilege_assignments") or []
-                except Exception:
-                    cat_grants = []
-
-                for g in cat_grants:
-                    principal = g.get("principal", "")
-                    privs = g.get("privileges") or []
-                    if privs and _matches(principal):
-                        perms.append(EffectivePermission(
-                            securable_type="CATALOG", securable_name=cname,
-                            privileges=privs, via_group=principal,
-                            workspace_name=role.workspace_name,
-                            workspace_url=role.workspace_url,
-                        ))
-
-                if not (scan_schemas or scan_tables):
-                    continue
-
-                # Schema-level grants
-                try:
-                    schemas = self.api.workspace_api(
-                        role.workspace_url, "GET",
-                        "/api/2.1/unity-catalog/schemas",
-                        params={"catalog_name": cname},
-                    ).get("schemas", [])
-                except Exception:
-                    schemas = []
-
-                for sch in schemas:
-                    sname = sch.get("name", "")
-                    if not sname:
-                        continue
-                    full_schema = f"{cname}.{sname}"
-                    try:
-                        sgrants = self.api.workspace_api(
-                            role.workspace_url, "GET",
-                            f"/api/2.1/unity-catalog/permissions/schema/{full_schema}",
-                        ).get("privilege_assignments") or []
-                    except Exception:
-                        sgrants = []
-
-                    for sg in sgrants:
-                        principal = sg.get("principal", "")
-                        privs = sg.get("privileges") or []
-                        if privs and _matches(principal):
-                            perms.append(EffectivePermission(
-                                securable_type="SCHEMA", securable_name=full_schema,
-                                privileges=privs, via_group=principal,
-                                workspace_name=role.workspace_name,
-                                workspace_url=role.workspace_url,
-                            ))
-
-                    if not scan_tables:
-                        continue
-
-                    # Table / view-level grants
-                    try:
-                        tables = self.api.workspace_api(
-                            role.workspace_url, "GET",
-                            "/api/2.1/unity-catalog/tables",
-                            params={"catalog_name": cname, "schema_name": sname},
-                        ).get("tables", [])
-                    except Exception:
-                        tables = []
-
-                    for tbl in tables:
-                        tname = tbl.get("name", "")
-                        if not tname:
-                            continue
-                        full_table = f"{cname}.{sname}.{tname}"
-                        try:
-                            tgrants = self.api.workspace_api(
-                                role.workspace_url, "GET",
-                                f"/api/2.1/unity-catalog/permissions/table/{full_table}",
-                            ).get("privilege_assignments") or []
-                        except Exception:
-                            tgrants = []
-
-                        for tg in tgrants:
-                            principal = tg.get("principal", "")
-                            privs = tg.get("privileges") or []
-                            if privs and _matches(principal):
-                                perms.append(EffectivePermission(
-                                    securable_type="TABLE", securable_name=full_table,
-                                    privileges=privs, via_group=principal,
-                                    workspace_name=role.workspace_name,
-                                    workspace_url=role.workspace_url,
-                                ))
+        workers = max(1, min(max_workers, len(unique_roles)))
+        perms: List[EffectivePermission] = []
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {
+                pool.submit(
+                    self._scan_one_workspace,
+                    role, relevant, relevant_lower, scan_schemas, scan_tables,
+                ): role
+                for role in unique_roles
+            }
+            for fut in as_completed(futures):
+                perms.extend(fut.result())
 
         return perms
 
@@ -361,6 +408,7 @@ class PrincipalAuditor:
         explicit_workspace_urls: str = "",
         scan_schemas: bool = False,
         scan_tables: bool = False,
+        max_workers: int = 8,
     ) -> PrincipalAuditResult:
         """Run a full principal audit.
 
@@ -374,6 +422,8 @@ class PrincipalAuditor:
             Also scan schema-level grants.
         scan_tables:
             Also scan table/view-level grants (implies schema scan).
+        max_workers:
+            Maximum number of parallel threads for workspace and UC scanning.
         """
         # 1. Identify
         ptype, pid, pname, p_ext_id = self.find_principal(identifier)
@@ -390,7 +440,8 @@ class PrincipalAuditor:
         workspaces = self.ws_discovery.discover(explicit_workspace_urls)
 
         # 4. Workspace assignments
-        ws_roles = self.get_workspace_assignments(workspaces, pid, group_ids, id_to_name)
+        ws_roles = self.get_workspace_assignments(workspaces, pid, group_ids, id_to_name,
+                                                  max_workers=max_workers)
         log.info("Found %d workspace role(s)", len(ws_roles))
 
         # 5. Dead-end groups — groups that provide no workspace access through any path.
@@ -429,6 +480,7 @@ class PrincipalAuditor:
             ws_roles, pname, group_names,
             scan_schemas=scan_schemas or scan_tables,
             scan_tables=scan_tables,
+            max_workers=max_workers,
         )
         log.info("Found %d UC permission(s)", len(perms))
 
