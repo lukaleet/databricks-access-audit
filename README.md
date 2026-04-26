@@ -1,26 +1,30 @@
 # databricks-group-audit
 
-> Audit Databricks group membership and Unity Catalog permissions across all workspaces in your account.
+> Answer Databricks permission questions in one command instead of 30 minutes of clicking through the Account Console.
 
 [![CI](https://github.com/lukaleet/databricks-group-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/lukaleet/databricks-group-audit/actions/workflows/ci.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 
-## Why?
+## The problem
 
-Databricks provides per-object SQL commands (`SHOW GRANTS ON CATALOG ...`) and a basic account console UI, but no single tool to answer:
+You're a Databricks admin. Your boss walks over and asks:
 
-- *"What can this group actually access across all workspaces?"*
-- *"Are there personal grants that duplicate what the group already provides?"*
-- *"What can a specific user, SP, or group access across the entire account?"*
-- *"Which users have individual catalog grants that are fully covered by their group membership?"*
+- *"Which groups have access to the `main` catalog?"*
+- *"We want to add Alice to `data-engineers` — does she already have her own grants that would become redundant?"*
+- *"Our permissions are a mess. Who has what, and what's safe to revoke?"*
+- *"What can `alice@company.com` actually access across all our workspaces?"*
 
-This tool fills that gap with two complementary audit modes:
+None of these have a fast answer in the Databricks Account Console. *"What can alice access?"* means opening each workspace, clicking through Unity Catalog, filtering by user, checking workspace assignments — repeated for every workspace you have. You still can't see nested group inheritance. You still can't see whether a personal grant duplicates what the group already provides.
+
+This tool answers those questions in one command, across all workspaces at once.
+
+## Two modes
 
 | Mode | Entry point | Question it answers |
 |---|---|---|
-| **Group audit** | `--group "data-engineers"` | What does this group see, and who has redundant personal grants? |
-| **Principal audit** | `--principal "alice@example.com"` | What can this user/SP/group access across all workspaces? |
+| **Group audit** | `--group "data-engineers"` | What does this group access? Who has redundant personal grants the group already covers? |
+| **Principal audit** | `--principal "alice@example.com"` | What can this user / SP / group access across every workspace? |
 
 ## Prerequisites
 
@@ -330,6 +334,7 @@ Import `Databricks Group Audit Tool.ipynb` into your workspace. Install the pack
 | `workspace_urls` | text | *(optional)* Comma-separated workspace URLs; blank to scan all |
 | `scan_schemas` | dropdown | `true` / `false` |
 | `scan_tables` | dropdown | `true` / `false` |
+| `workers` | text | Number of parallel threads for workspace/schema/table scanning (default: `8`) |
 | `auto_elevate` | dropdown | `true` / `false` — temporarily grant Workspace Admin to the audit SP |
 | `dry_run_elevation` | dropdown | `true` / `false` — log elevation actions without applying them |
 | `escalation_check` | dropdown | `true` / `false` — flag `ALL_PRIVILEGES` / `MANAGE` grants (principal audit) |
