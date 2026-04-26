@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "databricks-group-audit"
-version = "0.8.0"
+version = "0.14.0"
 description = "Audit Databricks group membership and Unity Catalog permissions across workspaces."
 readme = "README.md"
 license = {text = "Apache-2.0"}
