@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.13.0] - 2026-04-26
+
+### Fixed
+- **Schema / table grants had empty `workspace_name`** — the stub `WorkspaceInfo` objects constructed for parallel schema and table scans in `_run_group_audit` used a hardcoded `""` for `workspace_name`; the CLI now builds a `workspace_url → workspace_name` mapping from the discovered workspaces list and passes the correct name into each stub, so schema/table grants carry the right name in CSV and snapshot output
+- **`log` undefined in `cli.py`** — `log.warning(...)` calls in the parallel schema/table scan error handlers referenced a name that was never imported/defined; added `import logging` and `log = logging.getLogger(__name__)` at module level
+- **BFS queue in `get_groups_containing_target`** used `list.pop(0)` (O(n) per call); replaced with `collections.deque` + `popleft()` (O(1)) for better performance on deep group hierarchies
+- **CLI JSON indentation** — `"principal_source"` key in the principal audit JSON dict was at the wrong indent level (valid Python but confusing); aligned with the other keys
+
+### Tests
+- 331 tests (up from 330): `test_scan_schemas_workspace_name_propagated` asserts the workspace_name flows through the scanner; `test_principal_audit_json_output` extended with `principal_source` key assertion
+
+---
+
 ## [0.12.0] - 2026-04-26
 
 ### Fixed

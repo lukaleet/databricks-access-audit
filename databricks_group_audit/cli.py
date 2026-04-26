@@ -17,11 +17,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any, Dict, List
+
+log = logging.getLogger(__name__)
 
 
 def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
@@ -419,7 +422,7 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
                 "workspace": p.workspace_name,
             } for p in result.permissions],
             "dead_end_groups": result.dead_end_groups,
-        "principal_source": result.principal_source.value,
+            "principal_source": result.principal_source.value,
         }
         if args.escalation_check:
             out["escalation_findings"] = [{
@@ -535,12 +538,16 @@ def _run_group_audit(args: argparse.Namespace) -> int:
                 (g.catalog_name, g.workspace_url) for g in catalog_grants
                 if g.grant_source in (GrantSource.DIRECT, GrantSource.UPSTREAM)
             })
+            # Map workspace URL → name so schema/table grants carry the correct
+            # workspace_name (the stub WorkspaceInfo has no name otherwise).
+            url_to_ws_name = {ws.workspace_url: ws.workspace_name for ws in workspaces}
             workers = max(1, min(args.workers, len(accessible)))
             with ThreadPoolExecutor(max_workers=workers) as pool:
                 sch_futures = {
                     pool.submit(
                         sch_scanner.scan_schemas,
-                        WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), ""),
+                        WorkspaceInfo("scan", "", url_to_ws_name.get(ws_url, ""),
+                                      ws_url, args.cloud.upper(), ""),
                         cat_name, args.group, members, upstream,
                     ): (cat_name, ws_url)
                     for cat_name, ws_url in accessible
@@ -558,7 +565,8 @@ def _run_group_audit(args: argparse.Namespace) -> int:
                 # Collect (catalog, workspace_url, schema) triples first, then fan out.
                 triples = []
                 for cat_name, ws_url in accessible:
-                    ws = WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), "")
+                    ws = WorkspaceInfo("scan", "", url_to_ws_name.get(ws_url, ""),
+                                       ws_url, args.cloud.upper(), "")
                     for sch in sch_scanner.get_schemas(ws, cat_name):
                         sname = sch.get("name", "")
                         if sname:
@@ -568,7 +576,8 @@ def _run_group_audit(args: argparse.Namespace) -> int:
                     tbl_futures = {
                         pool.submit(
                             tbl_scanner.scan_tables,
-                            WorkspaceInfo("scan", "", "", ws_url, args.cloud.upper(), ""),
+                            WorkspaceInfo("scan", "", url_to_ws_name.get(ws_url, ""),
+                                          ws_url, args.cloud.upper(), ""),
                             cat_name, sname, args.group, members, upstream,
                         ): (cat_name, sname)
                         for cat_name, ws_url, sname in triples

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Set
 
@@ -124,11 +125,11 @@ class CatalogPermissionScanner:
             return {}
 
         upstream: Dict[str, str] = {}
-        queue = [target_id]
+        queue: deque = deque([target_id])
         visited = {target_id}
 
         while queue:
-            current = queue.pop(0)
+            current = queue.popleft()
             for parent_id in child_to_parents.get(current, set()):
                 if parent_id not in visited:
                     visited.add(parent_id)

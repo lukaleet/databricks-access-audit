@@ -276,6 +276,7 @@ def test_principal_audit_json_output(capsys):
     assert "groups" in data
     assert "workspace_roles" in data
     assert "dead_end_groups" in data
+    assert "principal_source" in data  # key was misindented; verify it is in the dict
 
 
 def test_principal_audit_not_found_returns_error(capsys):

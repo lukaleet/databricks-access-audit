@@ -197,3 +197,26 @@ def test_scan_schemas_sp_by_display_name(scanner):
     assert len(grants) == 1
     assert grants[0].grant_source == GrantSource.MEMBER_DIRECT
     assert grants[0].principal_type == "SERVICE_PRINCIPAL"
+
+
+def test_scan_schemas_workspace_name_propagated(scanner):
+    """workspace_name in SchemaGrant must match the WorkspaceInfo passed in.
+
+    The CLI builds a stub WorkspaceInfo with the correct workspace_name from a
+    URL→name mapping; this test verifies that the scanner faithfully carries it
+    through to the grant objects (so CSV and snapshot output are correct).
+    """
+    sch, rsps = scanner
+    rsps.add(responses_lib.GET, f"{WORKSPACE_HOST}/api/2.1/unity-catalog/schemas",
+             json={"schemas": [{"name": "bronze"}]})
+    rsps.add(responses_lib.GET,
+             f"{WORKSPACE_HOST}/api/2.1/unity-catalog/permissions/schema/main.bronze",
+             json={"privilege_assignments": [
+                 {"principal": "data-engineers", "privileges": ["USE_SCHEMA"]},
+             ]})
+
+    ws = WorkspaceInfo("1", "test-ws", "prod-workspace", WORKSPACE_HOST, "AZURE", "eastus")
+    grants = sch.scan_schemas(ws, "main", "data-engineers",
+                              {"users": [], "service_principals": []}, {})
+    assert len(grants) == 1
+    assert grants[0].workspace_name == "prod-workspace"
