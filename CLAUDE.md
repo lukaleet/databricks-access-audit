@@ -80,4 +80,4 @@ All dataclasses and enums live in `models.py`:
 
 ### Tests
 
-Tests use the `responses` library (HTTP mocking, no real Databricks connection). `tests/conftest.py` defines shared SCIM/UC mock data and three fixtures: `mock_client`, `mock_scim`, `mock_uc`. Each module has its own test file. 331 tests total.
+Tests use the `responses` library (HTTP mocking, no real Databricks connection). `tests/conftest.py` defines shared SCIM/UC mock data and three fixtures: `mock_client`, `mock_scim`, `mock_uc`. Each module has its own test file. 332 tests total.

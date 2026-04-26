@@ -355,6 +355,7 @@ Import `Databricks Group Audit Tool.ipynb` into your workspace. Install the pack
 | `df_redundancy` | Redundancy analysis with revoke recommendations |
 | `df_schema_grants` | Schema-level grants (populated when `scan_schemas=true`) |
 | `df_table_grants` | Table/view-level grants (populated when `scan_tables=true`) |
+| `df_top_members` | Members ranked by personal grant count, with redundancy level — the cleanup shortlist |
 | `df_stale` | Member-direct grants with no recent audit-log activity (when `stale_days>0`) |
 | `df_local_groups` | Workspace-local groups absent from account SCIM (when `check_local_groups=true`) |
 | `revoke_sql` | Auto-generated REVOKE SQL script (string) |
@@ -379,14 +380,18 @@ When `export_delta_path` is set, all DataFrames are appended to partitioned Delt
 ```json
 {
   "group": "data-engineers",
-  "timestamp": "2025-01-15T10:30:00",
+  "timestamp": "2025-01-15T10:30:00+00:00",
   "users": 12,
   "service_principals": 2,
   "catalog_grants": 8,
   "schema_grants": 0,
   "table_grants": 0,
   "full_redundancy": 3,
-  "partial_redundancy": 1
+  "partial_redundancy": 1,
+  "top_members": [
+    {"principal": "alice@example.com", "personal_grants": 3, "redundancy": "Full"},
+    {"principal": "bob@example.com",   "personal_grants": 1, "redundancy": "Partial"}
+  ]
 }
 ```
 

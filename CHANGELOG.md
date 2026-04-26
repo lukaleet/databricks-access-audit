@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.14.0] - 2026-04-26
+
+### Added
+- **Top-members ranking in group audit** — after redundancy detection, members are ranked by personal (member-direct) catalog grant count; each entry includes the principal name, grant count, and redundancy level (`Full` / `Partial` / `None`), giving admins an instant cleanup shortlist; available in `--output text` (top 5 printed in the summary block), `--output json` (`top_members` array), and the Databricks notebook (`df_top_members` DataFrame)
+
+### Fixed
+- **Python 3.9 incompatible union type hint** — `str | None` in a function signature in `tests/test_cli.py` requires Python 3.10+; added `from __future__ import annotations` to restore 3.9 compatibility (same fix applied previously to `tests/test_workspace.py`)
+- **Ruff lint violations** — `E501` (line too long) in `client.py:104` wrapped; `F401` unused imports (`time`, `pytest`) and `I001` import block formatting in `tests/test_client.py` cleaned up
+
+### Tests
+- 332 tests (up from 331): `test_group_audit_json_top_members_ranked` asserts `top_members` is present in JSON output and contains the expected principals and fields
+
+---
+
 ## [0.13.0] - 2026-04-26
 
 ### Fixed
