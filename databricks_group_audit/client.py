@@ -188,9 +188,35 @@ class DatabricksAPIClient:
         cached = cache.get_token()
         if cached:
             return cached
-        token, expires_in = self._get_oauth_token(workspace_host, scope="all-apis")
-        cache.set_token(token, expires_in)
-        return token
+
+        try:
+            token, expires_in = self._get_oauth_token(workspace_host, scope="all-apis")
+            cache.set_token(token, expires_in)
+            return token
+        except requests.exceptions.HTTPError as exc:
+            body = exc.response.text if exc.response is not None else ""
+            if (
+                exc.response is not None
+                and exc.response.status_code == 400
+                and "invalid_client" in body
+            ):
+                # The workspace OIDC endpoint rejected the SP's credentials.
+                # This happens when the SP holds workspace admin via Account
+                # Console permission assignments but hasn't been synced into
+                # the workspace's local OIDC directory (also occurs transiently
+                # after auto-elevation).  Databricks workspace APIs accept
+                # account-level OAuth tokens for such SPs, so fall back to the
+                # account token.  Cache it briefly so the workspace OIDC is
+                # retried on the next audit run once propagation completes.
+                log.warning(
+                    "Workspace OIDC rejected SP credentials for %s; "
+                    "falling back to account-level token",
+                    workspace_host,
+                )
+                account_token = self._get_account_token()
+                cache.set_token(account_token, 300)
+                return account_token
+            raise
 
     # -- Retry engine ------------------------------------------------------
 

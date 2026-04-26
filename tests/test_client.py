@@ -4,7 +4,16 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from databricks_group_audit.client import TokenCache, _scim_filter_escape
+import pytest
+import responses
+
+from databricks_group_audit.client import DatabricksAPIClient, TokenCache, _scim_filter_escape
+
+_WS_HOST = "https://adb-123.9.azuredatabricks.net"
+_INVALID_CLIENT_BODY = {
+    "error": "invalid_client",
+    "error_description": "Client authentication failed",
+}
 
 # ---------------------------------------------------------------------------
 # TokenCache
@@ -85,3 +94,96 @@ def test_scim_filter_escape_backslash_then_quote():
     """Input containing both \\ and \" must escape backslash first."""
     # Input chars: a \ " b  →  expected filter chars: a \\ \" b
     assert _scim_filter_escape('a\\"b') == 'a\\\\\\"b'
+
+
+# ---------------------------------------------------------------------------
+# _get_workspace_token — post-elevation invalid_client retry
+# ---------------------------------------------------------------------------
+
+def _make_ws_client() -> DatabricksAPIClient:
+    return DatabricksAPIClient(
+        client_id="sp-id",
+        client_secret="sp-secret",
+        account_id="acct-1",
+        account_host="https://accounts.azuredatabricks.net",
+        base_delay=1.0,
+        max_delay=30.0,
+    )
+
+
+@responses.activate
+def test_workspace_token_succeeds_immediately():
+    """Happy path: workspace OIDC returns a token on the first call."""
+    responses.add(
+        responses.POST, f"{_WS_HOST}/oidc/v1/token",
+        json={"access_token": "tok-ok", "expires_in": 3600},
+    )
+    client = _make_ws_client()
+    assert client._get_workspace_token(_WS_HOST) == "tok-ok"
+
+
+_ACCOUNT_HOST = "https://accounts.azuredatabricks.net"
+
+
+@responses.activate
+def test_workspace_token_falls_back_to_account_token_on_invalid_client():
+    """invalid_client from workspace OIDC → immediate fallback to account token."""
+    responses.add(
+        responses.POST, f"{_WS_HOST}/oidc/v1/token",
+        json=_INVALID_CLIENT_BODY, status=400,
+    )
+    responses.add(
+        responses.POST, f"{_ACCOUNT_HOST}/oidc/v1/token",
+        json={"access_token": "acct-tok", "expires_in": 3600},
+    )
+    client = _make_ws_client()
+    token = client._get_workspace_token(_WS_HOST)
+    assert token == "acct-tok"
+    # Only one workspace OIDC attempt — no retries/sleep
+    ws_calls = [c for c in responses.calls if _WS_HOST in c.request.url]
+    assert len(ws_calls) == 1
+
+
+@responses.activate
+def test_workspace_token_fallback_is_cached():
+    """Account-token fallback is cached; second call does not hit OIDC again."""
+    responses.add(
+        responses.POST, f"{_WS_HOST}/oidc/v1/token",
+        json=_INVALID_CLIENT_BODY, status=400,
+    )
+    responses.add(
+        responses.POST, f"{_ACCOUNT_HOST}/oidc/v1/token",
+        json={"access_token": "acct-tok", "expires_in": 3600},
+    )
+    client = _make_ws_client()
+    t1 = client._get_workspace_token(_WS_HOST)
+    t2 = client._get_workspace_token(_WS_HOST)
+    assert t1 == t2 == "acct-tok"
+    assert len(responses.calls) == 2  # workspace OIDC + account OIDC, not three
+
+
+@responses.activate
+def test_workspace_token_raises_on_non_invalid_client_400():
+    """Non-invalid_client 400 errors (e.g. invalid_grant) are raised immediately."""
+    responses.add(
+        responses.POST, f"{_WS_HOST}/oidc/v1/token",
+        json={"error": "invalid_grant", "error_description": "Bad credentials"}, status=400,
+    )
+    client = _make_ws_client()
+    with pytest.raises(Exception):
+        client._get_workspace_token(_WS_HOST)
+    assert len(responses.calls) == 1
+
+
+@responses.activate
+def test_workspace_token_cached_after_success():
+    """After a successful OIDC call the token is cached; second call skips OIDC."""
+    responses.add(
+        responses.POST, f"{_WS_HOST}/oidc/v1/token",
+        json={"access_token": "cached-tok", "expires_in": 3600},
+    )
+    client = _make_ws_client()
+    t1 = client._get_workspace_token(_WS_HOST)
+    t2 = client._get_workspace_token(_WS_HOST)
+    assert t1 == t2 == "cached-tok"
+    assert len(responses.calls) == 1
