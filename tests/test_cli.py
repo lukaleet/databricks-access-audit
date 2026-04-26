@@ -191,6 +191,36 @@ def test_group_audit_json_output(capsys):
     assert data["group"] == "data-engineers"
     assert "catalog_grants" in data
     assert "full_redundancy" in data
+    assert "top_members" in data
+
+
+def test_group_audit_json_top_members_ranked(capsys):
+    """top_members lists principals with member-direct grants, highest count first."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        main([
+            "--group", "data-engineers",
+            "--client-id", "cid",
+            "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID,
+            "--cloud", "azure",
+            "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--output", "json",
+        ])
+    out = capsys.readouterr().out
+    data = json.loads(out[out.find("{"):])
+    top = data["top_members"]
+    assert isinstance(top, list)
+    # alice and bob each have one personal grant in the mock data
+    principals = [m["principal"] for m in top]
+    assert "alice@example.com" in principals
+    assert "bob@example.com" in principals
+    # every entry has required fields
+    for m in top:
+        assert "principal" in m
+        assert "personal_grants" in m
+        assert "redundancy" in m
 
 
 def test_group_audit_unknown_group_returns_error(capsys):

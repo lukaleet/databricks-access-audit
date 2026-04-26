@@ -593,6 +593,21 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     detector = RedundancyDetector()
     redundancy = detector.detect_redundancy(catalog_grants, args.group)
 
+    # Rank members by number of personal (member-direct) catalog grants.
+    from collections import Counter
+    _grant_counts = Counter(
+        g.principal for g in catalog_grants if g.grant_source == GrantSource.MEMBER_DIRECT
+    )
+    _redundancy_by_principal = {r.principal: r.redundancy_level.value for r in redundancy}
+    top_members = [
+        {
+            "principal": principal,
+            "personal_grants": count,
+            "redundancy": _redundancy_by_principal.get(principal, "None"),
+        }
+        for principal, count in _grant_counts.most_common()
+    ]
+
     # Optional: stale grant detection
     stale_findings = _run_stale_check(
         args, client, catalog_grants, workspaces,
@@ -649,6 +664,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
             "partial_redundancy": sum(
                 1 for r in redundancy if r.redundancy_level.value == "Partial"
             ),
+            "top_members": top_members,
         }
         if args.stale_days:
             result["stale_findings"] = [{
@@ -682,6 +698,13 @@ def _run_group_audit(args: argparse.Namespace) -> int:
         full = sum(1 for r in redundancy if r.redundancy_level.value == "Full")
         partial = sum(1 for r in redundancy if r.redundancy_level.value == "Partial")
         print(f"  Redundancy: {full} full, {partial} partial")
+
+        if top_members:
+            _shown = top_members[:5]
+            print(f"\n  Top {len(_shown)} member(s) by personal grants:")
+            for i, m in enumerate(_shown, 1):
+                print(f"    {i}. {m['principal']}  —  {m['personal_grants']} grant(s)"
+                      f"  [{m['redundancy']} redundancy]")
 
         if stale_findings:
             print(
