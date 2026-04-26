@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.12.0] - 2026-04-26
+
+### Fixed
+- **REVOKE SQL quoting incomplete** — principals were only backtick-quoted when they contained `@` or a space, leaving group names with hyphens (e.g. `data-engineers`) and other non-alphanumeric characters unquoted; embedded backtick characters in any identifier (principal name, catalog name) were not escaped; the new `_bt()` helper unconditionally backtick-quotes every identifier and escapes embedded backticks by doubling them (`` ` `` → ` `` ``), matching the Spark SQL standard
+
+### Tests
+- 330 tests (up from 317): `_bt` unit tests (wrap, single/multiple escapes); parametrized `test_principal_always_backtick_quoted` across email / group / SP / space variants; `test_principal_with_embedded_backtick_escaped`; `test_catalog_with_embedded_backtick_escaped`; `test_principal_with_hyphen_is_quoted`; `test_principal_without_special_chars_still_quoted`
+
+---
+
 ## [0.11.0] - 2026-04-25
 
 ### Added

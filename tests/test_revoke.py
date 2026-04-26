@@ -1,7 +1,9 @@
 """Tests for RevokeScriptGenerator."""
 
+import pytest
+
 from databricks_group_audit.models import RedundancyLevel, RedundancyResult
-from databricks_group_audit.revoke import RevokeScriptGenerator
+from databricks_group_audit.revoke import RevokeScriptGenerator, _bt
 
 
 def _result(principal, level, catalog="main", redundant=None, additional=None):
@@ -17,6 +19,30 @@ def _result(principal, level, catalog="main", redundant=None, additional=None):
         recommendation="",
     )
 
+
+# ---------------------------------------------------------------------------
+# _bt helper
+# ---------------------------------------------------------------------------
+
+def test_bt_wraps_in_backticks():
+    assert _bt("main") == "`main`"
+
+
+def test_bt_escapes_embedded_backtick():
+    assert _bt("foo`bar") == "`foo``bar`"
+
+
+def test_bt_escapes_multiple_backticks():
+    assert _bt("a`b`c") == "`a``b``c`"
+
+
+def test_bt_plain_name_unchanged_content():
+    assert _bt("data-engineers") == "`data-engineers`"
+
+
+# ---------------------------------------------------------------------------
+# RevokeScriptGenerator.generate
+# ---------------------------------------------------------------------------
 
 def test_full_redundancy_generates_revoke():
     results = [
@@ -51,3 +77,48 @@ def test_principal_with_spaces_is_quoted():
     results = [_result("John Doe", RedundancyLevel.FULL, redundant=["SELECT"])]
     sql = RevokeScriptGenerator.generate(results)
     assert "`John Doe`" in sql
+
+
+def test_principal_with_hyphen_is_quoted():
+    """Group names like 'data-engineers' need backtick quoting in SQL."""
+    results = [_result("data-engineers", RedundancyLevel.FULL, redundant=["SELECT"])]
+    sql = RevokeScriptGenerator.generate(results)
+    assert "`data-engineers`" in sql
+
+
+def test_principal_without_special_chars_still_quoted():
+    """All principals are quoted unconditionally for consistency."""
+    results = [_result("plaingroup", RedundancyLevel.FULL, redundant=["SELECT"])]
+    sql = RevokeScriptGenerator.generate(results)
+    assert "`plaingroup`" in sql
+
+
+@pytest.mark.parametrize("principal", [
+    "alice@example.com",
+    "data-engineers",
+    "sp.name",
+    "John Doe",
+    "group with spaces",
+])
+def test_principal_always_backtick_quoted(principal):
+    results = [_result(principal, RedundancyLevel.FULL, redundant=["SELECT"])]
+    sql = RevokeScriptGenerator.generate(results)
+    assert f"`{principal}`" in sql
+
+
+def test_principal_with_embedded_backtick_escaped():
+    """A principal name containing a backtick produces valid SQL via doubling."""
+    results = [_result("alice`s-bot", RedundancyLevel.FULL, redundant=["SELECT"])]
+    sql = RevokeScriptGenerator.generate(results)
+    # Escaped form: embedded ` becomes ``
+    assert "`alice``s-bot`" in sql
+    # The raw unescaped form must NOT appear (that would be broken SQL)
+    assert "`alice`s-bot`" not in sql.replace("`alice``s-bot`", "")
+
+
+def test_catalog_with_embedded_backtick_escaped():
+    """A catalog name containing a backtick is safely escaped."""
+    results = [_result("alice@example.com", RedundancyLevel.FULL,
+                       catalog="cat`alog", redundant=["SELECT"])]
+    sql = RevokeScriptGenerator.generate(results)
+    assert "`cat``alog`" in sql

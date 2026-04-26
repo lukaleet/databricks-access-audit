@@ -8,6 +8,17 @@ from typing import List
 from databricks_group_audit.models import RedundancyLevel, RedundancyResult
 
 
+def _bt(identifier: str) -> str:
+    """Backtick-quote a Databricks SQL identifier.
+
+    Escapes any embedded backtick characters by doubling them (`` ` `` → ` `` ``),
+    which is the standard Spark SQL escape for backtick-quoted identifiers.
+    Applied uniformly to all principal names and securable names so the output
+    is valid SQL regardless of the characters those names contain.
+    """
+    return f"`{identifier.replace('`', '``')}`"
+
+
 class RevokeScriptGenerator:
     """Generate REVOKE SQL statements for redundant grants."""
 
@@ -29,15 +40,16 @@ class RevokeScriptGenerator:
         partial_count = 0
 
         for r in redundancy_results:
-            principal = r.principal
-            if "@" in principal or " " in principal:
-                principal = f"`{principal}`"
+            # Always backtick-quote: user emails (@, .), group names (-, _),
+            # SP names, and any name that may contain SQL metacharacters.
+            principal = _bt(r.principal)
+            catalog = _bt(r.catalog_name)
 
             if r.redundancy_level == RedundancyLevel.FULL:
                 full_count += 1
                 privs = ", ".join(r.member_privileges)
                 lines.append(f"-- [FULL REDUNDANCY] {r.principal} on {r.catalog_name}")
-                lines.append(f"REVOKE {privs} ON CATALOG `{r.catalog_name}` FROM {principal};")
+                lines.append(f"REVOKE {privs} ON CATALOG {catalog} FROM {principal};")
                 lines.append("")
 
             elif r.redundancy_level == RedundancyLevel.PARTIAL and include_partial:
@@ -47,7 +59,7 @@ class RevokeScriptGenerator:
                 lines.append(f"-- Redundant: {r.redundant_privileges}")
                 lines.append(f"-- Kept:      {r.additional_privileges}")
                 lines.append(
-                    f"-- REVOKE {redundant_privs} ON CATALOG `{r.catalog_name}` FROM {principal};"
+                    f"-- REVOKE {redundant_privs} ON CATALOG {catalog} FROM {principal};"
                 )
                 lines.append("")
 
