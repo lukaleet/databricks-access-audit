@@ -123,6 +123,8 @@ def test_workspace_token_succeeds_immediately():
 
 
 _ACCOUNT_HOST = "https://accounts.azuredatabricks.net"
+_ACCOUNT_ID = "acct-1"
+_ACCOUNT_TOKEN_URL = f"{_ACCOUNT_HOST}/oidc/accounts/{_ACCOUNT_ID}/v1/token"
 
 
 @responses.activate
@@ -133,7 +135,7 @@ def test_workspace_token_falls_back_to_account_token_on_invalid_client():
         json=_INVALID_CLIENT_BODY, status=400,
     )
     responses.add(
-        responses.POST, f"{_ACCOUNT_HOST}/oidc/v1/token",
+        responses.POST, _ACCOUNT_TOKEN_URL,
         json={"access_token": "acct-tok", "expires_in": 3600},
     )
     client = _make_ws_client()
@@ -152,7 +154,7 @@ def test_workspace_token_fallback_is_cached():
         json=_INVALID_CLIENT_BODY, status=400,
     )
     responses.add(
-        responses.POST, f"{_ACCOUNT_HOST}/oidc/v1/token",
+        responses.POST, _ACCOUNT_TOKEN_URL,
         json={"access_token": "acct-tok", "expires_in": 3600},
     )
     client = _make_ws_client()

@@ -127,9 +127,12 @@ def mock_scim(mock_client):
     with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         base = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
 
-        # Token endpoints
-        rsps.add(responses.POST, f"{ACCOUNT_HOST}/oidc/v1/token",
-                 json={"access_token": "mock-token", "expires_in": 3600})
+        # Token endpoints — account uses account-scoped path
+        rsps.add(
+            responses.POST,
+            f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
+            json={"access_token": "mock-token", "expires_in": 3600},
+        )
 
         # Paginated group list — used by scim_list_all("Groups") and
         # by group_resolver._get_group_by_name (filter queries hit this too)

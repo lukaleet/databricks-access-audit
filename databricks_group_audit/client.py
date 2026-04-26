@@ -162,7 +162,7 @@ class DatabricksAPIClient:
 
     # -- OAuth token helpers ------------------------------------------------
 
-    def _get_oauth_token(self, host: str, scope: Optional[str] = None) -> tuple:
+    def _get_oauth_token(self, token_url: str, scope: Optional[str] = None) -> tuple:
         data: Dict[str, str] = {
             "grant_type": "client_credentials",
             "client_id": self.client_id,
@@ -170,16 +170,22 @@ class DatabricksAPIClient:
         }
         if scope:
             data["scope"] = scope
-        resp = self.session.post(f"{host}/oidc/v1/token", data=data)
+        resp = self.session.post(token_url, data=data)
         resp.raise_for_status()
         body = resp.json()
         return body["access_token"], body.get("expires_in", 3600)
+
+    def _account_token_url(self) -> str:
+        return f"{self.account_host}/oidc/accounts/{self.account_id}/v1/token"
+
+    def _workspace_token_url(self, workspace_host: str) -> str:
+        return f"{workspace_host}/oidc/v1/token"
 
     def _get_account_token(self) -> str:
         cached = self._account_token_cache.get_token()
         if cached:
             return cached
-        token, expires_in = self._get_oauth_token(self.account_host, scope="all-apis")
+        token, expires_in = self._get_oauth_token(self._account_token_url(), scope="all-apis")
         self._account_token_cache.set_token(token, expires_in)
         return token
 
@@ -190,14 +196,16 @@ class DatabricksAPIClient:
             return cached
 
         try:
-            token, expires_in = self._get_oauth_token(workspace_host, scope="all-apis")
+            token, expires_in = self._get_oauth_token(
+                self._workspace_token_url(workspace_host), scope="all-apis"
+            )
             cache.set_token(token, expires_in)
             return token
         except requests.exceptions.HTTPError as exc:
             body = exc.response.text if exc.response is not None else ""
             if (
                 exc.response is not None
-                and exc.response.status_code == 400
+                and exc.response.status_code in (400, 401)
                 and "invalid_client" in body
             ):
                 # The workspace OIDC endpoint rejected the SP's credentials.
