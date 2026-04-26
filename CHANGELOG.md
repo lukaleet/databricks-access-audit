@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.15.0] - 2026-04-26
+
+### Fixed
+- **Account OIDC token URL** — the raw HTTP client was calling `{account_host}/oidc/v1/token` (the workspace path); corrected to `{account_host}/oidc/accounts/{account_id}/v1/token` (the account-scoped path required by Databricks); this caused `invalid_request` 400 errors on every run using the raw HTTP client
+- **Workspace OIDC fallback handles 401** — the `invalid_client` fallback to the account-level token previously only caught HTTP 400; Databricks also returns HTTP 401 with the same `invalid_client` body in some workspace configurations; the guard now checks `status_code in (400, 401)` so the fallback fires in both cases
+- **SDK client grant queries** — `ws.grants.get(securable_type=SecurableType.CATALOG, …)` routes through a gRPC shim that returns `SECURABLETYPE.CATALOG is not a valid securable type` on some workspace versions; replaced all three grant endpoints (catalog, schema, table) with `ws.api_client.do("GET", endpoint)` to hit the REST path directly, matching the raw HTTP client and working on all workspace versions; this caused 0 grants returned for all catalogs when using the default SDK backend
+- **Principal auditor UC grant matching** — `find_principal()` now returns a 5th value (`uc_name`): the SCIM `userName`, which is what Unity Catalog stores grants against; previously only `displayName` was matched, causing UC grants to be missed when `displayName ≠ userName` (most visibly for Azure AD guest users whose UC grants use their `#ext#` UPN); `scan_permissions` accepts a `principal_aliases` set and includes `uc_name` in the relevant-principal check
+- **Notebook elevation safety** — the `ensure_workspace_admin` loop in both group-audit and principal-audit cells was called after `_elevator.__enter__()` but outside a try/except; if an exception was raised mid-loop, temporary Workspace Admin grants on already-processed workspaces were never revoked; both cells now wrap the loop in `try/except` that calls `__exit__(*sys.exc_info())` on failure, matching the CLI's cleanup guarantee
+- **Notebook install cell** — added `dbutils.library.restartPython()` after `%pip install` so the newly installed package is picked up by the cluster driver without a manual restart
+- **Notebook JSON format** — cell sources were accidentally serialised as a single string instead of the per-line list-of-strings format required by the `.ipynb` spec; corrected so the notebook opens correctly in Jupyter, VS Code, and Databricks
+- **Workspace URL parsing for explicit `--workspace-urls`** — `parse_workspace_urls` failed to extract a numeric workspace ID from Azure (`adb-<id>.<region>.azuredatabricks.net`) and AWS URL formats; a regex now extracts the ID from the hostname so explicit workspace URLs work without requiring the Account API workspace list
+
+### Tests
+- 342 tests (up from 332): new tests in `test_client.py` for account/workspace OIDC URL construction and 401 `invalid_client` fallback; new tests in `test_principal_auditor.py` for `uc_name` return value; updated `test_sdk_client.py` grant tests to mock `ws.api_client.do` instead of `ws.grants.get`
+
+---
+
 ## [0.14.0] - 2026-04-26
 
 ### Added
