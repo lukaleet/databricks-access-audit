@@ -101,7 +101,9 @@ class TokenCache:
     def set_token(self, token: str, expires_in: int) -> None:
         with self.lock:
             self.token = token
-            self.expires_at = datetime.now(timezone.utc) + timedelta(seconds=max(expires_in - 60, 10))
+            self.expires_at = (
+                datetime.now(timezone.utc) + timedelta(seconds=max(expires_in - 60, 10))
+            )
 
 
 # ---------------------------------------------------------------------------

@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-import time
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
 from databricks_group_audit.client import TokenCache, _scim_filter_escape
-
 
 # ---------------------------------------------------------------------------
 # TokenCache
