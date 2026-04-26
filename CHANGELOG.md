@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.15.1] - 2026-04-26
+
+### Fixed
+- **SCIM group membership resolution** — the Databricks SCIM group list endpoint (`GET /scim/v2/Groups`) never returns the `members` field regardless of client (SDK typed call, raw HTTP, `attributes=members` param); only individual `GET /scim/v2/Groups/{id}` includes members; `get_groups_containing_target` in `catalog_scanner` and `resolve_group_memberships` in `principal_auditor` both now fetch the ID/name list first and then do one GET per group to build the child-to-parent adjacency map; this caused upstream group detection and group membership tracing to silently return empty results on all runs against real Databricks accounts
+- **SDK client group listing** — `DatabricksSDKClient.account_api` for `/scim/v2/Groups` and `scim_list_all("Groups")` now route through raw HTTP (`api_client.do`) rather than the SDK's `groups.list()` iterator, which also omits members; test suite updated accordingly
+
+### Tests
+- 342 tests: updated `test_sdk_client.py` group-listing tests to assert `api_client.do` call path and payload instead of `groups.list`
+
+---
+
 ## [0.15.0] - 2026-04-26
 
 ### Fixed
