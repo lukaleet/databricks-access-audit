@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.0] - 2026-04-25
+
+### Fixed
+- **TokenCache used naive local datetime** — `get_token()` and `set_token()` now use `datetime.now(timezone.utc)` so token expiry comparisons are correct across DST boundaries and are consistent with the UTC timestamps used elsewhere in the codebase
+- **Statement execution polling loop** — timeout was tracked as `elapsed += poll_interval` (inaccurate if `time.sleep()` overshoots; non-terminating when `poll_interval=0`); replaced with a wall-clock deadline via `time.monotonic()`
+- **Bulk-fetch fallback logged at WARNING** — some account configurations legitimately cannot bulk-list SCIM users or SPs; the per-member fallback is fully supported and was downgraded from `WARNING` to `INFO` to eliminate false alerts in log-monitoring systems
+- **Silent `{}` returns in SDK client** — three sites in `DatabricksSDKClient` that coerced unexpected response types to `{}` now emit a `DEBUG` log before returning so unexpected SDK-version surprises are observable in verbose output
+
+### Tests
+- 313 tests (up from 304): new `tests/test_client.py` with 8 `TokenCache` tests (UTC-awareness, expiry, thread safety, minimum-expiry floor); new `test_execute_statement_timeout_raises` in `test_stale_checker.py`
+
+---
+
 ## [0.9.0] - 2026-04-25
 
 ### Added
