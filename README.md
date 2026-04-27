@@ -368,7 +368,7 @@ Import `Databricks Group Audit Tool.ipynb` into your workspace. The first cell i
 | `df_top_members` | Members ranked by personal grant count, with redundancy level — the cleanup shortlist |
 | `df_stale` | Member-direct grants with no recent audit-log activity (when `stale_days>0`) |
 | `df_local_groups` | Workspace-local groups absent from account SCIM (when `check_local_groups=true`) |
-| `revoke_sql` | Auto-generated REVOKE SQL script (string) |
+| `_revoke_sql` | Auto-generated REVOKE SQL script (string) |
 
 ### Output DataFrames - Principal Audit
 
