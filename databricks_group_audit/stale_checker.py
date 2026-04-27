@@ -73,16 +73,14 @@ _ACTIVITY_QUERY = """\
 SELECT
   COALESCE(
     user_identity.email,
-    user_identity.service_principal_name,
-    CAST(user_identity.service_principal_application_id AS STRING)
+    user_identity.subject_name
   ) AS principal,
   DATE(MAX(event_time)) AS last_seen_date
 FROM system.access.audit
 WHERE event_time >= DATEADD(DAY, -{lookback}, CURRENT_TIMESTAMP())
   AND COALESCE(
     user_identity.email,
-    user_identity.service_principal_name,
-    CAST(user_identity.service_principal_application_id AS STRING)
+    user_identity.subject_name
   ) IS NOT NULL
 GROUP BY 1
 """
@@ -235,9 +233,9 @@ class StaleGrantChecker:
         """Return the set of principals with any auditable activity in the
         last ``stale_days`` days, as recorded in ``system.access.audit``.
 
-        Principals are identified by email (for users) or by
-        ``service_principal_name`` / ``service_principal_application_id``
-        (for service principals) — whichever field is populated.
+        Principals are identified by ``user_identity.email`` (for users) or
+        ``user_identity.subject_name`` (for service principals) — whichever
+        field is populated in ``system.access.audit``.
 
         Raises :class:`RuntimeError` when the statement execution API fails so
         that :meth:`check_catalog_grants` can catch it and avoid producing
