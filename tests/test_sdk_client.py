@@ -368,6 +368,99 @@ def test_scim_list_all_with_filter():
 
 
 # ---------------------------------------------------------------------------
+# Method-routing correctness — non-GET must fall through to raw HTTP
+# ---------------------------------------------------------------------------
+
+def test_account_api_post_to_scim_groups_uses_fallback():
+    """POST /scim/v2/Groups must NOT be intercepted by the GET-only list route."""
+    client, acct, _ = _make_client()
+    acct.api_client.do.return_value = {"id": "new-group", "displayName": "created"}
+
+    resp = client.account_api(
+        "POST", "/scim/v2/Groups",
+        json={"displayName": "created", "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"]},
+    )
+
+    # Must reach the raw fallback, NOT groups.list or api_client.do with the list URL+query
+    call_args = acct.api_client.do.call_args
+    assert call_args[0][0] == "POST"
+    assert call_args[0][1] == "/api/2.0/accounts/acct-1/scim/v2/Groups"
+    assert resp["id"] == "new-group"
+
+
+def test_account_api_patch_group_by_id_uses_fallback():
+    """PATCH /scim/v2/Groups/{id} must not be routed to groups.get()."""
+    client, acct, _ = _make_client()
+    acct.api_client.do.return_value = {"id": "g42", "displayName": "updated"}
+
+    resp = client.account_api("PATCH", "/scim/v2/Groups/g42", json={"displayName": "updated"})
+
+    acct.groups.get.assert_not_called()
+    assert resp["displayName"] == "updated"
+
+
+def test_account_api_delete_group_uses_fallback():
+    """DELETE /scim/v2/Groups/{id} must fall through — not silently become a GET."""
+    client, acct, _ = _make_client()
+    acct.api_client.do.return_value = {}
+
+    client.account_api("DELETE", "/scim/v2/Groups/g42")
+
+    acct.groups.get.assert_not_called()
+    call_args = acct.api_client.do.call_args
+    assert call_args[0][0] == "DELETE"
+
+
+def test_workspace_api_patch_catalog_grants_uses_fallback():
+    """PATCH to a catalog-permissions endpoint must not be routed to the GET handler."""
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {"privilege_assignments": []}
+
+    client.workspace_api(
+        "https://ws.azuredatabricks.net",
+        "PATCH",
+        "/api/2.1/unity-catalog/permissions/catalog/main",
+        json={"changes": [{"principal": "eng", "add": ["USE_CATALOG"]}]},
+    )
+
+    call_args = ws.api_client.do.call_args
+    assert call_args[0][0] == "PATCH"
+    assert call_args[0][1] == "/api/2.1/unity-catalog/permissions/catalog/main"
+
+
+def test_workspace_api_patch_schema_grants_uses_fallback():
+    """PATCH to a schema-permissions endpoint must not be routed to the GET handler."""
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {}
+
+    client.workspace_api(
+        "https://ws.azuredatabricks.net",
+        "PATCH",
+        "/api/2.1/unity-catalog/permissions/schema/main.bronze",
+        json={"changes": [{"principal": "eng", "add": ["USE_SCHEMA"]}]},
+    )
+
+    call_args = ws.api_client.do.call_args
+    assert call_args[0][0] == "PATCH"
+
+
+def test_workspace_api_patch_table_grants_uses_fallback():
+    """PATCH to a table-permissions endpoint must not be routed to the GET handler."""
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {}
+
+    client.workspace_api(
+        "https://ws.azuredatabricks.net",
+        "PATCH",
+        "/api/2.1/unity-catalog/permissions/table/main.bronze.events",
+        json={"changes": [{"principal": "eng", "add": ["SELECT"]}]},
+    )
+
+    call_args = ws.api_client.do.call_args
+    assert call_args[0][0] == "PATCH"
+
+
+# ---------------------------------------------------------------------------
 # for_cloud factory
 # ---------------------------------------------------------------------------
 

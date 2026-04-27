@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Set, Tuple
 

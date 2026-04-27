@@ -1,6 +1,6 @@
 """Tests for GroupMembershipResolver."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from databricks_group_audit.client import _scim_filter_escape
 from databricks_group_audit.group_resolver import GroupMembershipResolver

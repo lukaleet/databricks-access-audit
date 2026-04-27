@@ -146,9 +146,11 @@ class DatabricksSDKClient:
         # --- SCIM Groups -------------------------------------------------
         # Use raw HTTP for group *listing* — the SDK's groups.list() omits
         # the `members` field, which is required for upstream-group traversal
-        # in get_groups_containing_target().  Individual group GETs (by ID)
+        # in get_group_membership_map().  Individual group GETs (by ID)
         # via groups.get() do include members and are kept as typed calls.
-        if endpoint == "/scim/v2/Groups":
+        # Non-GET methods (POST/PATCH/PUT/DELETE) fall through to the raw
+        # fallback so create/update/delete operations are handled correctly.
+        if method == "GET" and endpoint == "/scim/v2/Groups":
             query: Dict[str, Any] = {"count": self.SCIM_PAGE_SIZE}
             if params.get("filter"):
                 query["filter"] = params["filter"]
@@ -162,11 +164,11 @@ class DatabricksSDKClient:
             return resp if isinstance(resp, dict) else {}
 
         m = self._RE_GROUP_BY_ID.match(endpoint)
-        if m:
+        if m and method == "GET":
             return self._to_dict(self._account.groups.get(m.group(1)))
 
         # --- SCIM Users --------------------------------------------------
-        if endpoint == "/scim/v2/Users":
+        if method == "GET" and endpoint == "/scim/v2/Users":
             filt = params.get("filter")
             items = list(self._account.users.list(filter=filt))
             return {
@@ -175,11 +177,11 @@ class DatabricksSDKClient:
             }
 
         m = self._RE_USER_BY_ID.match(endpoint)
-        if m:
+        if m and method == "GET":
             return self._to_dict(self._account.users.get(m.group(1)))
 
         # --- SCIM ServicePrincipals --------------------------------------
-        if endpoint == "/scim/v2/ServicePrincipals":
+        if method == "GET" and endpoint == "/scim/v2/ServicePrincipals":
             filt = params.get("filter")
             items = list(self._account.service_principals.list(filter=filt))
             return {
@@ -188,19 +190,19 @@ class DatabricksSDKClient:
             }
 
         m = self._RE_SP_BY_ID.match(endpoint)
-        if m:
+        if m and method == "GET":
             return self._to_dict(
                 self._account.service_principals.get(m.group(1))
             )
 
         # --- Workspaces --------------------------------------------------
-        if endpoint == "/workspaces":
+        if method == "GET" and endpoint == "/workspaces":
             items = list(self._account.workspaces.list())
             return [self._to_dict(w) for w in items]
 
         # --- Workspace Permission Assignments ----------------------------
         m = self._RE_WS_PERMS.match(endpoint)
-        if m:
+        if m and method == "GET":
             ws_id = int(m.group(1))
             items = list(self._account.workspace_assignment.list(ws_id))
             return {
@@ -252,7 +254,7 @@ class DatabricksSDKClient:
         params = kwargs.get("params", {})
 
         # --- Workspace SCIM groups ---------------------------------------
-        if self._RE_WS_SCIM_GROUPS.match(endpoint):
+        if method == "GET" and self._RE_WS_SCIM_GROUPS.match(endpoint):
             filt = params.get("filter")
             items = list(ws.groups.list(filter=filt))
             return {
@@ -261,7 +263,7 @@ class DatabricksSDKClient:
             }
 
         # --- Catalogs ----------------------------------------------------
-        if self._RE_CATALOGS.match(endpoint):
+        if method == "GET" and self._RE_CATALOGS.match(endpoint):
             items = list(ws.catalogs.list())
             return {"catalogs": [self._to_dict(c) for c in items]}
 
@@ -269,25 +271,27 @@ class DatabricksSDKClient:
         # Use raw REST (not ws.grants.get) — the SDK's grants API goes through
         # a gRPC shim that rejects SECURABLETYPE.CATALOG on some workspace
         # versions, while the REST endpoint works on all versions.
+        # Non-GET methods (PATCH to add/remove grants) fall through to the
+        # raw fallback below so they are sent with the correct method.
         m = self._RE_CAT_GRANTS.match(endpoint)
-        if m:
+        if m and method == "GET":
             resp = ws.api_client.do("GET", endpoint)
             return resp if isinstance(resp, dict) else {}
 
         # --- Schemas -----------------------------------------------------
-        if self._RE_SCHEMAS.match(endpoint):
+        if method == "GET" and self._RE_SCHEMAS.match(endpoint):
             cat_name = params.get("catalog_name", "")
             items = list(ws.schemas.list(catalog_name=cat_name))
             return {"schemas": [self._to_dict(s) for s in items]}
 
         # --- Schema grants -----------------------------------------------
         m = self._RE_SCHEMA_GRANTS.match(endpoint)
-        if m:
+        if m and method == "GET":
             resp = ws.api_client.do("GET", endpoint)
             return resp if isinstance(resp, dict) else {}
 
         # --- Tables ------------------------------------------------------
-        if self._RE_TABLES.match(endpoint):
+        if method == "GET" and self._RE_TABLES.match(endpoint):
             cat_name = params.get("catalog_name", "")
             schema_name = params.get("schema_name", "")
             items = list(
@@ -299,7 +303,7 @@ class DatabricksSDKClient:
 
         # --- Table grants ------------------------------------------------
         m = self._RE_TABLE_GRANTS.match(endpoint)
-        if m:
+        if m and method == "GET":
             resp = ws.api_client.do("GET", endpoint)
             return resp if isinstance(resp, dict) else {}
 
