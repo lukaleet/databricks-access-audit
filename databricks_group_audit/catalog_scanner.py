@@ -98,42 +98,20 @@ class CatalogPermissionScanner:
     def get_groups_containing_target(self, target_group_name: str) -> Dict[str, str]:
         """Find ALL upstream (ancestor) groups of the target via BFS.
 
-        The Databricks SCIM list endpoint never returns the ``members`` field
-        (neither raw HTTP nor SDK), so we fetch the ID/name list first, then
-        do one individual GET per group to retrieve its members.  This is an
-        O(N) API call pattern where N is the total number of groups in the
-        account — unavoidable given the API constraint.  Results feed a
-        child-to-parents adjacency map used for BFS upward traversal.
+        Delegates the O(N) group-membership fetch to
+        :meth:`~databricks_group_audit.group_resolver.GroupMembershipResolver.get_group_membership_map`,
+        which parallelises the individual GETs and caches the result for the
+        lifetime of the resolver instance.  Multiple callers within the same
+        audit session (catalog scanner, schema scanner, principal auditor) share
+        the cached map without redundant API calls.
         """
-        all_groups = self.api_client.scim_list_all("Groups")
+        id_to_name, _, child_to_parents = self.group_resolver.get_group_membership_map()
 
-        id_to_name: Dict[str, str] = {}
-        target_id: Optional[str] = None
-
-        for g in all_groups:
-            gid = g.get("id")
-            gname = g.get("displayName", "")
-            if not gid:
-                continue
-            id_to_name[gid] = gname
-            if gname == target_group_name:
-                target_id = gid
-
+        target_id = next(
+            (gid for gid, name in id_to_name.items() if name == target_group_name), None
+        )
         if not target_id:
             return {}
-
-        # Fetch each group individually to obtain its members (SCIM list
-        # omits the members field on Databricks — individual GETs include it).
-        child_to_parents: Dict[str, Set[str]] = {}
-        for gid in id_to_name:
-            try:
-                full = self.api_client.account_api("GET", f"/scim/v2/Groups/{gid}")
-            except Exception:
-                continue
-            for m in full.get("members", []):
-                child_id = m.get("value")
-                if child_id:
-                    child_to_parents.setdefault(child_id, set()).add(gid)
 
         upstream: Dict[str, str] = {}
         queue: deque = deque([target_id])

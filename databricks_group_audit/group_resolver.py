@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Set
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, List, Optional, Set, Tuple
 
 from databricks_group_audit.client import AuditClient, _scim_filter_escape
 from databricks_group_audit.models import GroupMember, GroupNode, MemberType
@@ -22,6 +24,9 @@ class GroupMembershipResolver:
         self._user_cache: Dict[str, dict] = {}
         self._sp_cache: Dict[str, dict] = {}
         self._resolved_groups: Set[str] = set()
+        self._group_membership_map_cache: Optional[
+            Tuple[Dict[str, str], Dict[str, Optional[str]], Dict[str, Set[str]]]
+        ] = None
 
     def clear_caches(self) -> None:
         """Reset all caches (useful between separate audit runs)."""
@@ -29,6 +34,66 @@ class GroupMembershipResolver:
         self._user_cache.clear()
         self._sp_cache.clear()
         self._resolved_groups.clear()
+        self._group_membership_map_cache = None
+
+    # -- Shared group membership map ----------------------------------------
+
+    def get_group_membership_map(
+        self, max_workers: int = 16,
+    ) -> Tuple[Dict[str, str], Dict[str, Optional[str]], Dict[str, Set[str]]]:
+        """Return ``(id_to_name, id_to_external_id, child_to_parents)`` — cached.
+
+        Fetches all group IDs and names with a single paginated list call, then
+        parallel-GETs each group individually to obtain the ``members`` field
+        (the Databricks SCIM list endpoint never returns members regardless of
+        client or query parameters — only individual GETs include them).
+
+        The result is stored on the instance so multiple callers within the same
+        session (catalog scanner, principal auditor, schema scanner) pay the O(N)
+        fetch cost exactly once.  Call :meth:`clear_caches` to force a refresh.
+
+        Thread safety: the parallel GETs run in a thread pool but all writes to
+        shared state happen in the main thread after the pool has finished.
+        """
+        if self._group_membership_map_cache is not None:
+            return self._group_membership_map_cache
+
+        all_groups = self.api_client.scim_list_all("Groups")
+
+        id_to_name: Dict[str, str] = {}
+        id_to_external: Dict[str, Optional[str]] = {}
+        for g in all_groups:
+            gid = g.get("id")
+            if not gid:
+                continue
+            id_to_name[gid] = g.get("displayName", "")
+            id_to_external[gid] = g.get("externalId") or None
+
+        child_to_parents: Dict[str, Set[str]] = {}
+
+        def _fetch_one(gid: str) -> Tuple[str, dict]:
+            return gid, self.api_client.account_api("GET", f"/scim/v2/Groups/{gid}")
+
+        workers = min(max_workers, len(id_to_name)) if id_to_name else 1
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(_fetch_one, gid): gid for gid in id_to_name}
+            for fut in as_completed(futures):
+                try:
+                    gid, full = fut.result()
+                except Exception:
+                    continue
+                # Warm the individual-get cache so _get_group_by_id hits it later.
+                self._group_cache[gid] = full
+                # Refresh externalId from the full record (list may omit it).
+                id_to_external[gid] = full.get("externalId") or None
+                for m in full.get("members", []):
+                    child_id = m.get("value")
+                    if child_id:
+                        child_to_parents.setdefault(child_id, set()).add(gid)
+
+        result = (id_to_name, id_to_external, child_to_parents)
+        self._group_membership_map_cache = result
+        return result
 
     # -- SCIM helpers -------------------------------------------------------
 

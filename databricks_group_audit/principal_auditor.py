@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Set, Tuple
 
 from databricks_group_audit.client import AuditClient, _scim_filter_escape
+from databricks_group_audit.group_resolver import GroupMembershipResolver
 from databricks_group_audit.models import (
     EffectivePermission,
     GroupMembership,
@@ -43,10 +44,12 @@ class PrincipalAuditor:
         api_client: AuditClient,
         workspace_discovery: Optional[WorkspaceDiscovery] = None,
         cloud_provider: str = "azure",
+        group_resolver: Optional[GroupMembershipResolver] = None,
     ):
         self.api = api_client
         self.ws_discovery = workspace_discovery or WorkspaceDiscovery(api_client, cloud_provider)
         self.cloud_provider = cloud_provider.upper()
+        self._group_resolver = group_resolver or GroupMembershipResolver(api_client)
 
     # ------------------------------------------------------------------
     # Step 1 — Identify the principal
@@ -123,35 +126,16 @@ class PrincipalAuditor:
 
         Returns ``(memberships, id_to_name_map)``.
 
-        The Databricks SCIM list endpoint omits the ``members`` field, so we
-        first collect group IDs/names from the list, then fetch each group
-        individually to obtain members.  This is O(N) API calls where N is
-        the group count — unavoidable given the API constraint.
+        Delegates the O(N) group-membership fetch to the shared
+        :class:`~databricks_group_audit.group_resolver.GroupMembershipResolver`,
+        which parallelises individual GETs and caches the result for the
+        lifetime of the resolver.  Sharing a resolver instance with the catalog
+        scanner means the expensive fetch happens once per session rather than
+        once per auditor step.
         """
-        all_groups = self.api.scim_list_all("Groups")
-
-        id_to_name: Dict[str, str] = {}
-        id_to_external: Dict[str, Optional[str]] = {}
-        child_to_parents: Dict[str, Set[str]] = {}
-
-        for g in all_groups:
-            gid = g.get("id", "")
-            gname = g.get("displayName", "")
-            id_to_name[gid] = gname
-            id_to_external[gid] = g.get("externalId") or None
-
-        # Individual GETs required to get members (SCIM list omits them).
-        for gid in list(id_to_name):
-            try:
-                full = self.api.account_api("GET", f"/scim/v2/Groups/{gid}")
-            except Exception:
-                continue
-            # Refresh externalId from full record while we have it.
-            id_to_external[gid] = full.get("externalId") or None
-            for m in full.get("members", []):
-                cid = m.get("value", "")
-                if cid:
-                    child_to_parents.setdefault(cid, set()).add(gid)
+        id_to_name, id_to_external, child_to_parents = (
+            self._group_resolver.get_group_membership_map()
+        )
 
         direct_parent_ids = child_to_parents.get(principal_id, set())
 
