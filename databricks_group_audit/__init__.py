@@ -12,7 +12,7 @@ Quick start::
     node = resolver.resolve_group("data-engineers")
 """
 
-__version__ = "0.15.1"
+__version__ = "0.16.0"
 
 from databricks_group_audit._classification import build_member_lookups, classify_grant
 from databricks_group_audit.catalog_scanner import CatalogPermissionScanner, classify_catalog_grant

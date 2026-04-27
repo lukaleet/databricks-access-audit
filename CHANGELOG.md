@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.16.0] - 2026-04-27
+
+### Added
+- **Parallel group membership map with session cache** — `GroupMembershipResolver.get_group_membership_map()` replaces the serial O(N) individual-GET loops in `catalog_scanner` and `principal_auditor`.  The Databricks SCIM list endpoint never returns the `members` field, so individual GETs are unavoidable; they now fire concurrently via `ThreadPoolExecutor` (default 16 workers) and the result is cached on the resolver instance for the lifetime of the session.  On a 300-group account with 8+ workers this reduces the membership-map build step by roughly an order of magnitude.
+- **`PrincipalAuditor` accepts a shared `group_resolver`** — new optional constructor parameter `group_resolver: Optional[GroupMembershipResolver] = None`.  When passed, the auditor uses the provided instance (and its cache) instead of creating its own, eliminating duplicate O(N) fetches when group audit and principal audit run in the same session.  Backwards compatible: omitting the parameter behaves identically to before.
+- **Notebook resolver sharing** — `pa_auditor` in cell 4 is now instantiated with the shared `group_resolver`, so running group audit followed by principal audit in the same notebook session reuses the cached membership map.
+
+### Tests
+- 352 tests (up from 342): 10 new tests in `test_group_resolver.py` covering map correctness, `child_to_parents` structure, cache hit behaviour, `_group_cache` warming, `clear_caches()` invalidation, empty-account edge case, failed-GET skipping, and three `PrincipalAuditor` integration tests.
+
+---
+
 ## [0.15.1] - 2026-04-26
 
 ### Fixed
