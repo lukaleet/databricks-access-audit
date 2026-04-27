@@ -112,15 +112,53 @@ class DatabricksSDKClient:
 
     # -- Workspace client cache --------------------------------------------
 
+    @staticmethod
+    def _pat_for_host(host: str) -> str:
+        """Return a PAT from ~/.databrickscfg whose host matches, or ''."""
+        import configparser
+        import os
+        cfg_path = os.path.expanduser("~/.databrickscfg")
+        if not os.path.exists(cfg_path):
+            return ""
+        cfg = configparser.ConfigParser()
+        cfg.read(cfg_path)
+        host_norm = host.rstrip("/")
+        for section in cfg.sections():
+            h = cfg.get(section, "host", fallback="").rstrip("/")
+            t = cfg.get(section, "token", fallback="")
+            if h == host_norm and t:
+                return t
+        # Also check [DEFAULT]
+        h = cfg.defaults().get("host", "").rstrip("/")
+        t = cfg.defaults().get("token", "")
+        return t if h == host_norm and t else ""
+
     def _get_ws_client(self, workspace_host: str) -> "WorkspaceClient":
         if not workspace_host.startswith("https://"):
             workspace_host = f"https://{workspace_host}"
         if workspace_host not in self._workspace_clients:
-            self._workspace_clients[workspace_host] = WorkspaceClient(
+            # Prefer oauth-m2m with explicit SP credentials.  Some workspaces
+            # reject workspace-level OIDC for service principals (e.g. when
+            # identity federation is enabled and the SP is only registered at
+            # account level).  In that case fall back to a PAT from
+            # ~/.databrickscfg (dev), DATABRICKS_TOKEN env var, or azure-cli.
+            ws = WorkspaceClient(
                 host=workspace_host,
                 client_id=self._client_id,
                 client_secret=self._client_secret,
             )
+            try:
+                next(ws.catalogs.list(), None)
+            except Exception:
+                pat = self._pat_for_host(workspace_host)
+                log.debug(
+                    "Workspace oauth-m2m failed for %s — retrying with %s.",
+                    workspace_host,
+                    "~/.databrickscfg PAT" if pat else "env-var/azure-cli auth",
+                )
+                ws = WorkspaceClient(host=workspace_host, token=pat) if pat \
+                    else WorkspaceClient(host=workspace_host)
+            self._workspace_clients[workspace_host] = ws
         return self._workspace_clients[workspace_host]
 
     # =====================================================================
