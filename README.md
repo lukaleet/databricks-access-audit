@@ -149,6 +149,14 @@ Scan scope:
   --workspace-urls     Comma-separated URLs; omit to scan all discovered workspaces
   --scan-schemas       Also scan schema-level grants
   --scan-tables        Also scan table/view-level grants (implies --scan-schemas)
+  --scan-workspace-objects
+                       Scan workspace-level object permissions: jobs, clusters,
+                       SQL warehouses, pipelines, cluster policies.
+                       Off by default — adds significant API calls per workspace.
+  --workspace-object-types LIST
+                       Comma-separated object types to scan when
+                       --scan-workspace-objects is set.
+                       Default: jobs,clusters,sql_warehouses,pipelines,cluster_policies
   --workers N          Parallel threads for workspace/schema/table scanning
                        (default: 8; set to 1 for sequential)
 
@@ -344,6 +352,8 @@ Import `Databricks Group Audit Tool.ipynb` into your workspace. The first cell i
 | `workspace_urls` | text | *(optional)* Comma-separated workspace URLs; blank to scan all |
 | `scan_schemas` | dropdown | `true` / `false` |
 | `scan_tables` | dropdown | `true` / `false` |
+| `scan_workspace_objects` | dropdown | `true` / `false` — scan job, cluster, warehouse, pipeline, and cluster-policy ACLs |
+| `workspace_object_types` | text | Comma-separated object types; blank = all five types |
 | `workers` | text | Number of parallel threads for workspace/schema/table scanning (default: `8`) |
 | `auto_elevate` | dropdown | `true` / `false` — temporarily grant Workspace Admin to the audit SP |
 | `dry_run_elevation` | dropdown | `true` / `false` — log elevation actions without applying them |
@@ -368,6 +378,7 @@ Import `Databricks Group Audit Tool.ipynb` into your workspace. The first cell i
 | `df_top_members` | Members ranked by personal grant count, with redundancy level — the cleanup shortlist |
 | `df_stale` | Member-direct grants with no recent audit-log activity (when `stale_days>0`) |
 | `df_local_groups` | Workspace-local groups absent from account SCIM (when `check_local_groups=true`) |
+| `df_workspace_objects` | Job/cluster/warehouse/pipeline/policy ACL grants (when `scan_workspace_objects=true`) |
 | `_revoke_sql` | Auto-generated REVOKE SQL script (string) |
 
 ### Output DataFrames - Principal Audit
@@ -378,6 +389,7 @@ Import `Databricks Group Audit Tool.ipynb` into your workspace. The first cell i
 | `df_pa_ws` | Workspace access roles with the source group |
 | `df_pa_perms` | UC permissions (catalog/schema/table) with granting group and workspace |
 | `df_escalation` | `ALL_PRIVILEGES` / `MANAGE` escalation findings (when `escalation_check=true`) |
+| `df_pa_workspace_objects` | Job/cluster/warehouse/pipeline/policy ACL grants (when `scan_workspace_objects=true`) |
 
 ### Delta export
 

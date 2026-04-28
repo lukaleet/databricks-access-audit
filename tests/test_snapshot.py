@@ -17,6 +17,7 @@ from databricks_group_audit.models import (
     GroupMembership,
     MemberType,
     PrincipalAuditResult,
+    WorkspaceObjectGrant,
     WorkspaceRole,
 )
 from databricks_group_audit.snapshot import (
@@ -423,3 +424,94 @@ def test_has_changes_true_on_members_removed():
         members_removed=[{"id": "u-1"}],
     )
     assert d.has_changes
+
+
+# ---------------------------------------------------------------------------
+# WorkspaceObjectGrant — group snapshot round-trip
+# ---------------------------------------------------------------------------
+
+def _ws_obj_grant(obj_type="JOB", obj_name="prod-etl", perm="CAN_MANAGE",
+                  source=GrantSource.DIRECT, inherited=None, ws="ws1"):
+    return WorkspaceObjectGrant(
+        object_type=obj_type,
+        object_id="42",
+        object_name=obj_name,
+        workspace_name=ws,
+        workspace_url=f"https://{ws}.azuredatabricks.net",
+        principal="data-engineers",
+        principal_type="GROUP",
+        permission_level=perm,
+        grant_source=source,
+        inherited_from=inherited,
+    )
+
+
+def test_group_snapshot_includes_workspace_object_grants():
+    grant = _ws_obj_grant()
+    snap = build_group_snapshot("grp", _members(), [], [], [], [grant])
+    ws_entries = [g for g in snap["grants"] if g.get("securable_type") == "JOB"]
+    assert len(ws_entries) == 1
+    g = ws_entries[0]
+    assert g["securable_name"] == "prod-etl"
+    assert g["permission_level"] == "CAN_MANAGE"
+    assert g["grant_source"] == GrantSource.DIRECT.value
+    assert g["inherited_from"] is None
+
+
+def test_group_snapshot_workspace_object_grants_none():
+    snap = build_group_snapshot("grp", _members(), [], [], [], None)
+    assert snap["grants"] == []
+
+
+def test_group_snapshot_workspace_and_uc_grants_combined():
+    uc = _cat_grant()
+    obj = _ws_obj_grant()
+    snap = build_group_snapshot("grp", _members(), [uc], [], [], [obj])
+    assert len(snap["grants"]) == 2
+    types = {g["securable_type"] for g in snap["grants"]}
+    assert types == {"CATALOG", "JOB"}
+
+
+def test_group_snapshot_workspace_object_grant_diff_detected():
+    snap1 = build_group_snapshot("grp", _members(), [], [], [], [_ws_obj_grant(perm="CAN_RUN")])
+    snap2 = build_group_snapshot("grp", _members(), [], [], [], [_ws_obj_grant(perm="CAN_MANAGE")])
+    diff = diff_snapshots(snap1, snap2)
+    assert diff.has_changes
+    assert len(diff.grants_added) == 1
+    assert len(diff.grants_removed) == 1
+
+
+def test_group_snapshot_workspace_object_grant_no_diff_same():
+    snap1 = build_group_snapshot("grp", _members(), [], [], [], [_ws_obj_grant()])
+    snap2 = build_group_snapshot("grp", _members(), [], [], [], [_ws_obj_grant()])
+    diff = diff_snapshots(snap1, snap2)
+    assert not diff.has_changes
+
+
+# ---------------------------------------------------------------------------
+# WorkspaceObjectGrant — principal snapshot round-trip
+# ---------------------------------------------------------------------------
+
+def test_principal_snapshot_includes_workspace_object_grants():
+    result = _principal_result()
+    result.workspace_object_grants = [_ws_obj_grant()]
+    snap = build_principal_snapshot(result)
+    ws_entries = [g for g in snap["grants"] if g.get("securable_type") == "JOB"]
+    assert len(ws_entries) == 1
+    assert ws_entries[0]["permission_level"] == "CAN_MANAGE"
+
+
+def test_principal_snapshot_workspace_object_grants_empty():
+    result = _principal_result()
+    snap = build_principal_snapshot(result)
+    ws_entries = [g for g in snap["grants"] if g.get("securable_type") == "JOB"]
+    assert ws_entries == []
+
+
+def test_principal_snapshot_uc_and_ws_grants_combined():
+    result = _principal_result()
+    result.workspace_object_grants = [_ws_obj_grant(obj_type="CLUSTER", obj_name="shared")]
+    snap = build_principal_snapshot(result)
+    types = {g["securable_type"] for g in snap["grants"]}
+    assert "CATALOG" in types
+    assert "CLUSTER" in types

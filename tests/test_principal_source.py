@@ -128,6 +128,7 @@ def mock_client():
     return DatabricksAPIClient(
         client_id="cid", client_secret="sec",
         account_id=ACCOUNT_ID, account_host=ACCOUNT_HOST,
+        max_retries=0, base_delay=0,
     )
 
 

@@ -418,6 +418,8 @@ class PrincipalAuditor:
         explicit_workspace_urls: str = "",
         scan_schemas: bool = False,
         scan_tables: bool = False,
+        scan_workspace_objects: bool = False,
+        workspace_object_types: Optional[List[str]] = None,
         max_workers: int = 8,
     ) -> PrincipalAuditResult:
         """Run a full principal audit.
@@ -432,6 +434,13 @@ class PrincipalAuditor:
             Also scan schema-level grants.
         scan_tables:
             Also scan table/view-level grants (implies schema scan).
+        scan_workspace_objects:
+            Also scan workspace-level object permissions (jobs, clusters,
+            SQL warehouses, pipelines, cluster policies).
+        workspace_object_types:
+            Subset of object types to scan when *scan_workspace_objects* is set.
+            ``None`` = all five types.  Values: "jobs", "clusters",
+            "sql_warehouses", "pipelines", "cluster_policies".
         max_workers:
             Maximum number of parallel threads for workspace and UC scanning.
         """
@@ -498,6 +507,34 @@ class PrincipalAuditor:
         )
         log.info("Found %d UC permission(s)", len(perms))
 
+        # 7. Scan workspace object permissions (optional)
+        ws_obj_grants = []
+        if scan_workspace_objects:
+            from databricks_group_audit.workspace_object_scanner import WorkspaceObjectScanner
+            obj_scanner = WorkspaceObjectScanner(self.api, self._group_resolver)
+            seen_ws: Set[str] = set()
+            for role in ws_roles:
+                if role.workspace_url in seen_ws:
+                    continue
+                seen_ws.add(role.workspace_url)
+                ws_info = WorkspaceInfo(
+                    workspace_id=role.workspace_id,
+                    deployment_name="",
+                    workspace_name=role.workspace_name,
+                    workspace_url=role.workspace_url,
+                    cloud=self.cloud_provider,
+                    region="",
+                )
+                ws_obj_grants.extend(
+                    obj_scanner.scan_workspace_for_principal(
+                        ws_info, pname, group_names,
+                        principal_aliases=aliases,
+                        object_types=workspace_object_types,
+                        max_workers=max_workers,
+                    )
+                )
+            log.info("Found %d workspace object grant(s)", len(ws_obj_grants))
+
         return PrincipalAuditResult(
             principal_type=ptype,
             principal_id=pid,
@@ -507,4 +544,5 @@ class PrincipalAuditor:
             workspace_roles=ws_roles,
             permissions=perms,
             dead_end_groups=dead_ends,
+            workspace_object_grants=ws_obj_grants,
         )

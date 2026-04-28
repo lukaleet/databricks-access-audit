@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from databricks_group_audit.models import AuditDiff
 
@@ -77,18 +77,34 @@ def _table_grant_dict(g: Any) -> Dict:
 # Build snapshots from audit run results
 # ---------------------------------------------------------------------------
 
+def _ws_object_grant_dict(g: Any) -> Dict:
+    return {
+        "securable_type": g.object_type,
+        "workspace_name": g.workspace_name,
+        "securable_name": g.object_name,
+        "object_id": g.object_id,
+        "principal": g.principal,
+        "principal_type": g.principal_type,
+        "permission_level": g.permission_level,
+        "grant_source": g.grant_source.value,
+        "inherited_from": g.inherited_from,
+    }
+
+
 def build_group_snapshot(
     group_name: str,
     members: Dict,
     catalog_grants: List,
     schema_grants: List,
     table_grants: List,
+    workspace_object_grants: Optional[List] = None,
 ) -> Dict:
     """Serialise a group audit run into a snapshot dict."""
     grants = (
         [_catalog_grant_dict(g) for g in catalog_grants]
         + [_schema_grant_dict(g) for g in schema_grants]
         + [_table_grant_dict(g) for g in table_grants]
+        + [_ws_object_grant_dict(g) for g in (workspace_object_grants or [])]
     )
     return {
         "version": SNAPSHOT_VERSION,
@@ -107,21 +123,26 @@ def build_group_snapshot(
 
 def build_principal_snapshot(result: Any) -> Dict:
     """Serialise a principal audit run into a snapshot dict."""
+    uc_grants = [
+        {
+            "securable_type": p.securable_type,
+            "securable_name": p.securable_name,
+            "privileges": sorted(p.privileges),
+            "via_group": p.via_group,
+            "workspace_name": p.workspace_name,
+        }
+        for p in result.permissions
+    ]
+    obj_grants = [
+        _ws_object_grant_dict(g)
+        for g in getattr(result, "workspace_object_grants", [])
+    ]
     return {
         "version": SNAPSHOT_VERSION,
         "mode": "principal",
         "target": result.principal_name,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "grants": [
-            {
-                "securable_type": p.securable_type,
-                "securable_name": p.securable_name,
-                "privileges": sorted(p.privileges),
-                "via_group": p.via_group,
-                "workspace_name": p.workspace_name,
-            }
-            for p in result.permissions
-        ],
+        "grants": uc_grants + obj_grants,
         "groups": [
             {
                 "group_id": g.group_id,

@@ -145,6 +145,26 @@ class TableGrant:
     member_of_target: bool = False
 
 
+@dataclass
+class WorkspaceObjectGrant:
+    """Permission grant on a workspace-level object (job, cluster, SQL warehouse, etc.).
+
+    Unlike Unity Catalog grants (which use privilege lists), workspace object
+    permissions use a single ``permission_level`` (e.g. CAN_MANAGE, CAN_RUN).
+    """
+    object_type: str       # "JOB" | "CLUSTER" | "SQL_WAREHOUSE" | "PIPELINE" | "CLUSTER_POLICY"
+    object_id: str
+    object_name: str
+    workspace_name: str
+    workspace_url: str
+    principal: str
+    principal_type: str    # "GROUP" | "USER" | "SERVICE_PRINCIPAL"
+    permission_level: str  # e.g. "CAN_VIEW" | "CAN_RUN" | "CAN_MANAGE"
+    grant_source: GrantSource
+    inherited_from: Optional[str] = None  # upstream group name for UPSTREAM grants
+    member_of_target: bool = False
+
+
 # ---------------------------------------------------------------------------
 # Redundancy models
 # ---------------------------------------------------------------------------
@@ -221,6 +241,7 @@ class PrincipalAuditResult:
     permissions: List[EffectivePermission] = field(default_factory=list)
     dead_end_groups: List[str] = field(default_factory=list)
     escalation_findings: List["EscalationFinding"] = field(default_factory=list)
+    workspace_object_grants: List["WorkspaceObjectGrant"] = field(default_factory=list)
     # SCIM externalId of the principal — non-empty when provisioned by an IdP.
     principal_external_id: Optional[str] = None
 

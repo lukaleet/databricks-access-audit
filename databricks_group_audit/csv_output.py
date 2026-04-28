@@ -12,13 +12,14 @@ def write_group_audit_csv(
     schema_grants: List,
     table_grants: List,
     redundancy: List,
+    workspace_object_grants: Optional[List] = None,
     output: Optional[TextIO] = None,
 ) -> None:
-    """Write group audit results as CSV.  Grants first, then redundancy findings."""
+    """Write group audit results as CSV.  Grants, then redundancy, then workspace objects."""
     out = output or sys.stdout
     w = csv.writer(out)
 
-    # Grants table
+    # UC grants table
     w.writerow(["securable_type", "workspace", "securable_name",
                 "principal", "principal_type", "privileges",
                 "grant_source", "inherited_from"])
@@ -48,6 +49,17 @@ def write_group_audit_csv(
                         "|".join(r.redundant_privileges),
                         "|".join(r.additional_privileges),
                         r.redundancy_level.value, r.recommendation])
+
+    if workspace_object_grants:
+        w.writerow([])
+        w.writerow(["object_type", "object_id", "object_name", "workspace",
+                    "principal", "principal_type", "permission_level",
+                    "grant_source", "inherited_from"])
+        for g in workspace_object_grants:
+            w.writerow([g.object_type, g.object_id, g.object_name,
+                        g.workspace_name, g.principal, g.principal_type,
+                        g.permission_level, g.grant_source.value,
+                        g.inherited_from or ""])
 
 
 def write_principal_audit_csv(
@@ -92,6 +104,17 @@ def write_principal_audit_csv(
         for f in escalation_findings:
             w.writerow([f.privilege, f.securable_type, f.securable_name,
                         f.via_group, f.is_transitive, f.workspace_name])
+
+    if getattr(result, "workspace_object_grants", None):
+        w.writerow([])
+        w.writerow(["object_type", "object_id", "object_name", "workspace",
+                    "principal", "principal_type", "permission_level",
+                    "grant_source", "inherited_from"])
+        for g in result.workspace_object_grants:
+            w.writerow([g.object_type, g.object_id, g.object_name,
+                        g.workspace_name, g.principal, g.principal_type,
+                        g.permission_level, g.grant_source.value,
+                        g.inherited_from or ""])
 
 
 def write_diff_csv(diff: Any, output: Optional[TextIO] = None) -> None:

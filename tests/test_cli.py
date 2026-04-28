@@ -456,3 +456,145 @@ def test_elevation_context_success_cleanup_on_body_exception():
 
     delete_calls = [c for c in client.account_api.call_args_list if c.args[0] == "DELETE"]
     assert len(delete_calls) == 1, "ws-1 should be revoked on body exception"
+
+
+# ---------------------------------------------------------------------------
+# _parse_args — workspace object flags
+# ---------------------------------------------------------------------------
+
+def test_parse_args_scan_workspace_objects_default_false():
+    args = _parse_args([
+        "--group", "g", "--client-id", "c", "--client-secret", "s", "--account-id", "a",
+    ])
+    assert args.scan_workspace_objects is False
+    assert args.workspace_object_types == ""
+
+
+def test_parse_args_scan_workspace_objects_flag():
+    args = _parse_args([
+        "--group", "g", "--client-id", "c", "--client-secret", "s", "--account-id", "a",
+        "--scan-workspace-objects",
+    ])
+    assert args.scan_workspace_objects is True
+
+
+def test_parse_args_workspace_object_types():
+    args = _parse_args([
+        "--group", "g", "--client-id", "c", "--client-secret", "s", "--account-id", "a",
+        "--scan-workspace-objects", "--workspace-object-types", "jobs,clusters",
+    ])
+    assert args.workspace_object_types == "jobs,clusters"
+
+
+# ---------------------------------------------------------------------------
+# Workspace object scanning — helpers
+# ---------------------------------------------------------------------------
+
+def _register_workspace_object_mocks(rsps):
+    """Register job list + ACL mocks for --scan-workspace-objects tests."""
+    rsps.add(responses_lib.GET,
+             f"{WORKSPACE_HOST}/api/2.1/jobs/list",
+             json={"jobs": [{"job_id": 7, "settings": {"name": "nightly-etl"}}]})
+    rsps.add(responses_lib.GET,
+             f"{WORKSPACE_HOST}/api/2.0/permissions/jobs/7",
+             json={"access_control_list": [
+                 {"group_name": "data-engineers",
+                  "all_permissions": [{"permission_level": "CAN_MANAGE"}]},
+             ]})
+
+
+# ---------------------------------------------------------------------------
+# Group audit — --scan-workspace-objects text output
+# ---------------------------------------------------------------------------
+
+def test_group_audit_scan_workspace_objects_text(capsys):
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_workspace_object_mocks(rsps)
+        rc = main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--scan-workspace-objects", "--workspace-object-types", "jobs",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Workspace object permission" in out or "workspace object" in out.lower()
+    assert "nightly-etl" in out
+
+
+def test_group_audit_scan_workspace_objects_json(capsys):
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_workspace_object_mocks(rsps)
+        rc = main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--scan-workspace-objects", "--workspace-object-types", "jobs",
+            "--output", "json",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    data = json.loads(out[out.find("{"):])
+    assert "workspace_object_grants" in data
+    grants = data["workspace_object_grants"]
+    assert len(grants) == 1
+    assert grants[0]["object_type"] == "JOB"
+    assert grants[0]["object_name"] == "nightly-etl"
+    assert grants[0]["permission_level"] == "CAN_MANAGE"
+    assert grants[0]["grant_source"] == "Direct"
+
+
+def test_group_audit_no_workspace_objects_key_without_flag(capsys):
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--output", "json",
+        ])
+    out = capsys.readouterr().out
+    data = json.loads(out[out.find("{"):])
+    assert "workspace_object_grants" not in data
+
+
+# ---------------------------------------------------------------------------
+# Principal audit — --scan-workspace-objects
+# ---------------------------------------------------------------------------
+
+def test_principal_audit_scan_workspace_objects_json(capsys):
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        _register_workspace_object_mocks(rsps)
+        rc = main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--scan-workspace-objects", "--workspace-object-types", "jobs",
+            "--output", "json",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    data = json.loads(out[out.find("{"):])
+    assert "workspace_object_permissions" in data
+
+
+def test_principal_audit_no_workspace_objects_key_without_flag(capsys):
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "json",
+        ])
+    out = capsys.readouterr().out
+    data = json.loads(out[out.find("{"):])
+    assert "workspace_object_permissions" not in data

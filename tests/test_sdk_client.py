@@ -312,10 +312,121 @@ def test_workspace_api_unknown_endpoint_falls_back():
     ws.api_client.do.return_value = {"custom": "data"}
 
     resp = client.workspace_api(
-        "https://ws.azuredatabricks.net", "GET", "/api/2.0/clusters/list",
+        "https://ws.azuredatabricks.net", "GET", "/api/2.0/some/unknown/endpoint",
     )
     ws.api_client.do.assert_called_once()
     assert resp == {"custom": "data"}
+
+
+# ---------------------------------------------------------------------------
+# workspace_api — workspace object list endpoints
+# ---------------------------------------------------------------------------
+
+def test_workspace_api_jobs_list():
+    client, _, ws = _make_client()
+    ws.jobs.list.return_value = [
+        _sdk_obj(job_id=1, settings={"name": "nightly-etl"}),
+    ]
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET", "/api/2.1/jobs/list",
+    )
+    ws.jobs.list.assert_called_once()
+    assert len(resp["jobs"]) == 1
+    assert resp["jobs"][0]["job_id"] == 1
+
+
+def test_workspace_api_clusters_list():
+    client, _, ws = _make_client()
+    ws.clusters.list.return_value = [
+        _sdk_obj(cluster_id="c-1", cluster_name="shared"),
+    ]
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET", "/api/2.0/clusters/list",
+    )
+    ws.clusters.list.assert_called_once()
+    assert resp["clusters"][0]["cluster_id"] == "c-1"
+
+
+def test_workspace_api_warehouses_list():
+    client, _, ws = _make_client()
+    ws.warehouses.list.return_value = [_sdk_obj(id="wh-1", name="gold")]
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET", "/api/2.0/sql/warehouses",
+    )
+    ws.warehouses.list.assert_called_once()
+    assert resp["warehouses"][0]["id"] == "wh-1"
+
+
+def test_workspace_api_pipelines_list():
+    client, _, ws = _make_client()
+    ws.pipelines.list_pipelines.return_value = [
+        _sdk_obj(pipeline_id="p-1", name="bronze-ingest"),
+    ]
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET", "/api/2.0/pipelines",
+    )
+    ws.pipelines.list_pipelines.assert_called_once()
+    assert resp["statuses"][0]["pipeline_id"] == "p-1"
+
+
+def test_workspace_api_cluster_policies_list():
+    client, _, ws = _make_client()
+    ws.cluster_policies.list.return_value = [_sdk_obj(policy_id="pol-1", name="compute")]
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET", "/api/2.0/policies/clusters/list",
+    )
+    ws.cluster_policies.list.assert_called_once()
+    assert resp["policies"][0]["policy_id"] == "pol-1"
+
+
+# ---------------------------------------------------------------------------
+# workspace_api — workspace object permissions via raw REST
+# ---------------------------------------------------------------------------
+
+def test_workspace_api_job_permissions_uses_raw_rest():
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {
+        "access_control_list": [
+            {"group_name": "data-engineers",
+             "all_permissions": [{"permission_level": "CAN_MANAGE"}]}
+        ]
+    }
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.0/permissions/jobs/123",
+    )
+    ws.api_client.do.assert_called_once_with("GET", "/api/2.0/permissions/jobs/123")
+    assert resp["access_control_list"][0]["group_name"] == "data-engineers"
+
+
+def test_workspace_api_cluster_permissions_uses_raw_rest():
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {"access_control_list": []}
+    client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.0/permissions/clusters/c-1",
+    )
+    ws.api_client.do.assert_called_once_with("GET", "/api/2.0/permissions/clusters/c-1")
+
+
+def test_workspace_api_warehouse_permissions_uses_raw_rest():
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {"access_control_list": []}
+    client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.0/permissions/warehouses/wh-1",
+    )
+    ws.api_client.do.assert_called_once_with("GET", "/api/2.0/permissions/warehouses/wh-1")
+
+
+def test_workspace_api_permissions_non_dict_returns_empty():
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = None
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.0/permissions/jobs/42",
+    )
+    assert resp == {}
 
 
 # ---------------------------------------------------------------------------

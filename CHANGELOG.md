@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.17.0] - 2026-04-28
+
+### Added
+- **Workspace object permission scanning** — new `--scan-workspace-objects` flag scans workspace-level ACLs for jobs, clusters, SQL warehouses, pipelines, and cluster policies.  Off by default (adds significant API calls per workspace).  Use `--workspace-object-types jobs,clusters` to restrict to a subset.  Works in both `--group` and `--principal` modes.
+- **`WorkspaceObjectGrant` model** — mirrors `CatalogGrant` / `SchemaGrant` / `TableGrant`; carries `object_type`, `object_id`, `object_name`, `permission_level`, `grant_source` (`DIRECT` / `UPSTREAM` / `MEMBER_DIRECT`), `principal_type`, and `inherited_from`.
+- **`WorkspaceObjectScanner`** — new `workspace_object_scanner.py`; fans out with `ThreadPoolExecutor` per object type, reuses `classify_grant` from `_classification.py`, handles pagination for jobs and pipelines, skips objects on ACL errors.  Deduplicates workspace URLs before dispatch.
+- **CLI output** — group audit gets a new `Workspace Object Permissions` section in text output; principal audit gets the same.  JSON output gains `workspace_object_grants` (group) and `workspace_object_permissions` (principal) arrays.  CSV output gains a third section after the redundancy table.  All outputs include a note that remediation requires the Databricks permissions REST API, not SQL.
+- **Snapshot / diff** — `build_group_snapshot` and `build_principal_snapshot` include workspace object grants; `diff_snapshots` diffs them by full-field fingerprint alongside UC grants.
+- **SDK client routes** — `DatabricksSDKClient.workspace_api` now handles all five object-list endpoints via SDK typed iterators (auto-pagination) and all `/api/2.0/permissions/…` paths via raw REST (`ws.api_client.do`) to avoid gRPC shim issues.
+- **`PrincipalAuditor.audit()`** — two new parameters: `scan_workspace_objects: bool = False` and `workspace_object_types: Optional[List[str]] = None`.
+
+### Fixed
+- **Infinite loop in `_list_objects` pagination test** — `test_list_objects_pagination` in `test_workspace_object_scanner.py` used `if not calls[0]` to branch between the first and subsequent page responses; `calls[0]` is always `{}` (the first call's empty params dict), so the mock always returned `next_page_token`, sending `_list_objects` into an infinite loop that exhausted RAM and crashed the process.  Fixed by checking `if not params` (the current call's params) instead.
+- **Retry-backoff hang in `test_principal_source.py`** — the local `mock_client` fixture used default `max_retries=5, base_delay=1.0`; any URL not registered in the `responses` mock raised `requests.exceptions.ConnectionError`, which is a `RequestException` and triggered five retries with 1+2+4+8+16 = 31 s of backoff per unmatched request.  Fixed by adding `max_retries=0, base_delay=0` to the fixture.
+
+### Tests
+- 422 tests (up from 389): 31 new tests in `test_workspace_object_scanner.py`; new coverage in `test_sdk_client.py`, `test_cli.py`, `test_csv_output.py`, and `test_snapshot.py` for the workspace object scanning feature; 2 bug-fix tests (one removed infinite-loop, one removing retry hang).
+
+---
+
 ## [0.16.0] - 2026-04-27
 
 ### Added

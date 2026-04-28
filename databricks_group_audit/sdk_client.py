@@ -280,6 +280,15 @@ class DatabricksSDKClient:
         r"^/api/2\.1/unity-catalog/permissions/table/(.+)$"
     )
 
+    # Workspace object list endpoints
+    _RE_JOBS_LIST = re.compile(r"^/api/2\.1/jobs/list$")
+    _RE_CLUSTERS_LIST = re.compile(r"^/api/2\.0/clusters/list$")
+    _RE_WAREHOUSES_LIST = re.compile(r"^/api/2\.0/sql/warehouses$")
+    _RE_PIPELINES_LIST = re.compile(r"^/api/2\.0/pipelines$")
+    _RE_POLICIES_LIST = re.compile(r"^/api/2\.0/policies/clusters/list$")
+    # Workspace object permission endpoints (raw REST — avoid gRPC shims)
+    _RE_WS_PERMISSIONS = re.compile(r"^/api/2\.0/permissions/.+$")
+
     def workspace_api(
         self,
         workspace_host: str,
@@ -345,13 +354,42 @@ class DatabricksSDKClient:
             resp = ws.api_client.do("GET", endpoint)
             return resp if isinstance(resp, dict) else {}
 
+        # --- Workspace object lists (SDK typed iterators for auto-pagination) ---
+        if method == "GET" and self._RE_JOBS_LIST.match(endpoint):
+            items = list(ws.jobs.list())
+            return {"jobs": [self._to_dict(j) for j in items]}
+
+        if method == "GET" and self._RE_CLUSTERS_LIST.match(endpoint):
+            items = list(ws.clusters.list())
+            return {"clusters": [self._to_dict(c) for c in items]}
+
+        if method == "GET" and self._RE_WAREHOUSES_LIST.match(endpoint):
+            items = list(ws.warehouses.list())
+            return {"warehouses": [self._to_dict(w) for w in items]}
+
+        if method == "GET" and self._RE_PIPELINES_LIST.match(endpoint):
+            items = list(ws.pipelines.list_pipelines())
+            return {"statuses": [self._to_dict(p) for p in items]}
+
+        if method == "GET" and self._RE_POLICIES_LIST.match(endpoint):
+            items = list(ws.cluster_policies.list())
+            return {"policies": [self._to_dict(p) for p in items]}
+
+        # --- Workspace object permissions (raw REST — no gRPC shim) -----
+        if method == "GET" and self._RE_WS_PERMISSIONS.match(endpoint):
+            resp = ws.api_client.do("GET", endpoint)
+            return resp if isinstance(resp, dict) else {}
+
         # --- Fallback: raw API via SDK's workspace HTTP client -----------
         if not workspace_host.startswith("https://"):
             workspace_host = f"https://{workspace_host}"
         log.debug("SDK fallback to raw workspace API: %s %s", method, endpoint)
         fallback_kwargs = dict(kwargs)
         body = fallback_kwargs.pop("json", None)
-        resp = ws.api_client.do(method, endpoint, body=body, **fallback_kwargs)
+        # Convert requests-style ``params`` to SDK-style ``query``.
+        query = fallback_kwargs.pop("params", None)
+        resp = ws.api_client.do(method, endpoint, body=body, query=query or None,
+                                **fallback_kwargs)
         if not isinstance(resp, dict):
             log.debug("workspace_api fallback: expected dict, got %s — returning {}",
                       type(resp).__name__)

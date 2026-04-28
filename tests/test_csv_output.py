@@ -22,6 +22,7 @@ from databricks_group_audit.models import (
     RedundancyResult,
     SchemaGrant,
     TableGrant,
+    WorkspaceObjectGrant,
     WorkspaceRole,
 )
 
@@ -401,3 +402,103 @@ def test_diff_csv_member_section_header_uses_external_id():
     rows = _csv_rows(buf)
     headers = [r for r in rows if r and r[0] == "change_type" and "external_id" in r]
     assert headers, "member section header with 'external_id' not found"
+
+
+# ---------------------------------------------------------------------------
+# WorkspaceObjectGrant CSV — group audit
+# ---------------------------------------------------------------------------
+
+def _ws_obj_grant(obj_type="JOB", obj_name="prod-etl", perm="CAN_MANAGE",
+                  source=GrantSource.DIRECT, inherited=None):
+    return WorkspaceObjectGrant(
+        object_type=obj_type,
+        object_id="42",
+        object_name=obj_name,
+        workspace_name="ws1",
+        workspace_url="https://ws1.azuredatabricks.net",
+        principal="data-engineers",
+        principal_type="GROUP",
+        permission_level=perm,
+        grant_source=source,
+        inherited_from=inherited,
+    )
+
+
+def test_group_csv_no_workspace_object_section_when_none():
+    buf = io.StringIO()
+    write_group_audit_csv([], [], [], [], output=buf)
+    rows = _csv_rows(buf)
+    row_texts = [",".join(r) for r in rows]
+    assert not any("object_type" in t for t in row_texts)
+
+
+def test_group_csv_workspace_object_section_header():
+    buf = io.StringIO()
+    write_group_audit_csv([], [], [], [], [_ws_obj_grant()], output=buf)
+    rows = _csv_rows(buf)
+    row_texts = [",".join(r) for r in rows]
+    assert any("object_type" in t and "permission_level" in t for t in row_texts)
+
+
+def test_group_csv_workspace_object_data_row():
+    buf = io.StringIO()
+    write_group_audit_csv([], [], [], [], [_ws_obj_grant()], output=buf)
+    rows = _csv_rows(buf)
+    data = [r for r in rows if r and r[0] == "JOB"]
+    assert len(data) == 1
+    assert data[0][2] == "prod-etl"
+    assert data[0][6] == "CAN_MANAGE"
+    assert data[0][7] == GrantSource.DIRECT.value
+    assert data[0][8] == ""  # inherited_from empty
+
+
+def test_group_csv_workspace_object_inherited_from():
+    buf = io.StringIO()
+    grant = _ws_obj_grant(source=GrantSource.UPSTREAM, inherited="platform-team")
+    write_group_audit_csv([], [], [], [], [grant], output=buf)
+    rows = _csv_rows(buf)
+    data = [r for r in rows if r and r[0] == "JOB"]
+    assert data[0][8] == "platform-team"
+
+
+def test_group_csv_workspace_object_multiple_types():
+    buf = io.StringIO()
+    grants = [_ws_obj_grant("JOB"), _ws_obj_grant("CLUSTER", "shared-compute")]
+    write_group_audit_csv([], [], [], [], grants, output=buf)
+    rows = _csv_rows(buf)
+    types = [r[0] for r in rows if r and r[0] in {"JOB", "CLUSTER"}]
+    assert set(types) == {"JOB", "CLUSTER"}
+
+
+# ---------------------------------------------------------------------------
+# WorkspaceObjectGrant CSV — principal audit
+# ---------------------------------------------------------------------------
+
+def test_principal_csv_no_workspace_object_section_when_empty():
+    result = _principal_result()
+    buf = io.StringIO()
+    write_principal_audit_csv(result, [], output=buf)
+    rows = _csv_rows(buf)
+    row_texts = [",".join(r) for r in rows]
+    assert not any("object_type" in t for t in row_texts)
+
+
+def test_principal_csv_workspace_object_section_header():
+    result = _principal_result()
+    result.workspace_object_grants = [_ws_obj_grant()]
+    buf = io.StringIO()
+    write_principal_audit_csv(result, [], output=buf)
+    rows = _csv_rows(buf)
+    row_texts = [",".join(r) for r in rows]
+    assert any("object_type" in t and "permission_level" in t for t in row_texts)
+
+
+def test_principal_csv_workspace_object_data_row():
+    result = _principal_result()
+    result.workspace_object_grants = [_ws_obj_grant(perm="CAN_RUN")]
+    buf = io.StringIO()
+    write_principal_audit_csv(result, [], output=buf)
+    rows = _csv_rows(buf)
+    data = [r for r in rows if r and r[0] == "JOB"]
+    assert len(data) == 1
+    assert data[0][6] == "CAN_RUN"

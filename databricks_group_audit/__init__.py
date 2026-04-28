@@ -12,7 +12,7 @@ Quick start::
     node = resolver.resolve_group("data-engineers")
 """
 
-__version__ = "0.16.0"
+__version__ = "0.17.0"
 
 from databricks_group_audit._classification import build_member_lookups, classify_grant
 from databricks_group_audit.catalog_scanner import CatalogPermissionScanner, classify_catalog_grant
@@ -47,7 +47,12 @@ from databricks_group_audit.models import (
     StaleFinding,
     TableGrant,
     WorkspaceInfo,
+    WorkspaceObjectGrant,
     WorkspaceRole,
+)
+from databricks_group_audit.workspace_object_scanner import (
+    ALL_OBJECT_TYPES,
+    WorkspaceObjectScanner,
 )
 from databricks_group_audit.principal_auditor import PrincipalAuditor
 from databricks_group_audit.redundancy import RedundancyDetector
@@ -85,6 +90,8 @@ __all__ = [
     "CatalogPermissionScanner",
     "SchemaPermissionScanner",
     "TablePermissionScanner",
+    "WorkspaceObjectScanner",
+    "ALL_OBJECT_TYPES",
     "RedundancyDetector",
     "RevokeScriptGenerator",
     "PrincipalAuditor",
@@ -102,6 +109,7 @@ __all__ = [
     "CatalogGrant",
     "SchemaGrant",
     "TableGrant",
+    "WorkspaceObjectGrant",
     "RedundancyLevel",
     "RedundancyResult",
     "GroupMembership",

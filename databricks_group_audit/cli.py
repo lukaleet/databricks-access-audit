@@ -169,6 +169,27 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         ),
     )
 
+    # Workspace object ACL scanning (both modes)
+    p.add_argument(
+        "--scan-workspace-objects",
+        action="store_true",
+        help=(
+            "Scan workspace-level object permissions: jobs, clusters, SQL warehouses, "
+            "pipelines, and cluster policies.  Off by default — adds significant API "
+            "calls per workspace."
+        ),
+    )
+    p.add_argument(
+        "--workspace-object-types",
+        default="",
+        metavar="LIST",
+        help=(
+            "Comma-separated object types to scan when --scan-workspace-objects is set.  "
+            "Valid values: jobs,clusters,sql_warehouses,pipelines,cluster_policies.  "
+            "Default: all five types."
+        ),
+    )
+
     return p.parse_args(argv)
 
 
@@ -356,6 +377,11 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
     # Discover workspaces up-front so we can elevate before scanning.
     workspaces = ws_disc.discover(args.workspace_urls)
 
+    obj_types = (
+        [t.strip() for t in args.workspace_object_types.split(",") if t.strip()]
+        if args.workspace_object_types else None
+    )
+
     print(f"Auditing principal: {args.principal} ...")
     try:
         with _elevation_context(args, client, workspaces):
@@ -364,6 +390,8 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
                 explicit_workspace_urls=args.workspace_urls,
                 scan_schemas=args.scan_schemas,
                 scan_tables=args.scan_tables,
+                scan_workspace_objects=args.scan_workspace_objects,
+                workspace_object_types=obj_types,
                 max_workers=args.workers,
             )
     except ValueError as exc:
@@ -433,6 +461,17 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
                 "is_transitive": f.is_transitive,
                 "workspace": f.workspace_name,
             } for f in result.escalation_findings]
+        if args.scan_workspace_objects:
+            out["workspace_object_permissions"] = [{
+                "object_type": g.object_type,
+                "object_id": g.object_id,
+                "object_name": g.object_name,
+                "permission_level": g.permission_level,
+                "principal": g.principal,
+                "grant_source": g.grant_source.value,
+                "inherited_from": g.inherited_from,
+                "workspace": g.workspace_name,
+            } for g in result.workspace_object_grants]
         if args.check_local_groups:
             out["local_group_findings"] = [{
                 "group_name": f.group_name,
@@ -483,6 +522,19 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
             else:
                 print("    No escalation risks found.")
 
+        if args.scan_workspace_objects:
+            obj_grants = result.workspace_object_grants
+            print(f"\n  Workspace object permissions ({len(obj_grants)}):")
+            if obj_grants:
+                for g in obj_grants:
+                    via = f"via {g.inherited_from}" if g.inherited_from else "direct"
+                    print(f"    * [{g.object_type}] {g.object_name or g.object_id}"
+                          f"  {g.permission_level}  ({via}) @ {g.workspace_name}")
+            else:
+                print("    No workspace object permissions found.")
+            print("    Note: remediation requires the Databricks permissions REST API,"
+                  " not SQL.")
+
         if args.check_local_groups:
             print(f"\n  Workspace-local groups ({len(local_findings)}):")
             for f in local_findings:
@@ -524,6 +576,12 @@ def _run_group_audit(args: argparse.Namespace) -> int:
 
     schema_grants: List = []
     table_grants: List = []
+    workspace_object_grants: List = []
+
+    obj_types = (
+        [t.strip() for t in args.workspace_object_types.split(",") if t.strip()]
+        if args.workspace_object_types else None
+    )
 
     with _elevation_context(args, client, workspaces):
         catalog_grants = cat_scanner.scan_all_workspaces(
@@ -590,6 +648,15 @@ def _run_group_audit(args: argparse.Namespace) -> int:
                             log.warning("Table scan failed for %s.%s: %s", cat_name, sname, exc)
                 print(f"  Found {len(table_grants)} table grant(s)")
 
+        if args.scan_workspace_objects:
+            from databricks_group_audit.workspace_object_scanner import WorkspaceObjectScanner
+            obj_scanner = WorkspaceObjectScanner(client, resolver)
+            workspace_object_grants = obj_scanner.scan_all_workspaces(
+                workspaces, args.group, group_node, members,
+                object_types=obj_types, max_workers=args.workers,
+            )
+            print(f"  Found {len(workspace_object_grants)} workspace object grant(s)")
+
     detector = RedundancyDetector()
     redundancy = detector.detect_redundancy(catalog_grants, args.group)
 
@@ -621,7 +688,8 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     if args.save_snapshot:
         from databricks_group_audit.snapshot import build_group_snapshot, save_snapshot
         snap = build_group_snapshot(
-            args.group, members, catalog_grants, schema_grants, table_grants
+            args.group, members, catalog_grants, schema_grants, table_grants,
+            workspace_object_grants or None,
         )
         save_snapshot(snap, args.save_snapshot)
         print(f"  Snapshot saved to: {args.save_snapshot}")
@@ -636,6 +704,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
         baseline = load_snapshot(args.baseline)
         current_snap = build_group_snapshot(
             args.group, members, catalog_grants, schema_grants, table_grants,
+            workspace_object_grants or None,
         )
         diff = diff_snapshots(baseline, current_snap)
         _print_diff(diff, args.output)
@@ -646,7 +715,8 @@ def _run_group_audit(args: argparse.Namespace) -> int:
 
     if args.output == "csv":
         from databricks_group_audit.csv_output import write_group_audit_csv
-        write_group_audit_csv(catalog_grants, schema_grants, table_grants, redundancy)
+        write_group_audit_csv(catalog_grants, schema_grants, table_grants, redundancy,
+                              workspace_object_grants or None)
     elif args.output == "json":
         result: Dict[str, Any] = {
             "group": args.group,
@@ -674,6 +744,18 @@ def _run_group_audit(args: argparse.Namespace) -> int:
                 "stale_days": f.stale_days,
                 "workspace": f.workspace_name,
             } for f in stale_findings]
+        if args.scan_workspace_objects:
+            result["workspace_object_grants"] = [{
+                "object_type": g.object_type,
+                "object_id": g.object_id,
+                "object_name": g.object_name,
+                "permission_level": g.permission_level,
+                "principal": g.principal,
+                "principal_type": g.principal_type,
+                "grant_source": g.grant_source.value,
+                "inherited_from": g.inherited_from,
+                "workspace": g.workspace_name,
+            } for g in workspace_object_grants]
         if args.check_local_groups:
             result["local_group_findings"] = [{
                 "group_name": f.group_name,
@@ -712,6 +794,19 @@ def _run_group_audit(args: argparse.Namespace) -> int:
             )
             for f in stale_findings:
                 print(f"    ! {f.principal}: {', '.join(f.privileges)} on {f.catalog_name}")
+
+        if args.scan_workspace_objects:
+            print(f"\n  Workspace object permissions ({len(workspace_object_grants)}):")
+            for g in workspace_object_grants[:20]:
+                via = f"via {g.inherited_from}" if g.inherited_from else "direct"
+                print(f"    * [{g.object_type}] {g.object_name or g.object_id}"
+                      f"  {g.permission_level}  ({via})"
+                      f"  [{g.principal}] @ {g.workspace_name}")
+            if len(workspace_object_grants) > 20:
+                print(f"    ... {len(workspace_object_grants) - 20} more"
+                      " (use --output json for full list)")
+            print("    Note: remediation requires the Databricks permissions REST API,"
+                  " not SQL.")
 
         if args.check_local_groups:
             print(f"\n  Workspace-local groups ({len(local_findings)}):")
