@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.18.0] - 2026-04-30
+
+### Added
+- **8 new workspace object types** — `WorkspaceObjectScanner` now covers 13 object types (up from 5):
+  - *SQL / Analytics*: `sql_queries` (`/api/2.0/sql/queries`), `sql_alerts` (`/api/2.0/sql/alerts`), `lakeview_dashboards` (`/api/2.0/lakeview/dashboards`), `genie_spaces` (`/api/2.0/genie/spaces`)
+  - *AI / ML*: `mlflow_experiments` (`/api/2.0/mlflow/experiments/list`), `registered_models` (`/api/2.0/mlflow/registered-models/list`), `serving_endpoints` (`/api/2.0/serving-endpoints`), `apps` (`/api/2.0/apps`)
+  - All use the same `classify_grant` path and are available via `--workspace-object-types` filtering.
+  - Agent Bricks coverage comes from the three AI/ML types (experiments, registered models, serving endpoints) that underpin the platform.
+- **Bare-array response handling in `_list_objects`** — some DBSQL endpoints return a raw JSON array instead of a wrapped dict; `_list_objects` now detects `isinstance(resp, list)` and handles both shapes without error.
+
+### Tests
+- 437 tests (up from 427): 8 parametrized config/scan tests for new object types, 1 bare-array resilience test, 1 principal-audit smoke test for new types.
+
+---
+
 ## [0.17.0] - 2026-04-28
 
 ### Added

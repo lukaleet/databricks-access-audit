@@ -1,19 +1,34 @@
-"""Workspace-level object permission scanner (jobs, clusters, SQL warehouses, etc.).
+"""Workspace-level object permission scanner.
 
 Scans the Databricks workspace permissions API (``/api/2.0/permissions/``) for
-five object types and classifies each ACL entry relative to a target group or
-principal.  Works alongside the Unity Catalog scanners and reuses the shared
+thirteen object types and classifies each ACL entry relative to a target group
+or principal.  Works alongside the Unity Catalog scanners and reuses the shared
 ``classify_grant`` helper from ``_classification.py``.
 
-Object types covered (v1)
---------------------------
-* ``JOB`` — ``/api/2.1/jobs/list`` + ``/api/2.0/permissions/jobs/{id}``
-* ``CLUSTER`` — ``/api/2.0/clusters/list`` + ``/api/2.0/permissions/clusters/{id}``
-* ``SQL_WAREHOUSE`` — ``/api/2.0/sql/warehouses`` + ``/api/2.0/permissions/warehouses/{id}``
-* ``PIPELINE`` — ``/api/2.0/pipelines`` + ``/api/2.0/permissions/pipelines/{id}``
+Object types covered
+--------------------
+Compute / orchestration:
+* ``JOB``            — ``/api/2.1/jobs/list`` + ``/api/2.0/permissions/jobs/{id}``
+* ``CLUSTER``        — ``/api/2.0/clusters/list`` + ``/api/2.0/permissions/clusters/{id}``
 * ``CLUSTER_POLICY`` — ``/api/2.0/policies/clusters/list`` + ``/api/2.0/permissions/cluster-policies/{id}``
+* ``PIPELINE``       — ``/api/2.0/pipelines`` + ``/api/2.0/permissions/pipelines/{id}``
 
-Notebooks are excluded from v1 — they require recursive filesystem walking.
+SQL / Analytics:
+* ``SQL_WAREHOUSE``     — ``/api/2.0/sql/warehouses`` + ``/api/2.0/permissions/warehouses/{id}``
+* ``SQL_QUERY``         — ``/api/2.0/sql/queries`` + ``/api/2.0/permissions/queries/{id}``
+* ``SQL_ALERT``         — ``/api/2.0/sql/alerts`` + ``/api/2.0/permissions/alerts/{id}``
+* ``DASHBOARD``         — ``/api/2.0/lakeview/dashboards`` + ``/api/2.0/permissions/dashboards/{id}``
+* ``GENIE_SPACE``       — ``/api/2.0/genie/spaces`` + ``/api/2.0/permissions/genie/spaces/{id}``
+
+AI / ML:
+* ``EXPERIMENT``        — ``/api/2.0/mlflow/experiments/list`` + ``/api/2.0/permissions/experiments/{id}``
+* ``REGISTERED_MODEL``  — ``/api/2.0/mlflow/registered-models/list`` + ``/api/2.0/permissions/registered-models/{name}``
+* ``SERVING_ENDPOINT``  — ``/api/2.0/serving-endpoints`` + ``/api/2.0/permissions/serving-endpoints/{name}``
+* ``APP``               — ``/api/2.0/apps`` + ``/api/2.0/permissions/apps/{name}``
+
+Not covered: notebooks and MLflow experiment artifacts require recursive filesystem
+walking (unbounded API call count); Unity Catalog model registry grants are already
+covered by the UC permission scanners.
 
 Remediation note
 -----------------
@@ -109,6 +124,80 @@ _OBJECT_CONFIGS: Dict[str, Dict[str, Any]] = {
         "name_fn": _flat("name"),
         "paginated": False,
     },
+    # SQL / Analytics
+    "sql_queries": {
+        "list_endpoint": "/api/2.0/sql/queries",
+        "list_key": "results",
+        "id_field": "id",
+        "object_type": "SQL_QUERY",
+        "perm_prefix": "/api/2.0/permissions/queries",
+        "name_fn": _flat("name"),
+        "paginated": True,
+    },
+    "sql_alerts": {
+        "list_endpoint": "/api/2.0/sql/alerts",
+        "list_key": "results",
+        "id_field": "id",
+        "object_type": "SQL_ALERT",
+        "perm_prefix": "/api/2.0/permissions/alerts",
+        "name_fn": _flat("name"),
+        "paginated": True,
+    },
+    "lakeview_dashboards": {
+        "list_endpoint": "/api/2.0/lakeview/dashboards",
+        "list_key": "dashboards",
+        "id_field": "dashboard_id",
+        "object_type": "DASHBOARD",
+        "perm_prefix": "/api/2.0/permissions/dashboards",
+        "name_fn": _flat("display_name"),
+        "paginated": True,
+    },
+    "genie_spaces": {
+        "list_endpoint": "/api/2.0/genie/spaces",
+        "list_key": "spaces",
+        "id_field": "id",
+        "object_type": "GENIE_SPACE",
+        "perm_prefix": "/api/2.0/permissions/genie/spaces",
+        "name_fn": _flat("title"),
+        "paginated": True,
+    },
+    # AI / ML
+    "mlflow_experiments": {
+        "list_endpoint": "/api/2.0/mlflow/experiments/list",
+        "list_key": "experiments",
+        "id_field": "experiment_id",
+        "object_type": "EXPERIMENT",
+        "perm_prefix": "/api/2.0/permissions/experiments",
+        "name_fn": _flat("name"),
+        "paginated": True,
+    },
+    "registered_models": {
+        "list_endpoint": "/api/2.0/mlflow/registered-models/list",
+        "list_key": "registered_models",
+        "id_field": "name",
+        "object_type": "REGISTERED_MODEL",
+        "perm_prefix": "/api/2.0/permissions/registered-models",
+        "name_fn": _flat("name"),
+        "paginated": True,
+    },
+    "serving_endpoints": {
+        "list_endpoint": "/api/2.0/serving-endpoints",
+        "list_key": "endpoints",
+        "id_field": "name",
+        "object_type": "SERVING_ENDPOINT",
+        "perm_prefix": "/api/2.0/permissions/serving-endpoints",
+        "name_fn": _flat("name"),
+        "paginated": False,
+    },
+    "apps": {
+        "list_endpoint": "/api/2.0/apps",
+        "list_key": "apps",
+        "id_field": "name",
+        "object_type": "APP",
+        "perm_prefix": "/api/2.0/permissions/apps",
+        "name_fn": _flat("name"),
+        "paginated": True,
+    },
 }
 
 ALL_OBJECT_TYPES: List[str] = list(_OBJECT_CONFIGS.keys())
@@ -142,7 +231,11 @@ class WorkspaceObjectScanner:
     # ------------------------------------------------------------------
 
     def _list_objects(self, workspace_url: str, config: dict) -> List[dict]:
-        """List all objects of one type, handling pagination via next_page_token."""
+        """List all objects of one type, handling pagination via next_page_token.
+
+        Handles both wrapped responses ``{"key": [...], "next_page_token": "..."}``
+        and bare JSON arrays ``[...]`` (some DBSQL endpoints return the latter).
+        """
         try:
             items: List[dict] = []
             params: Dict[str, Any] = {}
@@ -151,11 +244,15 @@ class WorkspaceObjectScanner:
                     workspace_url, "GET", config["list_endpoint"],
                     params=params if params else {},
                 )
-                batch = resp.get(config["list_key"], []) or []
+                # Some endpoints return a bare list; others wrap under a key.
+                if isinstance(resp, list):
+                    batch: List[dict] = resp
+                else:
+                    batch = resp.get(config["list_key"]) or []
                 items.extend(batch)
                 if not config.get("paginated"):
                     break
-                next_token = resp.get("next_page_token")
+                next_token = resp.get("next_page_token") if isinstance(resp, dict) else None
                 if not next_token:
                     break
                 params = {"page_token": next_token}

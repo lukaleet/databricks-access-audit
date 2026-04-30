@@ -77,7 +77,7 @@ def _acl_entry(field, value, perm_level):
 
 def test_all_object_types_in_configs():
     assert set(ALL_OBJECT_TYPES) == set(_OBJECT_CONFIGS.keys())
-    assert len(ALL_OBJECT_TYPES) == 5
+    assert len(ALL_OBJECT_TYPES) == 13
 
 
 def test_object_configs_have_required_keys():
@@ -537,3 +537,133 @@ def test_principal_audit_result_has_workspace_object_grants():
         principal_name="alice@example.com",
     )
     assert r.workspace_object_grants == []
+
+
+# ---------------------------------------------------------------------------
+# New object types — config and scan smoke tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("type_key,list_ep,list_resp,id_field,obj_id,perm_ep", [
+    (
+        "sql_queries",
+        "/api/2.0/sql/queries",
+        {"results": [{"id": "q-1", "name": "daily report"}]},
+        "id", "q-1",
+        "/api/2.0/permissions/queries/q-1",
+    ),
+    (
+        "sql_alerts",
+        "/api/2.0/sql/alerts",
+        {"results": [{"id": "a-1", "name": "high cpu alert"}]},
+        "id", "a-1",
+        "/api/2.0/permissions/alerts/a-1",
+    ),
+    (
+        "lakeview_dashboards",
+        "/api/2.0/lakeview/dashboards",
+        {"dashboards": [{"dashboard_id": "dash-1", "display_name": "Sales"}]},
+        "dashboard_id", "dash-1",
+        "/api/2.0/permissions/dashboards/dash-1",
+    ),
+    (
+        "genie_spaces",
+        "/api/2.0/genie/spaces",
+        {"spaces": [{"id": "gs-1", "title": "Finance Genie"}]},
+        "id", "gs-1",
+        "/api/2.0/permissions/genie/spaces/gs-1",
+    ),
+    (
+        "mlflow_experiments",
+        "/api/2.0/mlflow/experiments/list",
+        {"experiments": [{"experiment_id": "exp-1", "name": "/Users/alice/run1"}]},
+        "experiment_id", "exp-1",
+        "/api/2.0/permissions/experiments/exp-1",
+    ),
+    (
+        "registered_models",
+        "/api/2.0/mlflow/registered-models/list",
+        {"registered_models": [{"name": "churn-model"}]},
+        "name", "churn-model",
+        "/api/2.0/permissions/registered-models/churn-model",
+    ),
+    (
+        "serving_endpoints",
+        "/api/2.0/serving-endpoints",
+        {"endpoints": [{"name": "churn-ep"}]},
+        "name", "churn-ep",
+        "/api/2.0/permissions/serving-endpoints/churn-ep",
+    ),
+    (
+        "apps",
+        "/api/2.0/apps",
+        {"apps": [{"name": "my-app"}]},
+        "name", "my-app",
+        "/api/2.0/permissions/apps/my-app",
+    ),
+])
+def test_new_type_scan_returns_grant(
+    type_key, list_ep, list_resp, id_field, obj_id, perm_ep
+):
+    """Each new object type produces a grant when the target group is in the ACL."""
+    scanner, api, _ = _mock_scanner()
+
+    def _side_effect(ws_url, method, endpoint, **kwargs):
+        if endpoint == list_ep:
+            return list_resp
+        if endpoint == perm_ep:
+            return _acl_resp([_acl_entry("group_name", "data-engineers", "CAN_MANAGE")])
+        return {}
+
+    api.workspace_api.side_effect = _side_effect
+
+    grants = scanner.scan_workspace(
+        _ws(), "data-engineers", _members(), object_types=[type_key]
+    )
+    assert len(grants) == 1
+    assert grants[0].object_type == _OBJECT_CONFIGS[type_key]["object_type"]
+    assert grants[0].object_id == str(obj_id)
+    assert grants[0].permission_level == "CAN_MANAGE"
+    assert grants[0].grant_source == GrantSource.DIRECT
+
+
+def test_sql_alerts_bare_array_response():
+    """Bare JSON array from old DBSQL alert endpoint is handled without crash."""
+    scanner, api, _ = _mock_scanner()
+
+    def _side_effect(ws_url, method, endpoint, **kwargs):
+        if endpoint == "/api/2.0/sql/alerts":
+            # Simulates a workspace that returns a bare array (old behaviour)
+            return [{"id": "a-1", "name": "cpu alert"}]
+        if endpoint == "/api/2.0/permissions/alerts/a-1":
+            return _acl_resp([_acl_entry("group_name", "data-engineers", "CAN_VIEW")])
+        return {}
+
+    api.workspace_api.side_effect = _side_effect
+
+    grants = scanner.scan_workspace(
+        _ws(), "data-engineers", _members(), object_types=["sql_alerts"]
+    )
+    assert len(grants) == 1
+    assert grants[0].object_type == "SQL_ALERT"
+
+
+def test_new_type_principal_scan(type_key="mlflow_experiments"):
+    """New types work in principal-audit mode (scan_workspace_for_principal)."""
+    scanner, api, _ = _mock_scanner()
+    cfg = _OBJECT_CONFIGS[type_key]
+
+    def _side_effect(ws_url, method, endpoint, **kwargs):
+        if endpoint == cfg["list_endpoint"]:
+            obj = {cfg["id_field"]: "exp-1", "name": "/Users/alice/run1"}
+            return {cfg["list_key"]: [obj]}
+        if "permissions" in endpoint:
+            return _acl_resp([_acl_entry("user_name", "alice@example.com", "CAN_READ")])
+        return {}
+
+    api.workspace_api.side_effect = _side_effect
+
+    grants = scanner.scan_workspace_for_principal(
+        _ws(), "alice@example.com", group_names=set(), object_types=[type_key]
+    )
+    assert len(grants) == 1
+    assert grants[0].grant_source == GrantSource.DIRECT

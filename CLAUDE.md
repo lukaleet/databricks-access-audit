@@ -59,7 +59,7 @@ The tool audits Databricks group membership and Unity Catalog permissions across
 
 - `csv_output.py` — `write_group_audit_csv()` and `write_principal_audit_csv()` render results as CSV (grants + redundancy + workspace objects / permissions + escalations + workspace objects). `write_diff_csv()` renders an `AuditDiff`. Used by `--output csv`.
 - `snapshot.py` — `build_group_snapshot()` / `build_principal_snapshot()` serialise audit results to a plain-dict JSON format. `save_snapshot()` / `load_snapshot()` persist to disk. `diff_snapshots()` compares two snapshots by full-field fingerprint (grants) and identity key (members) to produce an `AuditDiff`. Used by `--save-snapshot` / `--baseline`.
-- `workspace_object_scanner.py` — `WorkspaceObjectScanner` scans workspace-level ACLs (jobs, clusters, SQL warehouses, pipelines, cluster policies) via `/api/2.0/permissions/`. Fans out with `ThreadPoolExecutor` per object type; reuses `classify_grant` from `_classification.py`. Used by `--scan-workspace-objects`.
+- `workspace_object_scanner.py` — `WorkspaceObjectScanner` scans workspace-level ACLs (13 types: jobs, clusters, cluster policies, pipelines, SQL warehouses, SQL queries, SQL alerts, Lakeview dashboards, Genie spaces, MLflow experiments, registered models, serving endpoints, apps) via `/api/2.0/permissions/`. Fans out with `ThreadPoolExecutor` per object type; reuses `classify_grant` from `_classification.py`. Used by `--scan-workspace-objects`.
 
 ### Models
 
@@ -82,4 +82,4 @@ All dataclasses and enums live in `models.py`:
 
 ### Tests
 
-Tests use the `responses` library (HTTP mocking, no real Databricks connection). `tests/conftest.py` defines shared SCIM/UC mock data and three fixtures: `mock_client`, `mock_scim`, `mock_uc`. Each module has its own test file. 427 tests total.
+Tests use the `responses` library (HTTP mocking, no real Databricks connection). `tests/conftest.py` defines shared SCIM/UC mock data and three fixtures: `mock_client`, `mock_scim`, `mock_uc`. Each module has its own test file. 437 tests total.
