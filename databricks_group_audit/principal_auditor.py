@@ -409,6 +409,46 @@ class PrincipalAuditor:
         return perms
 
     # ------------------------------------------------------------------
+    # Workspace-level identity resolution (Azure AD B2B guest alias)
+    # ------------------------------------------------------------------
+
+    def _get_workspace_principal_alias(
+        self,
+        workspace_url: str,
+        principal_type: str,
+        principal_id: str,
+        principal_name: str,
+    ) -> Optional[str]:
+        """Return the workspace-level userName if it differs from the account identity.
+
+        Azure AD B2B guest users have an account SCIM identity like
+        ``alice@gmail.com`` but their workspace ACLs are stored under the
+        Azure AD guest UPN: ``alice_gmail.com#EXT#@tenant.onmicrosoft.com``.
+        Querying the workspace SCIM endpoint for the same ``principal_id``
+        returns the workspace-local ``userName``, which we pass as an alias so
+        ``scan_workspace_for_principal`` can match ACL entries correctly.
+
+        Returns ``None`` for non-users, when the workspace SCIM call fails, or
+        when the workspace userName matches the account identity (no alias needed).
+        """
+        if principal_type != "USER":
+            return None
+        try:
+            resp = self.api.workspace_api(
+                workspace_url, "GET",
+                f"/api/2.0/preview/scim/v2/Users/{principal_id}",
+            )
+            ws_username = (resp.get("userName") or "").strip()
+            if ws_username and ws_username.lower() != principal_name.lower():
+                return ws_username
+        except Exception as exc:
+            log.debug(
+                "Workspace SCIM lookup for %s on %s failed (alias skipped): %s",
+                principal_id, workspace_url, exc,
+            )
+        return None
+
+    # ------------------------------------------------------------------
     # Orchestrator
     # ------------------------------------------------------------------
 
@@ -525,10 +565,14 @@ class PrincipalAuditor:
                     cloud=self.cloud_provider,
                     region="",
                 )
+                ws_alias = self._get_workspace_principal_alias(
+                    role.workspace_url, ptype, pid, pname
+                )
+                effective_aliases = aliases | {ws_alias} if ws_alias else aliases
                 ws_obj_grants.extend(
                     obj_scanner.scan_workspace_for_principal(
                         ws_info, pname, group_names,
-                        principal_aliases=aliases,
+                        principal_aliases=effective_aliases,
                         object_types=workspace_object_types,
                         max_workers=max_workers,
                     )

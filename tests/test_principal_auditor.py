@@ -606,3 +606,89 @@ class TestAuditOrchestrator:
         # all-data-team and org-all are ancestors of data-engineers → not dead ends
         assert "all-data-team" not in result.dead_end_groups
         assert "org-all" not in result.dead_end_groups
+
+
+# ---------------------------------------------------------------------------
+# Tests — _get_workspace_principal_alias (Azure AD B2B guest UPN)
+# ---------------------------------------------------------------------------
+
+class TestGetWorkspacePrincipalAlias:
+
+    @responses.activate
+    def test_returns_alias_when_username_differs(self, mock_client):
+        """Workspace SCIM returns a guest UPN different from account email."""
+        guest_upn = "alice_example.com#EXT#@tenant.onmicrosoft.com"
+        responses.add(
+            responses.POST, f"{WORKSPACE_HOST}/oidc/v1/token",
+            json={"access_token": "ws-tok", "expires_in": 3600},
+        )
+        responses.add(
+            responses.GET, f"{WORKSPACE_HOST}/api/2.0/preview/scim/v2/Users/user-1",
+            json={"id": "user-1", "userName": guest_upn, "displayName": "Alice Smith"},
+        )
+        auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
+        alias = auditor._get_workspace_principal_alias(
+            WORKSPACE_HOST, "USER", "user-1", "alice@example.com"
+        )
+        assert alias == guest_upn
+
+    @responses.activate
+    def test_returns_none_when_username_matches(self, mock_client):
+        """No alias needed when workspace userName equals account email."""
+        responses.add(
+            responses.POST, f"{WORKSPACE_HOST}/oidc/v1/token",
+            json={"access_token": "ws-tok", "expires_in": 3600},
+        )
+        responses.add(
+            responses.GET, f"{WORKSPACE_HOST}/api/2.0/preview/scim/v2/Users/user-1",
+            json={"id": "user-1", "userName": "alice@example.com", "displayName": "Alice Smith"},
+        )
+        auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
+        alias = auditor._get_workspace_principal_alias(
+            WORKSPACE_HOST, "USER", "user-1", "alice@example.com"
+        )
+        assert alias is None
+
+    @responses.activate
+    def test_returns_none_for_service_principal(self, mock_client):
+        """SPs never get a workspace alias — workspace userName doesn't apply."""
+        auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
+        alias = auditor._get_workspace_principal_alias(
+            WORKSPACE_HOST, "SERVICE_PRINCIPAL", "sp-1", "ETL-Bot"
+        )
+        assert alias is None
+
+    @responses.activate
+    def test_returns_none_on_api_failure(self, mock_client):
+        """Graceful degradation when workspace SCIM is unreachable."""
+        responses.add(
+            responses.POST, f"{WORKSPACE_HOST}/oidc/v1/token",
+            json={"access_token": "ws-tok", "expires_in": 3600},
+        )
+        responses.add(
+            responses.GET, f"{WORKSPACE_HOST}/api/2.0/preview/scim/v2/Users/user-1",
+            status=403,
+            json={"error": "PERMISSION_DENIED"},
+        )
+        auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
+        alias = auditor._get_workspace_principal_alias(
+            WORKSPACE_HOST, "USER", "user-1", "alice@example.com"
+        )
+        assert alias is None
+
+    @responses.activate
+    def test_case_insensitive_match_returns_none(self, mock_client):
+        """Case difference alone doesn't produce an alias."""
+        responses.add(
+            responses.POST, f"{WORKSPACE_HOST}/oidc/v1/token",
+            json={"access_token": "ws-tok", "expires_in": 3600},
+        )
+        responses.add(
+            responses.GET, f"{WORKSPACE_HOST}/api/2.0/preview/scim/v2/Users/user-1",
+            json={"id": "user-1", "userName": "Alice@Example.COM", "displayName": "Alice Smith"},
+        )
+        auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
+        alias = auditor._get_workspace_principal_alias(
+            WORKSPACE_HOST, "USER", "user-1", "alice@example.com"
+        )
+        assert alias is None
