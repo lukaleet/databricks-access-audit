@@ -435,7 +435,11 @@ When `export_delta_path` is set, all DataFrames are appended to partitioned Delt
     {"type": "CATALOG", "name": "main", "privileges": ["USE_CATALOG", "SELECT"],
      "via_group": "data-engineers", "workspace": "prod-ws"}
   ],
-  "dead_end_groups": ["compliance-readers"]
+  "dead_end_groups": ["compliance-readers"],
+  "workspace_object_permissions": [
+    {"object_type": "jobs", "object_name": "nightly-etl", "workspace": "prod-ws",
+     "permission_level": "CAN_MANAGE", "grant_source": "DIRECT", "principal": "alice@example.com"}
+  ]
 }
 ```
 
@@ -486,6 +490,7 @@ databricks_group_audit/
 ├── escalation.py          # ALL_PRIVILEGES / MANAGE escalation detection
 ├── stale_checker.py       # Stale grant detection via system.access.audit SQL
 ├── local_groups.py        # Workspace-local (legacy) SCIM group detection
+├── workspace_object_scanner.py  # Workspace-level ACL scanning (jobs/clusters/warehouses/pipelines/policies)
 ├── csv_output.py          # CSV serialisation for group and principal audit results
 └── snapshot.py            # Snapshot build/save/load and delta comparison
 ```
@@ -650,9 +655,10 @@ databricks-group-audit --principal "alice@example.com" --cloud azure \
   --output csv > alice_permissions.csv
 ```
 
-**Group audit CSV** contains two sections:
+**Group audit CSV** contains up to three sections:
 - **Grants table** - one row per grant (catalog, schema, or table level) with columns: `securable_type`, `workspace`, `securable_name`, `principal`, `principal_type`, `privileges` (pipe-separated), `grant_source`, `inherited_from`.
 - **Redundancy table** (appended after a blank row when redundancies are found) - one row per redundant personal grant with `redundancy_level` and `recommendation`.
+- **Workspace objects table** (appended when `--scan-workspace-objects` is used) - one row per workspace ACL grant with `object_type`, `object_id`, `object_name`, `workspace`, `principal`, `permission_level`, `grant_source`.
 
 **Principal audit CSV** contains:
 - **Permissions table** - one row per effective Unity Catalog permission with `securable_type`, `securable_name`, `privileges`, `via_group`, `workspace`.
@@ -770,7 +776,7 @@ Use this tool when you need what `INFORMATION_SCHEMA` does not provide:
 
 ## Known Limitations
 
-- **Unity Catalog only.** Workspace-level object permissions (jobs, clusters, SQL warehouses, notebooks, MLflow experiments) are not scanned.
+- **Workspace object scanning is opt-in.** Job, cluster, SQL warehouse, pipeline, and cluster-policy ACLs are only scanned when `--scan-workspace-objects` is set. Notebook, MLflow experiment, and Delta Live Tables ACLs are not covered. Remediation requires the Databricks permissions REST API, not SQL.
 - **Account-level SCIM groups only.** Workspace-local groups are not distinguished from account-level groups. If your account still has workspace-local groups that haven't been migrated, results for those groups may be incomplete.
 - **Redundancy detection is catalog-level.** Schema and table grants are reported but not included in the redundancy/REVOKE analysis.
 - **Stale detection is account-wide, not per-catalog.** `system.access.audit` does not always record per-catalog or per-object access; the stale check flags principals with no *any* recorded activity, which is a conservative but imprecise signal.
