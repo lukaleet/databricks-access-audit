@@ -776,7 +776,7 @@ Use this tool when you need what `INFORMATION_SCHEMA` does not provide:
 
 ## Known Limitations
 
-- **Workspace object scanning is opt-in.** Job, cluster, SQL warehouse, pipeline, and cluster-policy ACLs are only scanned when `--scan-workspace-objects` is set. Notebook, MLflow experiment, and Delta Live Tables ACLs are not covered. Remediation requires the Databricks permissions REST API, not SQL.
+- **Workspace object scanning is opt-in.** Job, cluster, SQL warehouse, Delta Live Tables pipeline, and cluster-policy ACLs are only scanned when `--scan-workspace-objects` is set. Notebook and MLflow experiment ACLs are not covered — listing them requires recursively walking the workspace file tree, which is unbounded in size. Remediation requires the Databricks permissions REST API, not SQL.
 - **Account-level SCIM groups only.** Workspace-local groups are not distinguished from account-level groups. If your account still has workspace-local groups that haven't been migrated, results for those groups may be incomplete.
 - **Redundancy detection is catalog-level.** Schema and table grants are reported but not included in the redundancy/REVOKE analysis.
 - **Stale detection is account-wide, not per-catalog.** `system.access.audit` does not always record per-catalog or per-object access; the stale check flags principals with no *any* recorded activity, which is a conservative but imprecise signal.
