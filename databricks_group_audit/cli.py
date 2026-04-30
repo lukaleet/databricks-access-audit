@@ -185,8 +185,10 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         metavar="LIST",
         help=(
             "Comma-separated object types to scan when --scan-workspace-objects is set.  "
-            "Valid values: jobs,clusters,sql_warehouses,pipelines,cluster_policies.  "
-            "Default: all five types."
+            "Valid values: jobs, clusters, cluster_policies, pipelines, sql_warehouses, "
+            "sql_queries, sql_alerts, lakeview_dashboards, genie_spaces, "
+            "mlflow_experiments, registered_models, serving_endpoints, apps.  "
+            "Default: all 13 types."
         ),
     )
 

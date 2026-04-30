@@ -647,17 +647,23 @@ def test_sql_alerts_bare_array_response():
     assert grants[0].object_type == "SQL_ALERT"
 
 
-def test_new_type_principal_scan(type_key="mlflow_experiments"):
-    """New types work in principal-audit mode (scan_workspace_for_principal)."""
+@pytest.mark.parametrize("type_key", [
+    "sql_queries", "sql_alerts", "lakeview_dashboards", "genie_spaces",
+    "mlflow_experiments", "registered_models", "serving_endpoints", "apps",
+])
+def test_new_type_principal_scan(type_key):
+    """All new types work in principal-audit mode (scan_workspace_for_principal)."""
     scanner, api, _ = _mock_scanner()
     cfg = _OBJECT_CONFIGS[type_key]
+    obj_id = "obj-1"
 
     def _side_effect(ws_url, method, endpoint, **kwargs):
         if endpoint == cfg["list_endpoint"]:
-            obj = {cfg["id_field"]: "exp-1", "name": "/Users/alice/run1"}
+            obj = {cfg["id_field"]: obj_id, "name": "test-obj",
+                   "display_name": "test-obj", "title": "test-obj"}
             return {cfg["list_key"]: [obj]}
         if "permissions" in endpoint:
-            return _acl_resp([_acl_entry("user_name", "alice@example.com", "CAN_READ")])
+            return _acl_resp([_acl_entry("user_name", "alice@example.com", "CAN_VIEW")])
         return {}
 
     api.workspace_api.side_effect = _side_effect
@@ -667,3 +673,90 @@ def test_new_type_principal_scan(type_key="mlflow_experiments"):
     )
     assert len(grants) == 1
     assert grants[0].grant_source == GrantSource.DIRECT
+    assert grants[0].object_type == cfg["object_type"]
+
+
+def test_mlflow_experiments_pagination():
+    """mlflow_experiments list respects next_page_token pagination."""
+    scanner, api, _ = _mock_scanner()
+    calls = []
+
+    def _side_effect(ws_url, method, endpoint, **kwargs):
+        params = kwargs.get("params", {})
+        calls.append(params)
+        if endpoint == "/api/2.0/mlflow/experiments/list":
+            if not params:
+                return {"experiments": [{"experiment_id": "e-1", "name": "run1"}],
+                        "next_page_token": "page2"}
+            return {"experiments": [{"experiment_id": "e-2", "name": "run2"}]}
+        if "permissions/experiments" in endpoint:
+            return _acl_resp([_acl_entry("group_name", "data-engineers", "CAN_MANAGE")])
+        return {}
+
+    api.workspace_api.side_effect = _side_effect
+    grants = scanner.scan_workspace(
+        _ws(), "data-engineers", _members(), object_types=["mlflow_experiments"]
+    )
+    assert len(grants) == 2
+    assert calls[1].get("page_token") == "page2"
+
+
+def test_registered_models_name_as_id():
+    """registered_models uses name as both ID and display name."""
+    scanner, api, _ = _mock_scanner()
+
+    def _side_effect(ws_url, method, endpoint, **kwargs):
+        if endpoint == "/api/2.0/mlflow/registered-models/list":
+            return {"registered_models": [{"name": "churn-predictor"}]}
+        if endpoint == "/api/2.0/permissions/registered-models/churn-predictor":
+            return _acl_resp([_acl_entry("group_name", "data-engineers", "CAN_MANAGE")])
+        return {}
+
+    api.workspace_api.side_effect = _side_effect
+    grants = scanner.scan_workspace(
+        _ws(), "data-engineers", _members(), object_types=["registered_models"]
+    )
+    assert len(grants) == 1
+    assert grants[0].object_id == "churn-predictor"
+    assert grants[0].object_name == "churn-predictor"
+
+
+def test_genie_spaces_perm_prefix():
+    """genie_spaces uses the non-standard /permissions/genie/spaces/{id} path."""
+    scanner, api, _ = _mock_scanner()
+    called_perm_endpoints = []
+
+    def _side_effect(ws_url, method, endpoint, **kwargs):
+        if endpoint == "/api/2.0/genie/spaces":
+            return {"spaces": [{"id": "gs-1", "title": "Finance Q&A"}]}
+        if endpoint.startswith("/api/2.0/permissions"):
+            called_perm_endpoints.append(endpoint)
+            return _acl_resp([_acl_entry("group_name", "data-engineers", "CAN_VIEW")])
+        return {}
+
+    api.workspace_api.side_effect = _side_effect
+    scanner.scan_workspace(
+        _ws(), "data-engineers", _members(), object_types=["genie_spaces"]
+    )
+    assert called_perm_endpoints == ["/api/2.0/permissions/genie/spaces/gs-1"]
+
+
+def test_serving_endpoints_not_paginated():
+    """serving_endpoints is not paginated — only one list call is made."""
+    scanner, api, _ = _mock_scanner()
+    list_calls = []
+
+    def _side_effect(ws_url, method, endpoint, **kwargs):
+        if endpoint == "/api/2.0/serving-endpoints":
+            list_calls.append(kwargs.get("params", {}))
+            return {"endpoints": [{"name": "my-ep"}]}
+        if "permissions" in endpoint:
+            return _acl_resp([_acl_entry("group_name", "data-engineers", "CAN_MANAGE")])
+        return {}
+
+    api.workspace_api.side_effect = _side_effect
+    grants = scanner.scan_workspace(
+        _ws(), "data-engineers", _members(), object_types=["serving_endpoints"]
+    )
+    assert len(list_calls) == 1  # no second page call
+    assert len(grants) == 1

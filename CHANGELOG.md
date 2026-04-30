@@ -16,7 +16,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Bare-array response handling in `_list_objects`** — some DBSQL endpoints return a raw JSON array instead of a wrapped dict; `_list_objects` now detects `isinstance(resp, list)` and handles both shapes without error.
 
 ### Tests
-- 437 tests (up from 427): 8 parametrized config/scan tests for new object types, 1 bare-array resilience test, 1 principal-audit smoke test for new types.
+- 448 tests (up from 427): 8 parametrized group-audit smoke tests, 8 parametrized principal-audit smoke tests, bare-array resilience test, pagination test for `mlflow_experiments`, name-as-ID test for `registered_models`, non-standard perm-prefix test for `genie_spaces`, non-pagination test for `serving_endpoints`.
 
 ---
 
