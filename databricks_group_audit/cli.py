@@ -371,6 +371,7 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
     from databricks_group_audit.workspace import WorkspaceDiscovery
 
     client = _build_client(args)
+    _log = (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr})) if args.output == "json" else print
     ws_disc = WorkspaceDiscovery(client, cloud_provider=args.cloud)
     auditor = PrincipalAuditor(client, workspace_discovery=ws_disc, cloud_provider=args.cloud)
 
@@ -382,7 +383,7 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
         if args.workspace_object_types else None
     )
 
-    print(f"Auditing principal: {args.principal} ...")
+    _log(f"Auditing principal: {args.principal} ...")
     try:
         with _elevation_context(args, client, workspaces):
             result = auditor.audit(
@@ -401,7 +402,7 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
     # Optional: privilege escalation check
     if args.escalation_check:
         result.escalation_findings = detect_escalations(result)
-        print(f"  Escalation check: {len(result.escalation_findings)} finding(s)")
+        _log(f"  Escalation check: {len(result.escalation_findings)} finding(s)")
 
     # Optional: workspace-local group check
     local_findings = _run_local_group_check(args, client, workspaces)
@@ -411,7 +412,7 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
         from databricks_group_audit.snapshot import build_principal_snapshot, save_snapshot
         snap = build_principal_snapshot(result)
         save_snapshot(snap, args.save_snapshot)
-        print(f"  Snapshot saved to: {args.save_snapshot}")
+        _log(f"  Snapshot saved to: {args.save_snapshot}")
 
     # Optional: diff against baseline
     if args.baseline:
@@ -558,19 +559,20 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     from databricks_group_audit.workspace import WorkspaceDiscovery
 
     client = _build_client(args)
+    _log = (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr})) if args.output == "json" else print
 
     resolver = GroupMembershipResolver(client)
-    print(f"Resolving group: {args.group} ...")
+    _log(f"Resolving group: {args.group} ...")
     group_node = resolver.resolve_group(args.group)
     if not group_node:
         print(f"ERROR: Group '{args.group}' not found.", file=sys.stderr)
         return 1
     members = resolver.get_all_members_flat(group_node)
-    print(f"  Found {len(members['users'])} users, {len(members['service_principals'])} SPs")
+    _log(f"  Found {len(members['users'])} users, {len(members['service_principals'])} SPs")
 
     ws_disc = WorkspaceDiscovery(client, cloud_provider=args.cloud)
     workspaces = ws_disc.discover(args.workspace_urls)
-    print(f"  Scanning {len(workspaces)} workspace(s)")
+    _log(f"  Scanning {len(workspaces)} workspace(s)")
 
     cat_scanner = CatalogPermissionScanner(client, resolver)
 
@@ -587,7 +589,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
         catalog_grants = cat_scanner.scan_all_workspaces(
             workspaces, args.group, group_node, members, max_workers=args.workers
         )
-        print(f"  Found {len(catalog_grants)} catalog grant(s)")
+        _log(f"  Found {len(catalog_grants)} catalog grant(s)")
 
         if args.scan_schemas or args.scan_tables:
             sch_scanner = SchemaPermissionScanner(client)
@@ -616,7 +618,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
                         schema_grants.extend(fut.result())
                     except Exception as exc:
                         log.warning("Schema scan failed for %s on %s: %s", cat_name, ws_url, exc)
-            print(f"  Found {len(schema_grants)} schema grant(s)")
+            _log(f"  Found {len(schema_grants)} schema grant(s)")
 
             if args.scan_tables:
                 tbl_scanner = TablePermissionScanner(client)
@@ -646,7 +648,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
                             table_grants.extend(fut.result())
                         except Exception as exc:
                             log.warning("Table scan failed for %s.%s: %s", cat_name, sname, exc)
-                print(f"  Found {len(table_grants)} table grant(s)")
+                _log(f"  Found {len(table_grants)} table grant(s)")
 
         if args.scan_workspace_objects:
             from databricks_group_audit.workspace_object_scanner import WorkspaceObjectScanner
@@ -655,7 +657,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
                 workspaces, args.group, group_node, members,
                 object_types=obj_types, max_workers=args.workers,
             )
-            print(f"  Found {len(workspace_object_grants)} workspace object grant(s)")
+            _log(f"  Found {len(workspace_object_grants)} workspace object grant(s)")
 
     detector = RedundancyDetector()
     redundancy = detector.detect_redundancy(catalog_grants, args.group)
@@ -692,7 +694,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
             workspace_object_grants or None,
         )
         save_snapshot(snap, args.save_snapshot)
-        print(f"  Snapshot saved to: {args.save_snapshot}")
+        _log(f"  Snapshot saved to: {args.save_snapshot}")
 
     # Optional: diff against baseline
     if args.baseline:
