@@ -479,8 +479,8 @@ class PrincipalAuditor:
             SQL warehouses, pipelines, cluster policies).
         workspace_object_types:
             Subset of object types to scan when *scan_workspace_objects* is set.
-            ``None`` = all five types.  Values: "jobs", "clusters",
-            "sql_warehouses", "pipelines", "cluster_policies".
+            ``None`` = all 13 types.  See ``ALL_OBJECT_TYPES`` in
+            ``workspace_object_scanner`` for the full list.
         max_workers:
             Maximum number of parallel threads for workspace and UC scanning.
         """

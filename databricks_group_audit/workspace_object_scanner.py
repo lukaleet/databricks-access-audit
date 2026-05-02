@@ -403,7 +403,7 @@ class WorkspaceObjectScanner:
             Computed on demand when *None*.  Pass explicitly when scanning
             multiple workspaces to avoid repeated SCIM calls.
         object_types:
-            Subset of ``ALL_OBJECT_TYPES`` to scan.  *None* = all five types.
+            Subset of ``ALL_OBJECT_TYPES`` to scan.  *None* = all 13 types.
         """
         if upstream_groups is None:
             upstream_groups = self._get_upstream_groups(target_group_name)
