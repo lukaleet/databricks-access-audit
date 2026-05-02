@@ -12,7 +12,7 @@ Quick start::
     node = resolver.resolve_group("data-engineers")
 """
 
-__version__ = "0.17.0"
+__version__ = "0.18.0"
 
 from databricks_group_audit._classification import build_member_lookups, classify_grant
 from databricks_group_audit.catalog_scanner import CatalogPermissionScanner, classify_catalog_grant
@@ -50,10 +50,6 @@ from databricks_group_audit.models import (
     WorkspaceObjectGrant,
     WorkspaceRole,
 )
-from databricks_group_audit.workspace_object_scanner import (
-    ALL_OBJECT_TYPES,
-    WorkspaceObjectScanner,
-)
 from databricks_group_audit.principal_auditor import PrincipalAuditor
 from databricks_group_audit.redundancy import RedundancyDetector
 from databricks_group_audit.revoke import RevokeScriptGenerator
@@ -68,6 +64,10 @@ from databricks_group_audit.snapshot import (
 from databricks_group_audit.stale_checker import StaleGrantChecker
 from databricks_group_audit.table_scanner import TablePermissionScanner
 from databricks_group_audit.workspace import WORKSPACE_DOMAIN_MAP, WorkspaceDiscovery
+from databricks_group_audit.workspace_object_scanner import (
+    ALL_OBJECT_TYPES,
+    WorkspaceObjectScanner,
+)
 
 # Optional SDK client — only available when databricks-sdk is installed
 try:

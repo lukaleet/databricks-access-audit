@@ -10,20 +10,25 @@ Object types covered
 Compute / orchestration:
 * ``JOB``            — ``/api/2.1/jobs/list`` + ``/api/2.0/permissions/jobs/{id}``
 * ``CLUSTER``        — ``/api/2.0/clusters/list`` + ``/api/2.0/permissions/clusters/{id}``
-* ``CLUSTER_POLICY`` — ``/api/2.0/policies/clusters/list`` + ``/api/2.0/permissions/cluster-policies/{id}``
+* ``CLUSTER_POLICY`` — ``/api/2.0/policies/clusters/list``
+  + ``/api/2.0/permissions/cluster-policies/{id}``
 * ``PIPELINE``       — ``/api/2.0/pipelines`` + ``/api/2.0/permissions/pipelines/{id}``
 
 SQL / Analytics:
 * ``SQL_WAREHOUSE``     — ``/api/2.0/sql/warehouses`` + ``/api/2.0/permissions/warehouses/{id}``
 * ``SQL_QUERY``         — ``/api/2.0/sql/queries`` + ``/api/2.0/permissions/queries/{id}``
 * ``SQL_ALERT``         — ``/api/2.0/sql/alerts`` + ``/api/2.0/permissions/alerts/{id}``
-* ``DASHBOARD``         — ``/api/2.0/lakeview/dashboards`` + ``/api/2.0/permissions/dashboards/{id}``
+* ``DASHBOARD``         — ``/api/2.0/lakeview/dashboards``
+  + ``/api/2.0/permissions/dashboards/{id}``
 * ``GENIE_SPACE``       — ``/api/2.0/genie/spaces`` + ``/api/2.0/permissions/genie/spaces/{id}``
 
 AI / ML:
-* ``EXPERIMENT``        — ``/api/2.0/mlflow/experiments/list`` + ``/api/2.0/permissions/experiments/{id}``
-* ``REGISTERED_MODEL``  — ``/api/2.0/mlflow/registered-models/list`` + ``/api/2.0/permissions/registered-models/{name}``
-* ``SERVING_ENDPOINT``  — ``/api/2.0/serving-endpoints`` + ``/api/2.0/permissions/serving-endpoints/{name}``
+* ``EXPERIMENT``       — ``/api/2.0/mlflow/experiments/list``
+  + ``/api/2.0/permissions/experiments/{id}``
+* ``REGISTERED_MODEL`` — ``/api/2.0/mlflow/registered-models/list``
+  + ``/api/2.0/permissions/registered-models/{name}``
+* ``SERVING_ENDPOINT`` — ``/api/2.0/serving-endpoints``
+  + ``/api/2.0/permissions/serving-endpoints/{name}``
 * ``APP``               — ``/api/2.0/apps`` + ``/api/2.0/permissions/apps/{name}``
 
 Not covered: notebooks and MLflow experiment artifacts require recursive filesystem
@@ -297,7 +302,7 @@ class WorkspaceObjectScanner:
     def _get_upstream_groups(self, target_group_name: str) -> Dict[str, str]:
         """BFS-walk the group membership map to find all ancestors of the target group.
 
-        Delegates to :meth:`~databricks_group_audit.group_resolver.GroupMembershipResolver.get_group_membership_map`
+        Delegates to the resolver's ``get_group_membership_map()``,
         which is cached per resolver instance.
         """
         id_to_name, _, child_to_parents = self.group_resolver.get_group_membership_map()

@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from databricks_group_audit.models import GrantSource, GroupMember, MemberType, WorkspaceInfo
 from databricks_group_audit.workspace_object_scanner import (
+    _OBJECT_CONFIGS,
     ALL_OBJECT_TYPES,
     WorkspaceObjectScanner,
-    _OBJECT_CONFIGS,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -373,7 +373,10 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
     from databricks_group_audit.workspace import WorkspaceDiscovery
 
     client = _build_client(args)
-    _log = (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr})) if args.output == "json" else print
+    _log = (
+        (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr}))
+        if args.output == "json" else print
+    )
     ws_disc = WorkspaceDiscovery(client, cloud_provider=args.cloud)
     auditor = PrincipalAuditor(client, workspace_discovery=ws_disc, cloud_provider=args.cloud)
 
@@ -561,7 +564,10 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     from databricks_group_audit.workspace import WorkspaceDiscovery
 
     client = _build_client(args)
-    _log = (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr})) if args.output == "json" else print
+    _log = (
+        (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr}))
+        if args.output == "json" else print
+    )
 
     resolver = GroupMembershipResolver(client)
     _log(f"Resolving group: {args.group} ...")
