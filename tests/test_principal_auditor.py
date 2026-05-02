@@ -609,14 +609,14 @@ class TestAuditOrchestrator:
 
 
 # ---------------------------------------------------------------------------
-# Tests — _get_workspace_principal_alias (Azure AD B2B guest UPN)
+# Tests — _get_workspace_principal_aliases (Azure AD B2B guest UPN)
 # ---------------------------------------------------------------------------
 
-class TestGetWorkspacePrincipalAlias:
+class TestGetWorkspacePrincipalAliases:
 
     @responses.activate
     def test_returns_alias_when_username_differs(self, mock_client):
-        """Workspace SCIM returns a guest UPN different from account email."""
+        """Workspace SCIM (ID lookup) returns a guest UPN not in known_identities."""
         guest_upn = "alice_example.com#EXT#@tenant.onmicrosoft.com"
         responses.add(
             responses.POST, f"{WORKSPACE_HOST}/oidc/v1/token",
@@ -627,14 +627,15 @@ class TestGetWorkspacePrincipalAlias:
             json={"id": "user-1", "userName": guest_upn, "displayName": "Alice Smith"},
         )
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
-        alias = auditor._get_workspace_principal_alias(
-            WORKSPACE_HOST, "USER", "user-1", "alice@example.com"
+        aliases = auditor._get_workspace_principal_aliases(
+            WORKSPACE_HOST, "USER", "user-1",
+            known_identities={"Alice Smith", "alice@example.com"},
         )
-        assert alias == guest_upn
+        assert aliases == {guest_upn}
 
     @responses.activate
-    def test_returns_none_when_username_matches(self, mock_client):
-        """No alias needed when workspace userName equals account email."""
+    def test_returns_empty_when_username_already_known(self, mock_client):
+        """No alias when workspace userName is already in known_identities."""
         responses.add(
             responses.POST, f"{WORKSPACE_HOST}/oidc/v1/token",
             json={"access_token": "ws-tok", "expires_in": 3600},
@@ -644,22 +645,24 @@ class TestGetWorkspacePrincipalAlias:
             json={"id": "user-1", "userName": "alice@example.com", "displayName": "Alice Smith"},
         )
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
-        alias = auditor._get_workspace_principal_alias(
-            WORKSPACE_HOST, "USER", "user-1", "alice@example.com"
+        aliases = auditor._get_workspace_principal_aliases(
+            WORKSPACE_HOST, "USER", "user-1",
+            known_identities={"Alice Smith", "alice@example.com"},
         )
-        assert alias is None
+        assert aliases == set()
 
     @responses.activate
-    def test_returns_none_for_service_principal(self, mock_client):
-        """SPs never get a workspace alias — workspace userName doesn't apply."""
+    def test_returns_empty_for_service_principal(self, mock_client):
+        """SPs never get workspace aliases."""
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
-        alias = auditor._get_workspace_principal_alias(
-            WORKSPACE_HOST, "SERVICE_PRINCIPAL", "sp-1", "ETL-Bot"
+        aliases = auditor._get_workspace_principal_aliases(
+            WORKSPACE_HOST, "SERVICE_PRINCIPAL", "sp-1",
+            known_identities={"ETL-Bot"},
         )
-        assert alias is None
+        assert aliases == set()
 
     @responses.activate
-    def test_returns_none_on_api_failure(self, mock_client):
+    def test_returns_empty_on_api_failure(self, mock_client):
         """Graceful degradation when workspace SCIM is unreachable."""
         responses.add(
             responses.POST, f"{WORKSPACE_HOST}/oidc/v1/token",
@@ -671,13 +674,14 @@ class TestGetWorkspacePrincipalAlias:
             json={"error": "PERMISSION_DENIED"},
         )
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
-        alias = auditor._get_workspace_principal_alias(
-            WORKSPACE_HOST, "USER", "user-1", "alice@example.com"
+        aliases = auditor._get_workspace_principal_aliases(
+            WORKSPACE_HOST, "USER", "user-1",
+            known_identities={"Alice Smith", "alice@example.com"},
         )
-        assert alias is None
+        assert aliases == set()
 
     @responses.activate
-    def test_case_insensitive_match_returns_none(self, mock_client):
+    def test_case_insensitive_match_returns_empty(self, mock_client):
         """Case difference alone doesn't produce an alias."""
         responses.add(
             responses.POST, f"{WORKSPACE_HOST}/oidc/v1/token",
@@ -688,7 +692,153 @@ class TestGetWorkspacePrincipalAlias:
             json={"id": "user-1", "userName": "Alice@Example.COM", "displayName": "Alice Smith"},
         )
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
-        alias = auditor._get_workspace_principal_alias(
-            WORKSPACE_HOST, "USER", "user-1", "alice@example.com"
+        aliases = auditor._get_workspace_principal_aliases(
+            WORKSPACE_HOST, "USER", "user-1",
+            known_identities={"Alice Smith", "alice@example.com"},
         )
-        assert alias is None
+        assert aliases == set()
+
+    @responses.activate
+    def test_external_id_search_finds_b2b_guest_upn(self, mock_client):
+        """When external_id is provided, search returns the B2B guest UPN.
+
+        Simulates the real Azure scenario where the same externalId matches
+        two workspace SCIM records: the account-synced record (userName =
+        account email) and the Azure AD guest record (userName = guest UPN).
+        """
+        guest_upn = "alice_gmail.com#EXT#@tenant.onmicrosoft.com"
+        ext_id = "ext-abc-123"
+        responses.add(
+            responses.POST, f"{WORKSPACE_HOST}/oidc/v1/token",
+            json={"access_token": "ws-tok", "expires_in": 3600},
+        )
+        responses.add(
+            responses.GET, f"{WORKSPACE_HOST}/api/2.0/preview/scim/v2/Users",
+            json={
+                "totalResults": 2,
+                "Resources": [
+                    {"id": "user-1", "userName": "alice@example.com"},
+                    {"id": "user-ext-1", "userName": guest_upn},
+                ],
+            },
+        )
+        auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
+        aliases = auditor._get_workspace_principal_aliases(
+            WORKSPACE_HOST, "USER", "user-1",
+            known_identities={"Alice Smith", "alice@example.com"},
+            external_id=ext_id,
+        )
+        assert aliases == {guest_upn}
+
+    @responses.activate
+    def test_external_id_search_returns_empty_when_all_known(self, mock_client):
+        """externalId search returns empty set when all userNames are already known."""
+        responses.add(
+            responses.POST, f"{WORKSPACE_HOST}/oidc/v1/token",
+            json={"access_token": "ws-tok", "expires_in": 3600},
+        )
+        responses.add(
+            responses.GET, f"{WORKSPACE_HOST}/api/2.0/preview/scim/v2/Users",
+            json={
+                "totalResults": 1,
+                "Resources": [{"id": "user-1", "userName": "alice@example.com"}],
+            },
+        )
+        auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
+        aliases = auditor._get_workspace_principal_aliases(
+            WORKSPACE_HOST, "USER", "user-1",
+            known_identities={"Alice Smith", "alice@example.com"},
+            external_id="ext-abc-123",
+        )
+        assert aliases == set()
+
+
+# ---------------------------------------------------------------------------
+# Tests — workspace object scan falls back to discovered workspaces
+# ---------------------------------------------------------------------------
+
+class TestWorkspaceObjectScanFallback:
+    """Validate that scan_workspace_objects scans all discovered workspaces
+    even when permissionassignments returns no explicit roles (e.g. the
+    principal's access comes via the implicit "account users" group).
+    """
+
+    @responses.activate
+    def test_objects_found_when_ws_roles_empty(self, mock_client):
+        """When permissionassignments is empty, discovered workspaces are still scanned."""
+        _add_scim_endpoints(responses)
+
+        # permissionassignments returns nothing — simulates "account users" implicit access
+        responses.add(
+            responses.GET, f"{BASE}/workspaces/ws-001/permissionassignments",
+            json={"permission_assignments": []},
+        )
+        # Workspace discovery returns ws-001
+        responses.add(
+            responses.GET, f"{BASE}/workspaces",
+            json=[{
+                "workspace_id": "ws-001",
+                "deployment_name": "test-workspace",
+                "workspace_name": "test-ws",
+                "workspace_status": "RUNNING",
+                "deployment_url": "test-workspace.azuredatabricks.net",
+            }],
+        )
+        # Workspace token
+        responses.add(
+            responses.POST, f"{WORKSPACE_HOST}/oidc/v1/token",
+            json={"access_token": "ws-tok", "expires_in": 3600},
+        )
+        # Workspace SCIM alias lookup — returns same username, no alias
+        responses.add(
+            responses.GET, f"{WORKSPACE_HOST}/api/2.0/preview/scim/v2/Users/user-1",
+            json={"id": "user-1", "userName": "alice@example.com"},
+        )
+        # Job list — one job with Alice as direct grantee
+        responses.add(
+            responses.GET, f"{WORKSPACE_HOST}/api/2.1/jobs/list",
+            json={"jobs": [{"job_id": 42, "settings": {"name": "my-job"}}]},
+        )
+        responses.add(
+            responses.GET, f"{WORKSPACE_HOST}/api/2.0/permissions/jobs/42",
+            json={"access_control_list": [
+                {
+                    "user_name": "alice@example.com",
+                    "all_permissions": [{"permission_level": "CAN_MANAGE"}],
+                }
+            ]},
+        )
+        # Stub remaining object types as empty
+        for path in (
+            "/api/2.0/clusters/list",
+            "/api/2.0/sql/warehouses",
+            "/api/2.0/pipelines",
+            "/api/2.0/policies/clusters/list",
+            "/api/2.0/sql/queries",
+            "/api/2.0/sql/alerts",
+            "/api/2.0/lakeview/dashboards",
+            "/api/2.0/genie/spaces",
+            "/api/2.0/mlflow/experiments/list",
+            "/api/2.0/mlflow/registered-models/list",
+            "/api/2.0/serving-endpoints",
+            "/api/2.0/apps",
+        ):
+            responses.add(responses.GET, f"{WORKSPACE_HOST}{path}", json={})
+
+        from databricks_group_audit.workspace import WorkspaceDiscovery
+        ws_disc = WorkspaceDiscovery(mock_client, cloud_provider="azure")
+        auditor = PrincipalAuditor(mock_client, workspace_discovery=ws_disc, cloud_provider="azure")
+
+        result = auditor.audit(
+            "alice@example.com",
+            scan_workspace_objects=True,
+            workspace_object_types=["jobs"],
+        )
+
+        # No explicit workspace roles
+        assert result.workspace_roles == []
+        # But the job grant is found via the discovered workspace fallback
+        assert len(result.workspace_object_grants) == 1
+        assert result.workspace_object_grants[0].object_type == "JOB"
+        assert result.workspace_object_grants[0].object_name == "my-job"
+        assert result.workspace_object_grants[0].permission_level == "CAN_MANAGE"

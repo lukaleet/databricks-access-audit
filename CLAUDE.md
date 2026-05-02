@@ -46,7 +46,7 @@ The tool audits Databricks group membership and Unity Catalog permissions across
 
 ### Data flow — principal audit
 
-`principal_auditor.py` resolves a user/SP/group via SCIM (returning a 4-tuple including `external_id`), BFS-walks upward through all group memberships, queries `/permissionassignments` per workspace in parallel (`get_workspace_assignments`, `ThreadPoolExecutor`), then scans UC grants per unique workspace URL in parallel (`scan_permissions` → `_scan_one_workspace`; workspace-level dedup happens upfront, catalog-level dedup is local to each worker). Dead-end groups (no workspace assignment) are detected and reported. `audit()` accepts `max_workers` and threads it to both parallel steps. `_get_workspace_principal_alias()` queries workspace SCIM (`/api/2.0/preview/scim/v2/Users/{id}`) per workspace to resolve Azure AD B2B guest UPNs (e.g. `user_gmail.com#EXT#@tenant`) that differ from the account-level email; the alias is passed to `scan_workspace_for_principal` so ACL matches aren't missed.
+`principal_auditor.py` resolves a user/SP/group via SCIM (returning a 5-tuple including `external_id` and `uc_name`), BFS-walks upward through all group memberships, queries `/permissionassignments` per workspace in parallel (`get_workspace_assignments`, `ThreadPoolExecutor`), then scans UC grants per unique workspace URL in parallel (`scan_permissions` → `_scan_one_workspace`; workspace-level dedup happens upfront, catalog-level dedup is local to each worker). Dead-end groups (no workspace assignment) are detected and reported. `audit()` accepts `max_workers` and threads it to both parallel steps. `_get_workspace_principal_aliases()` resolves Azure AD B2B guest UPNs: searches workspace SCIM by `externalId eq "{ext_id}"` (falls back to direct `/Users/{id}` lookup when no externalId) to discover all workspace identities; the guest UPN (stored under a separate workspace SCIM record) is returned as a new alias and passed to `scan_workspace_for_principal` so ACL matches aren't missed. When `ws_roles` is empty (principal accesses workspace via an implicit built-in group like "account users" that doesn't appear in `permissionassignments`), the workspace object scan falls back to all discovered workspaces.
 
 ### Security and compliance features
 
@@ -82,4 +82,4 @@ All dataclasses and enums live in `models.py`:
 
 ### Tests
 
-Tests use the `responses` library (HTTP mocking, no real Databricks connection). `tests/conftest.py` defines shared SCIM/UC mock data and three fixtures: `mock_client`, `mock_scim`, `mock_uc`. Each module has its own test file. 448 tests total.
+Tests use the `responses` library (HTTP mocking, no real Databricks connection). `tests/conftest.py` defines shared SCIM/UC mock data and three fixtures: `mock_client`, `mock_scim`, `mock_uc`. Each module has its own test file. 451 tests total.

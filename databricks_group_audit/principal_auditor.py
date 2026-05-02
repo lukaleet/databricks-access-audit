@@ -412,41 +412,68 @@ class PrincipalAuditor:
     # Workspace-level identity resolution (Azure AD B2B guest alias)
     # ------------------------------------------------------------------
 
-    def _get_workspace_principal_alias(
+    def _get_workspace_principal_aliases(
         self,
         workspace_url: str,
         principal_type: str,
         principal_id: str,
-        principal_name: str,
-    ) -> Optional[str]:
-        """Return the workspace-level userName if it differs from the account identity.
+        known_identities: Set[str],
+        external_id: Optional[str] = None,
+    ) -> Set[str]:
+        """Return additional workspace-level userNames for this principal.
 
-        Azure AD B2B guest users have an account SCIM identity like
-        ``alice@gmail.com`` but their workspace ACLs are stored under the
-        Azure AD guest UPN: ``alice_gmail.com#EXT#@tenant.onmicrosoft.com``.
-        Querying the workspace SCIM endpoint for the same ``principal_id``
-        returns the workspace-local ``userName``, which we pass as an alias so
-        ``scan_workspace_for_principal`` can match ACL entries correctly.
+        Azure AD B2B guest users have **two** workspace SCIM records:
 
-        Returns ``None`` for non-users, when the workspace SCIM call fails, or
-        when the workspace userName matches the account identity (no alias needed).
+        1. The account-synced record (same ID as account SCIM; ``userName``
+           equals the account email, e.g. ``alice@gmail.com``).
+        2. The Azure AD guest record (different ID; ``userName`` equals the
+           B2B guest UPN, e.g. ``alice_gmail.com#EXT#@tenant.onmicrosoft.com``).
+
+        Workspace object ACLs are stored under the **guest UPN**, so the
+        account email alone will never match those entries.
+
+        When ``external_id`` is provided (the SCIM ``externalId`` field from
+        the account record), we search workspace SCIM by
+        ``externalId eq "{external_id}"``; this returns *both* records and lets
+        us discover the guest UPN.  When ``external_id`` is absent we fall back
+        to a direct ``/Users/{principal_id}`` lookup.
+
+        Returns the set of workspace userNames **not already in**
+        ``known_identities`` (case-insensitive).  Returns an empty set for
+        non-users or on any API failure.
         """
         if principal_type != "USER":
-            return None
+            return set()
+
+        known_lower = {k.lower() for k in known_identities}
+        aliases: Set[str] = set()
+
         try:
-            resp = self.api.workspace_api(
-                workspace_url, "GET",
-                f"/api/2.0/preview/scim/v2/Users/{principal_id}",
-            )
-            ws_username = (resp.get("userName") or "").strip()
-            if ws_username and ws_username.lower() != principal_name.lower():
-                return ws_username
+            if external_id:
+                resp = self.api.workspace_api(
+                    workspace_url, "GET",
+                    "/api/2.0/preview/scim/v2/Users",
+                    params={"filter": f'externalId eq "{external_id}"'},
+                )
+                for user in resp.get("Resources", []):
+                    ws_username = (user.get("userName") or "").strip()
+                    if ws_username and ws_username.lower() not in known_lower:
+                        aliases.add(ws_username)
+            else:
+                resp = self.api.workspace_api(
+                    workspace_url, "GET",
+                    f"/api/2.0/preview/scim/v2/Users/{principal_id}",
+                )
+                ws_username = (resp.get("userName") or "").strip()
+                if ws_username and ws_username.lower() not in known_lower:
+                    aliases.add(ws_username)
         except Exception as exc:
             log.debug(
-                "Workspace SCIM lookup for %s on %s failed (alias skipped): %s",
+                "Workspace SCIM lookup for %s on %s failed (aliases skipped): %s",
                 principal_id, workspace_url, exc,
             )
-        return None
+
+        return aliases
 
     # ------------------------------------------------------------------
     # Orchestrator
@@ -552,23 +579,34 @@ class PrincipalAuditor:
         if scan_workspace_objects:
             from databricks_group_audit.workspace_object_scanner import WorkspaceObjectScanner
             obj_scanner = WorkspaceObjectScanner(self.api, self._group_resolver)
-            seen_ws: Set[str] = set()
+
+            # Build URL → WorkspaceInfo from ws_roles first, then supplement with
+            # all discovered workspaces.  Principals may reach workspaces through
+            # implicit built-in groups (e.g. "account users") that don't appear in
+            # permissionassignments, so relying solely on ws_roles would miss those
+            # workspaces entirely and produce a spurious zero-grant result.
+            ws_infos: Dict[str, WorkspaceInfo] = {}
             for role in ws_roles:
-                if role.workspace_url in seen_ws:
-                    continue
-                seen_ws.add(role.workspace_url)
-                ws_info = WorkspaceInfo(
-                    workspace_id=role.workspace_id,
-                    deployment_name="",
-                    workspace_name=role.workspace_name,
-                    workspace_url=role.workspace_url,
-                    cloud=self.cloud_provider,
-                    region="",
+                if role.workspace_url not in ws_infos:
+                    ws_infos[role.workspace_url] = WorkspaceInfo(
+                        workspace_id=role.workspace_id,
+                        deployment_name="",
+                        workspace_name=role.workspace_name,
+                        workspace_url=role.workspace_url,
+                        cloud=self.cloud_provider,
+                        region="",
+                    )
+            for ws in workspaces:
+                if ws.workspace_url not in ws_infos:
+                    ws_infos[ws.workspace_url] = ws
+
+            for ws_url, ws_info in ws_infos.items():
+                ws_aliases = self._get_workspace_principal_aliases(
+                    ws_url, ptype, pid,
+                    known_identities={pname} | aliases,
+                    external_id=p_ext_id,
                 )
-                ws_alias = self._get_workspace_principal_alias(
-                    role.workspace_url, ptype, pid, pname
-                )
-                effective_aliases = aliases | {ws_alias} if ws_alias else aliases
+                effective_aliases = aliases | ws_aliases
                 ws_obj_grants.extend(
                     obj_scanner.scan_workspace_for_principal(
                         ws_info, pname, group_names,

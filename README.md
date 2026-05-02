@@ -456,6 +456,17 @@ Each grant on a catalog, schema, or table is classified relative to the target g
 
 Principal matching handles backtick-quoted names, case-insensitive email addresses, display names, and service principal application IDs.
 
+### Azure AD B2B guest users (Azure only)
+
+Azure AD B2B guest users have **two** workspace SCIM records with different `userName` values:
+
+| Record | `userName` | Used for |
+|---|---|---|
+| Account-synced | `alice@gmail.com` (the invitation email) | SCIM identity, group memberships |
+| Azure AD guest | `alice_gmail.com#EXT#@tenant.onmicrosoft.com` (the B2B guest UPN) | Workspace object ACLs |
+
+The principal audit automatically resolves both identities by searching workspace SCIM using the account `externalId` (shared by both records). The guest UPN is added as an alias so workspace object ACL entries stored under the B2B identity are correctly attributed to the principal.
+
 ## Redundancy Detection
 
 Redundancy is computed at the **catalog level**. Member-direct grants are compared against the group's effective privileges after privilege hierarchy expansion (e.g. `ALL_PRIVILEGES` implies `SELECT`, `MODIFY` implies `SELECT`):

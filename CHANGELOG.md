@@ -15,8 +15,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Agent Bricks coverage comes from the three AI/ML types (experiments, registered models, serving endpoints) that underpin the platform.
 - **Bare-array response handling in `_list_objects`** — some DBSQL endpoints return a raw JSON array instead of a wrapped dict; `_list_objects` now detects `isinstance(resp, list)` and handles both shapes without error.
 
+### Fixed
+- **Azure AD B2B guest UPN mismatch (improved)** — `_get_workspace_principal_aliases()` now searches workspace SCIM by `externalId eq "{id}"` instead of looking up the account-synced record by principal ID.  Azure AD B2B guest users have *two* workspace SCIM records: the account-synced record (userName = account email) and the Azure AD guest record (userName = guest UPN, e.g. `user_gmail.com#EXT#@tenant`).  The previous ID-lookup only returned the account email (already known), so the guest UPN was never discovered and workspace ACL entries stored under that UPN were silently missed.  The externalId search returns both records; only userNames not already in known identities are returned as new aliases.
+- **Workspace object scan misses implicit-group workspaces** — when a principal's workspace access comes exclusively through a built-in group like "account users" (which doesn't appear in `permissionassignments`), `ws_roles` was empty and the workspace object scan loop never ran, producing 0 grants.  `audit()` now also supplements `ws_roles` with all discovered workspaces when `scan_workspace_objects=True`, matching the behaviour of the group audit scanner.
+
 ### Tests
-- 448 tests (up from 427): 8 parametrized group-audit smoke tests, 8 parametrized principal-audit smoke tests, bare-array resilience test, pagination test for `mlflow_experiments`, name-as-ID test for `registered_models`, non-standard perm-prefix test for `genie_spaces`, non-pagination test for `serving_endpoints`.
+- 451 tests (up from 427): 8 parametrized group-audit smoke tests, 8 parametrized principal-audit smoke tests, bare-array resilience test, pagination test for `mlflow_experiments`, name-as-ID test for `registered_models`, non-standard perm-prefix test for `genie_spaces`, non-pagination test for `serving_endpoints`; 2 new tests for `_get_workspace_principal_aliases` externalId search (B2B guest discovery); 1 new test for workspace object scan fallback to all discovered workspaces when `ws_roles` is empty.
 
 ---
 
@@ -35,10 +39,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Infinite loop in `_list_objects` pagination test** — `test_list_objects_pagination` in `test_workspace_object_scanner.py` used `if not calls[0]` to branch between the first and subsequent page responses; `calls[0]` is always `{}` (the first call's empty params dict), so the mock always returned `next_page_token`, sending `_list_objects` into an infinite loop that exhausted RAM and crashed the process.  Fixed by checking `if not params` (the current call's params) instead.
 - **Retry-backoff hang in `test_principal_source.py`** — the local `mock_client` fixture used default `max_retries=5, base_delay=1.0`; any URL not registered in the `responses` mock raised `requests.exceptions.ConnectionError`, which is a `RequestException` and triggered five retries with 1+2+4+8+16 = 31 s of backoff per unmatched request.  Fixed by adding `max_retries=0, base_delay=0` to the fixture.
 
-- **Azure AD B2B guest UPN mismatch in workspace object scan** — when `--scan-workspace-objects` is used for an Azure AD B2B guest user, the principal's account SCIM identity (e.g. `user@gmail.com`) does not match the workspace ACL identity (e.g. `user_gmail.com#EXT#@tenant.onmicrosoft.com`), causing 0 workspace object grants to be returned.  `PrincipalAuditor` now calls `_get_workspace_principal_alias()` per workspace before scanning: it queries `GET /api/2.0/preview/scim/v2/Users/{id}` on the workspace SCIM endpoint, and if the workspace `userName` differs from the account email, adds it as an alias passed to `scan_workspace_for_principal`.  Non-users (SPs, groups) and workspaces where the SCIM call fails are silently skipped (alias = `None`), preserving the existing behaviour.
+- **Azure AD B2B guest UPN mismatch in workspace object scan (initial fix)** — added `_get_workspace_principal_aliases()` to `PrincipalAuditor`; superseded and extended in v0.18.0 with externalId-based search.
 
 ### Tests
-- 427 tests (up from 389): 31 new tests in `test_workspace_object_scanner.py`; new coverage in `test_sdk_client.py`, `test_cli.py`, `test_csv_output.py`, and `test_snapshot.py` for the workspace object scanning feature; 2 bug-fix tests (infinite-loop and retry hang); 5 new tests in `TestGetWorkspacePrincipalAlias` covering alias extraction, identity match, SP skip, API failure, and case-insensitive match.
+- 427 tests (up from 389): 31 new tests in `test_workspace_object_scanner.py`; new coverage in `test_sdk_client.py`, `test_cli.py`, `test_csv_output.py`, and `test_snapshot.py` for the workspace object scanning feature; 2 bug-fix tests (infinite-loop and retry hang); 5 new tests in `TestGetWorkspacePrincipalAliases` covering alias extraction, identity match, SP skip, API failure, and case-insensitive match.
 
 ---
 
