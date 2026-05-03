@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from databricks_group_audit.models import (
+from databricks_access_audit.models import (
     AuditDiff,
     CatalogGrant,
     EffectivePermission,
@@ -20,7 +20,7 @@ from databricks_group_audit.models import (
     WorkspaceObjectGrant,
     WorkspaceRole,
 )
-from databricks_group_audit.snapshot import (
+from databricks_access_audit.snapshot import (
     SNAPSHOT_VERSION,
     build_group_snapshot,
     build_principal_snapshot,

@@ -5,8 +5,8 @@ Contributions are welcome — bug reports, documentation improvements, and pull 
 ## Development setup
 
 ```bash
-git clone https://github.com/lukaleet/databricks-group-audit.git
-cd databricks-group-audit
+git clone https://github.com/lukaleet/databricks-access-audit.git
+cd databricks-access-audit
 pip install -e ".[sdk,dev]"
 ```
 
@@ -25,7 +25,7 @@ pytest tests/test_catalog_scanner.py
 pytest tests/test_redundancy.py::test_full_redundancy
 
 # With coverage
-pytest --cov=databricks_group_audit --cov-report=term-missing
+pytest --cov=databricks_access_audit --cov-report=term-missing
 ```
 
 ## Linting
@@ -50,9 +50,9 @@ Open PRs against `develop`, not `main`.
 
 ## Adding a new feature
 
-1. Write the module in `databricks_group_audit/`.
+1. Write the module in `databricks_access_audit/`.
 2. Add tests in `tests/test_<module>.py` using the `responses` mock library - no real API calls.
-3. Export public symbols from `databricks_group_audit/__init__.py`.
+3. Export public symbols from `databricks_access_audit/__init__.py`.
 4. Wire CLI flags in `cli.py` if user-facing.
 5. Update `CHANGELOG.md` under a new version heading.
 6. Update `README.md` if the feature needs user documentation.
@@ -66,7 +66,7 @@ Open PRs against `develop`, not `main`.
 
 ## Reporting bugs
 
-Open an issue at https://github.com/lukaleet/databricks-group-audit/issues with:
+Open an issue at https://github.com/lukaleet/databricks-access-audit/issues with:
 - Python version and OS
 - CLI command or code snippet that reproduces the problem
 - Full error traceback

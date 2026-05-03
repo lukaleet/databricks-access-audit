@@ -2,10 +2,10 @@
 
 import responses as responses_lib
 
-from databricks_group_audit._classification import build_member_lookups, classify_grant
-from databricks_group_audit.catalog_scanner import CatalogPermissionScanner, classify_catalog_grant
-from databricks_group_audit.group_resolver import GroupMembershipResolver
-from databricks_group_audit.models import GrantSource, WorkspaceInfo
+from databricks_access_audit._classification import build_member_lookups, classify_grant
+from databricks_access_audit.catalog_scanner import CatalogPermissionScanner, classify_catalog_grant
+from databricks_access_audit.group_resolver import GroupMembershipResolver
+from databricks_access_audit.models import GrantSource, WorkspaceInfo
 from tests.conftest import WORKSPACE_HOST
 
 
@@ -197,7 +197,7 @@ def test_build_member_lookups_empty():
 
 
 def test_build_member_lookups_user_no_email():
-    from databricks_group_audit.models import GroupMember, MemberType
+    from databricks_access_audit.models import GroupMember, MemberType
     u = GroupMember(id="u1", display_name="No Email User", member_type=MemberType.USER, email=None)
     emails, names, _, _ = build_member_lookups({"users": [u], "service_principals": []})
     assert "No Email User" in names
@@ -205,7 +205,7 @@ def test_build_member_lookups_user_no_email():
 
 
 def test_build_member_lookups_sp_no_app_id():
-    from databricks_group_audit.models import GroupMember, MemberType
+    from databricks_access_audit.models import GroupMember, MemberType
     sp = GroupMember(id="sp1", display_name="Anon-SP", member_type=MemberType.SERVICE_PRINCIPAL,
                      application_id=None)
     _, _, sp_names, sp_ids = build_member_lookups({"users": [], "service_principals": [sp]})

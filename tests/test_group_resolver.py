@@ -2,9 +2,9 @@
 
 from unittest.mock import MagicMock
 
-from databricks_group_audit.client import _scim_filter_escape
-from databricks_group_audit.group_resolver import GroupMembershipResolver
-from databricks_group_audit.models import MemberType
+from databricks_access_audit.client import _scim_filter_escape
+from databricks_access_audit.group_resolver import GroupMembershipResolver
+from databricks_access_audit.models import MemberType
 
 # ---------------------------------------------------------------------------
 # _scim_filter_escape — unit tests
@@ -225,7 +225,7 @@ def test_get_group_membership_map_individual_get_error_is_skipped():
 
 def test_principal_auditor_accepts_shared_group_resolver(mock_client):
     """PrincipalAuditor stores a provided group_resolver instead of creating its own."""
-    from databricks_group_audit.principal_auditor import PrincipalAuditor
+    from databricks_access_audit.principal_auditor import PrincipalAuditor
 
     resolver = GroupMembershipResolver(mock_client)
     auditor = PrincipalAuditor(mock_client, group_resolver=resolver)
@@ -235,7 +235,7 @@ def test_principal_auditor_accepts_shared_group_resolver(mock_client):
 
 def test_principal_auditor_creates_resolver_when_none_provided(mock_client):
     """PrincipalAuditor creates its own GroupMembershipResolver when none is passed."""
-    from databricks_group_audit.principal_auditor import PrincipalAuditor
+    from databricks_access_audit.principal_auditor import PrincipalAuditor
 
     auditor = PrincipalAuditor(mock_client)
 
@@ -246,8 +246,8 @@ def test_shared_resolver_group_map_fetched_once(mock_scim):
     """When resolver is shared between CatalogPermissionScanner and PrincipalAuditor,
     the group membership map API calls happen exactly once."""
     rsps, client = mock_scim
-    from databricks_group_audit.catalog_scanner import CatalogPermissionScanner
-    from databricks_group_audit.principal_auditor import PrincipalAuditor
+    from databricks_access_audit.catalog_scanner import CatalogPermissionScanner
+    from databricks_access_audit.principal_auditor import PrincipalAuditor
 
     resolver = GroupMembershipResolver(client)
     _scanner = CatalogPermissionScanner(client, resolver)

@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 import pytest
 import responses as responses_lib
 
-from databricks_group_audit.cli import _elevation_context, _parse_args, main
-from databricks_group_audit.models import WorkspaceInfo
+from databricks_access_audit.cli import _elevation_context, _parse_args, main
+from databricks_access_audit.models import WorkspaceInfo
 from tests.conftest import (
     ACCOUNT_HOST,
     ACCOUNT_ID,

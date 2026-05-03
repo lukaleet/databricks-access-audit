@@ -6,8 +6,8 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Set, Tuple
 
-from databricks_group_audit.client import AuditClient, _scim_filter_escape
-from databricks_group_audit.models import GroupMember, GroupNode, MemberType
+from databricks_access_audit.client import AuditClient, _scim_filter_escape
+from databricks_access_audit.models import GroupMember, GroupNode, MemberType
 
 log = logging.getLogger(__name__)
 

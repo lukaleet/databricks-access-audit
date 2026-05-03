@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import responses as responses_lib
 
-from databricks_group_audit.models import (
+from databricks_access_audit.models import (
     GroupMember,
     GroupMembership,
     GroupNode,
@@ -124,7 +124,7 @@ def test_result_source_internal_default():
 
 @pytest.fixture
 def mock_client():
-    from databricks_group_audit.client import DatabricksAPIClient
+    from databricks_access_audit.client import DatabricksAPIClient
     return DatabricksAPIClient(
         client_id="cid", client_secret="sec",
         account_id=ACCOUNT_ID, account_host=ACCOUNT_HOST,
@@ -152,7 +152,7 @@ def test_resolver_extracts_group_external_id(mock_client):
         rsps.add(responses_lib.GET, f"{BASE}/scim/v2/ServicePrincipals/sp-1",
                  json=SCIM_SP_ETL)
 
-        from databricks_group_audit.group_resolver import GroupMembershipResolver
+        from databricks_access_audit.group_resolver import GroupMembershipResolver
         resolver = GroupMembershipResolver(mock_client)
         node = resolver.resolve_group("data-engineers")
 
@@ -184,7 +184,7 @@ def test_resolver_no_external_id_is_internal(mock_client):
         rsps.add(responses_lib.GET, f"{BASE}/scim/v2/ServicePrincipals/sp-1",
                  json=SCIM_SP_ETL)
 
-        from databricks_group_audit.group_resolver import GroupMembershipResolver
+        from databricks_access_audit.group_resolver import GroupMembershipResolver
         resolver = GroupMembershipResolver(mock_client)
         node = resolver.resolve_group("data-engineers")
 
@@ -216,7 +216,7 @@ def test_sp_external_id_extracted(mock_client):
         rsps.add(responses_lib.GET, f"{BASE}/scim/v2/ServicePrincipals/sp-1",
                  json=sp_with_ext)
 
-        from databricks_group_audit.group_resolver import GroupMembershipResolver
+        from databricks_access_audit.group_resolver import GroupMembershipResolver
         resolver = GroupMembershipResolver(mock_client)
         node = resolver.resolve_group("data-engineers")
 
@@ -240,7 +240,7 @@ def test_find_principal_returns_external_id(mock_client):
         rsps.add(responses_lib.GET, f"{BASE}/scim/v2/Users",
                  json={"Resources": [user_ext], "totalResults": 1})
 
-        from databricks_group_audit.principal_auditor import PrincipalAuditor
+        from databricks_access_audit.principal_auditor import PrincipalAuditor
         auditor = PrincipalAuditor(mock_client)
         ptype, pid, pname, ext_id, _uc = auditor.find_principal("alice@example.com")
 
@@ -255,7 +255,7 @@ def test_find_principal_internal_user_has_no_ext_id(mock_client):
         rsps.add(responses_lib.GET, f"{BASE}/scim/v2/Users",
                  json={"Resources": [SCIM_USER_ALICE], "totalResults": 1})
 
-        from databricks_group_audit.principal_auditor import PrincipalAuditor
+        from databricks_access_audit.principal_auditor import PrincipalAuditor
         auditor = PrincipalAuditor(mock_client)
         _,  _,  _, ext_id, _ = auditor.find_principal("alice@example.com")
 
@@ -268,7 +268,7 @@ def test_find_principal_internal_user_has_no_ext_id(mock_client):
 
 
 def test_members_flat_source_breakdown():
-    from databricks_group_audit.group_resolver import GroupMembershipResolver
+    from databricks_access_audit.group_resolver import GroupMembershipResolver
 
     node = GroupNode(id="g-1", display_name="admins")
     node.direct_users = [

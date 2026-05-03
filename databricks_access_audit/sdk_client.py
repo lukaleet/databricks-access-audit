@@ -2,7 +2,7 @@
 
 Requires ``databricks-sdk``.  Install via::
 
-    pip install databricks-group-audit[sdk]
+    pip install databricks-access-audit[sdk]
 
 The SDK handles OAuth token management, pagination, and retries automatically,
 eliminating the manual token refresh, SCIM page walking, and exponential-backoff
@@ -10,7 +10,7 @@ logic that the raw HTTP client must implement.
 
 Usage::
 
-    from databricks_group_audit.sdk_client import DatabricksSDKClient
+    from databricks_access_audit.sdk_client import DatabricksSDKClient
 
     client = DatabricksSDKClient.for_cloud(
         cloud="azure",
@@ -30,7 +30,7 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
-from databricks_group_audit.client import ACCOUNT_HOST_MAP
+from databricks_access_audit.client import ACCOUNT_HOST_MAP
 
 log = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class DatabricksSDKClient:
     """Databricks client backed by the official ``databricks-sdk``.
 
     Implements the same public interface as
-    :class:`~databricks_group_audit.client.DatabricksAPIClient` so all
+    :class:`~databricks_access_audit.client.DatabricksAPIClient` so all
     existing scanner, resolver, and auditor modules work unchanged.
 
     Key advantages over the raw HTTP client:
@@ -73,7 +73,7 @@ class DatabricksSDKClient:
         if not SDK_AVAILABLE:
             raise ImportError(
                 "databricks-sdk is required for DatabricksSDKClient. "
-                "Install with:  pip install databricks-group-audit[sdk]"
+                "Install with:  pip install databricks-access-audit[sdk]"
             )
 
         self.account_id = account_id

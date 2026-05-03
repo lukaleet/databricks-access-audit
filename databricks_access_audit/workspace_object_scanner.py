@@ -49,10 +49,10 @@ from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from databricks_group_audit._classification import build_member_lookups, classify_grant
-from databricks_group_audit.client import AuditClient
-from databricks_group_audit.group_resolver import GroupMembershipResolver
-from databricks_group_audit.models import (
+from databricks_access_audit._classification import build_member_lookups, classify_grant
+from databricks_access_audit.client import AuditClient
+from databricks_access_audit.group_resolver import GroupMembershipResolver
+from databricks_access_audit.models import (
     GrantSource,
     GroupMember,
     GroupNode,
@@ -216,11 +216,11 @@ class WorkspaceObjectScanner:
     """Scan workspace-level object permissions for a target group or principal.
 
     Implements the same public interface pattern as
-    :class:`~databricks_group_audit.catalog_scanner.CatalogPermissionScanner`
+    :class:`~databricks_access_audit.catalog_scanner.CatalogPermissionScanner`
     (``scan_workspace`` / ``scan_all_workspaces``) for group audit mode, plus
     ``scan_workspace_for_principal`` for principal audit mode.
 
-    Shares the :class:`~databricks_group_audit.group_resolver.GroupMembershipResolver`
+    Shares the :class:`~databricks_access_audit.group_resolver.GroupMembershipResolver`
     instance with the catalog scanner so the O(N) SCIM group fetch is paid exactly once
     per session regardless of how many scanners run.
     """

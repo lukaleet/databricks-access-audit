@@ -3,8 +3,8 @@
 import pytest
 import responses as responses_lib
 
-from databricks_group_audit.models import GrantSource, GroupMember, MemberType, WorkspaceInfo
-from databricks_group_audit.table_scanner import TablePermissionScanner
+from databricks_access_audit.models import GrantSource, GroupMember, MemberType, WorkspaceInfo
+from databricks_access_audit.table_scanner import TablePermissionScanner
 from tests.conftest import WORKSPACE_HOST
 
 

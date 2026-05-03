@@ -11,16 +11,16 @@ from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Set, Tuple
 
-from databricks_group_audit.client import AuditClient, _scim_filter_escape
-from databricks_group_audit.group_resolver import GroupMembershipResolver
-from databricks_group_audit.models import (
+from databricks_access_audit.client import AuditClient, _scim_filter_escape
+from databricks_access_audit.group_resolver import GroupMembershipResolver
+from databricks_access_audit.models import (
     EffectivePermission,
     GroupMembership,
     PrincipalAuditResult,
     WorkspaceInfo,
     WorkspaceRole,
 )
-from databricks_group_audit.workspace import WorkspaceDiscovery
+from databricks_access_audit.workspace import WorkspaceDiscovery
 
 log = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ class PrincipalAuditor:
         Returns ``(memberships, id_to_name_map)``.
 
         Delegates the O(N) group-membership fetch to the shared
-        :class:`~databricks_group_audit.group_resolver.GroupMembershipResolver`,
+        :class:`~databricks_access_audit.group_resolver.GroupMembershipResolver`,
         which parallelises individual GETs and caches the result for the
         lifetime of the resolver.  Sharing a resolver instance with the catalog
         scanner means the expensive fetch happens once per session rather than
@@ -577,7 +577,7 @@ class PrincipalAuditor:
         # 7. Scan workspace object permissions (optional)
         ws_obj_grants = []
         if scan_workspace_objects:
-            from databricks_group_audit.workspace_object_scanner import WorkspaceObjectScanner
+            from databricks_access_audit.workspace_object_scanner import WorkspaceObjectScanner
             obj_scanner = WorkspaceObjectScanner(self.api, self._group_resolver)
 
             # Build URL → WorkspaceInfo from ws_roles first, then supplement with

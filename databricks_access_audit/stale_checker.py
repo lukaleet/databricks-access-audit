@@ -33,7 +33,7 @@ strong signal for compliance review.
 
 Usage::
 
-    from databricks_group_audit.stale_checker import StaleGrantChecker
+    from databricks_access_audit.stale_checker import StaleGrantChecker
 
     checker = StaleGrantChecker(
         api_client=client,
@@ -55,8 +55,8 @@ import time
 from datetime import date, timedelta
 from typing import Any, Dict, List, Set
 
-from databricks_group_audit.client import AuditClient
-from databricks_group_audit.models import CatalogGrant, GrantSource, StaleFinding
+from databricks_access_audit.client import AuditClient
+from databricks_access_audit.models import CatalogGrant, GrantSource, StaleFinding
 
 log = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ class StaleGrantChecker:
     Parameters
     ----------
     api_client:
-        The audit API client (satisfies :class:`~databricks_group_audit.client.AuditClient`).
+        The audit API client (satisfies :class:`~databricks_access_audit.client.AuditClient`).
     workspace_url:
         URL of the workspace whose ``system.access.audit`` table will be
         queried.  This should be a workspace that has the relevant metastore
@@ -257,7 +257,7 @@ class StaleGrantChecker:
     ) -> List[StaleFinding]:
         """Flag member-direct catalog grants whose holders have no recent activity.
 
-        Only :attr:`~databricks_group_audit.models.GrantSource.MEMBER_DIRECT`
+        Only :attr:`~databricks_access_audit.models.GrantSource.MEMBER_DIRECT`
         grants (individual user / SP personal grants) are checked.  Group-level
         grants are not included because groups do not appear in the audit log
         as individual principals.
@@ -273,7 +273,7 @@ class StaleGrantChecker:
         ----------
         catalog_grants:
             Grants returned by
-            :meth:`~databricks_group_audit.catalog_scanner.CatalogPermissionScanner.scan_all_workspaces`.
+            :meth:`~databricks_access_audit.catalog_scanner.CatalogPermissionScanner.scan_all_workspaces`.
         workspace_name:
             Human-readable workspace name (used in finding output only).
         workspace_url:

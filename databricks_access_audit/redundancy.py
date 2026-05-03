@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Set
 
-from databricks_group_audit.models import (
+from databricks_access_audit.models import (
     CatalogGrant,
     GrantSource,
     RedundancyLevel,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Set, Tuple
 
-from databricks_group_audit.models import GrantSource, GroupMember
+from databricks_access_audit.models import GrantSource, GroupMember
 
 
 def build_member_lookups(

@@ -5,8 +5,8 @@ import json
 import pytest
 import responses
 
-from databricks_group_audit.models import WorkspaceInfo
-from databricks_group_audit.principal_auditor import PrincipalAuditor
+from databricks_access_audit.models import WorkspaceInfo
+from databricks_access_audit.principal_auditor import PrincipalAuditor
 from tests.conftest import (
     ACCOUNT_HOST,
     ACCOUNT_ID,
@@ -385,7 +385,7 @@ class TestScanPermissions:
         _add_workspace_endpoints(responses)
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
 
-        from databricks_group_audit.models import WorkspaceRole
+        from databricks_access_audit.models import WorkspaceRole
         ws_roles = [WorkspaceRole(
             workspace_id="ws-001",
             workspace_name="test-ws",
@@ -414,7 +414,7 @@ class TestScanPermissions:
         _add_workspace_endpoints(responses)
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
 
-        from databricks_group_audit.models import WorkspaceRole
+        from databricks_access_audit.models import WorkspaceRole
         ws_roles = [
             WorkspaceRole("ws-001", "test-ws", WORKSPACE_HOST, "USER", "(direct)", "user-1"),
             WorkspaceRole("ws-001", "test-ws", WORKSPACE_HOST, "USER", "data-engineers", "group-1"),
@@ -450,7 +450,7 @@ class TestScanPermissions:
 
         auditor = PrincipalAuditor(mock_client, cloud_provider="azure")
 
-        from databricks_group_audit.models import WorkspaceRole
+        from databricks_access_audit.models import WorkspaceRole
         ws_roles = [
             WorkspaceRole("ws-001", "test-ws", WORKSPACE_HOST, "USER", "(direct)", "user-1"),
             WorkspaceRole("ws-002", "test-ws-2", WS2_HOST, "USER", "(direct)", "user-1"),
@@ -489,7 +489,7 @@ class TestAuditOrchestrator:
                           "deployment_url": "test-workspace.azuredatabricks.net",
                       }])
 
-        from databricks_group_audit.workspace import WorkspaceDiscovery
+        from databricks_access_audit.workspace import WorkspaceDiscovery
         ws_disc = WorkspaceDiscovery(mock_client, cloud_provider="azure")
         auditor = PrincipalAuditor(mock_client, workspace_discovery=ws_disc, cloud_provider="azure")
 
@@ -514,7 +514,7 @@ class TestAuditOrchestrator:
                           "deployment_url": "test-workspace.azuredatabricks.net",
                       }])
 
-        from databricks_group_audit.workspace import WorkspaceDiscovery
+        from databricks_access_audit.workspace import WorkspaceDiscovery
         ws_disc = WorkspaceDiscovery(mock_client, cloud_provider="azure")
         auditor = PrincipalAuditor(mock_client, workspace_discovery=ws_disc, cloud_provider="azure")
 
@@ -529,7 +529,7 @@ class TestAuditOrchestrator:
         _add_scim_endpoints(responses)
         _add_workspace_endpoints(responses)
 
-        from databricks_group_audit.workspace import WorkspaceDiscovery
+        from databricks_access_audit.workspace import WorkspaceDiscovery
         ws_disc = WorkspaceDiscovery(mock_client, cloud_provider="azure")
         auditor = PrincipalAuditor(mock_client, workspace_discovery=ws_disc, cloud_provider="azure")
 
@@ -560,7 +560,7 @@ class TestAuditOrchestrator:
                           "deployment_url": "test-workspace.azuredatabricks.net",
                       }])
 
-        from databricks_group_audit.workspace import WorkspaceDiscovery
+        from databricks_access_audit.workspace import WorkspaceDiscovery
         ws_disc = WorkspaceDiscovery(mock_client, cloud_provider="azure")
         auditor = PrincipalAuditor(mock_client, workspace_discovery=ws_disc, cloud_provider="azure")
 
@@ -595,7 +595,7 @@ class TestAuditOrchestrator:
                           "deployment_url": "test-workspace.azuredatabricks.net",
                       }])
 
-        from databricks_group_audit.workspace import WorkspaceDiscovery
+        from databricks_access_audit.workspace import WorkspaceDiscovery
         ws_disc = WorkspaceDiscovery(mock_client, cloud_provider="azure")
         auditor = PrincipalAuditor(mock_client, workspace_discovery=ws_disc, cloud_provider="azure")
 
@@ -825,7 +825,7 @@ class TestWorkspaceObjectScanFallback:
         ):
             responses.add(responses.GET, f"{WORKSPACE_HOST}{path}", json={})
 
-        from databricks_group_audit.workspace import WorkspaceDiscovery
+        from databricks_access_audit.workspace import WorkspaceDiscovery
         ws_disc = WorkspaceDiscovery(mock_client, cloud_provider="azure")
         auditor = PrincipalAuditor(mock_client, workspace_discovery=ws_disc, cloud_provider="azure")
 

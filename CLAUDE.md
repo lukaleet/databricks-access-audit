@@ -21,10 +21,10 @@ pytest tests/test_redundancy.py::test_full_redundancy
 ruff check .
 
 # Run the CLI (group audit)
-databricks-group-audit --group "data-engineers" --cloud azure
+databricks-access-audit --group "data-engineers" --cloud azure
 
 # Run the CLI (principal audit)
-databricks-group-audit --principal "alice@example.com" --cloud azure --escalation-check
+databricks-access-audit --principal "alice@example.com" --cloud azure --escalation-check
 ```
 
 ## Architecture

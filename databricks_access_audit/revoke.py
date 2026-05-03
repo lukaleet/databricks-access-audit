@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List
 
-from databricks_group_audit.models import RedundancyLevel, RedundancyResult
+from databricks_access_audit.models import RedundancyLevel, RedundancyResult
 
 
 def _bt(identifier: str) -> str:

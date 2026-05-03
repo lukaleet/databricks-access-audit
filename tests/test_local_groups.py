@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 import responses as responses_lib
 
-from databricks_group_audit.local_groups import LocalGroupChecker
-from databricks_group_audit.models import WorkspaceInfo
+from databricks_access_audit.local_groups import LocalGroupChecker
+from databricks_access_audit.models import WorkspaceInfo
 from tests.conftest import (
     ACCOUNT_HOST,
     ACCOUNT_ID,
@@ -52,7 +52,7 @@ def _ws_groups_mock(rsps, groups, workspace_url=WORKSPACE_HOST):
 
 @pytest.fixture
 def mock_client():
-    from databricks_group_audit.client import DatabricksAPIClient
+    from databricks_access_audit.client import DatabricksAPIClient
     return DatabricksAPIClient(
         client_id="test-id", client_secret="test-secret",
         account_id=ACCOUNT_ID, account_host=ACCOUNT_HOST,

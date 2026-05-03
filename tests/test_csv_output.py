@@ -5,12 +5,12 @@ from __future__ import annotations
 import csv
 import io
 
-from databricks_group_audit.csv_output import (
+from databricks_access_audit.csv_output import (
     write_diff_csv,
     write_group_audit_csv,
     write_principal_audit_csv,
 )
-from databricks_group_audit.models import (
+from databricks_access_audit.models import (
     AuditDiff,
     CatalogGrant,
     EffectivePermission,

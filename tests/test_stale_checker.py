@@ -7,8 +7,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from databricks_group_audit.models import CatalogGrant, GrantSource
-from databricks_group_audit.stale_checker import StaleGrantChecker
+from databricks_access_audit.models import CatalogGrant, GrantSource
+from databricks_access_audit.stale_checker import StaleGrantChecker
 
 # Dates relative to today so that active/stale classification stays correct
 # regardless of when the test suite runs.

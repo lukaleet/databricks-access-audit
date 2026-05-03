@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from databricks_group_audit.elevate import PermissionElevator
+from databricks_access_audit.elevate import PermissionElevator
 
 ACCOUNT_HOST = "https://accounts.azuredatabricks.net"
 ACCOUNT_ID = "test-account-id"

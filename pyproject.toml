@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "databricks-group-audit"
+name = "databricks-access-audit"
 version = "0.18.0"
 description = "Audit Databricks group membership and Unity Catalog permissions across workspaces."
 readme = "README.md"
@@ -44,19 +44,19 @@ notebook = [
     "pyspark>=3.4",
 ]
 all = [
-    "databricks-group-audit[sdk,dev,notebook]",
+    "databricks-access-audit[sdk,dev,notebook]",
 ]
 
 [project.scripts]
-databricks-group-audit = "databricks_group_audit.cli:main"
+databricks-access-audit = "databricks_access_audit.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/lukaleet/databricks-group-audit"
-Issues = "https://github.com/lukaleet/databricks-group-audit/issues"
-Changelog = "https://github.com/lukaleet/databricks-group-audit/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/lukaleet/databricks-access-audit"
+Issues = "https://github.com/lukaleet/databricks-access-audit/issues"
+Changelog = "https://github.com/lukaleet/databricks-access-audit/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
-include = ["databricks_group_audit*"]
+include = ["databricks_access_audit*"]
 
 [tool.ruff]
 line-length = 100

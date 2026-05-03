@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from databricks_group_audit.escalation import ESCALATION_PRIVILEGES, detect_escalations
-from databricks_group_audit.models import EffectivePermission, PrincipalAuditResult
+from databricks_access_audit.escalation import ESCALATION_PRIVILEGES, detect_escalations
+from databricks_access_audit.models import EffectivePermission, PrincipalAuditResult
 
 
 def _result(perms=None, name="alice@example.com", ptype="USER"):

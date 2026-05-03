@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 import responses
 
-from databricks_group_audit.client import DatabricksAPIClient, TokenCache, _scim_filter_escape
+from databricks_access_audit.client import DatabricksAPIClient, TokenCache, _scim_filter_escape
 
 _WS_HOST = "https://adb-123.9.azuredatabricks.net"
 _INVALID_CLIENT_BODY = {

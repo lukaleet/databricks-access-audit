@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from databricks_group_audit._classification import build_member_lookups, classify_grant
-from databricks_group_audit.client import AuditClient
-from databricks_group_audit.models import GroupMember, TableGrant, WorkspaceInfo
+from databricks_access_audit._classification import build_member_lookups, classify_grant
+from databricks_access_audit.client import AuditClient
+from databricks_access_audit.models import GroupMember, TableGrant, WorkspaceInfo
 
 
 class TablePermissionScanner:

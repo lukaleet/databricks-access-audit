@@ -1,10 +1,10 @@
-"""Databricks Group Audit Tool.
+"""Databricks Access Audit.
 
-Audit group membership and Unity Catalog permissions across workspaces.
+Audit Databricks access across all workspaces — Unity Catalog permissions and workspace object ACLs.
 
 Quick start::
 
-    from databricks_group_audit import create_client, GroupMembershipResolver
+    from databricks_access_audit import create_client, GroupMembershipResolver
 
     client = create_client(cloud="azure", client_id="...",
                            client_secret="...", account_id="...")
@@ -14,19 +14,19 @@ Quick start::
 
 __version__ = "0.18.0"
 
-from databricks_group_audit._classification import build_member_lookups, classify_grant
-from databricks_group_audit.catalog_scanner import CatalogPermissionScanner, classify_catalog_grant
-from databricks_group_audit.client import (
+from databricks_access_audit._classification import build_member_lookups, classify_grant
+from databricks_access_audit.catalog_scanner import CatalogPermissionScanner, classify_catalog_grant
+from databricks_access_audit.client import (
     AuditClient,
     DatabricksAPIClient,
     create_client,
 )
-from databricks_group_audit.csv_output import write_group_audit_csv, write_principal_audit_csv
-from databricks_group_audit.elevate import PermissionElevator
-from databricks_group_audit.escalation import ESCALATION_PRIVILEGES, detect_escalations
-from databricks_group_audit.group_resolver import GroupMembershipResolver
-from databricks_group_audit.local_groups import LocalGroupChecker
-from databricks_group_audit.models import (
+from databricks_access_audit.csv_output import write_group_audit_csv, write_principal_audit_csv
+from databricks_access_audit.elevate import PermissionElevator
+from databricks_access_audit.escalation import ESCALATION_PRIVILEGES, detect_escalations
+from databricks_access_audit.group_resolver import GroupMembershipResolver
+from databricks_access_audit.local_groups import LocalGroupChecker
+from databricks_access_audit.models import (
     AuditDiff,
     CatalogGrant,
     EffectivePermission,
@@ -50,28 +50,28 @@ from databricks_group_audit.models import (
     WorkspaceObjectGrant,
     WorkspaceRole,
 )
-from databricks_group_audit.principal_auditor import PrincipalAuditor
-from databricks_group_audit.redundancy import RedundancyDetector
-from databricks_group_audit.revoke import RevokeScriptGenerator
-from databricks_group_audit.schema_scanner import SchemaPermissionScanner
-from databricks_group_audit.snapshot import (
+from databricks_access_audit.principal_auditor import PrincipalAuditor
+from databricks_access_audit.redundancy import RedundancyDetector
+from databricks_access_audit.revoke import RevokeScriptGenerator
+from databricks_access_audit.schema_scanner import SchemaPermissionScanner
+from databricks_access_audit.snapshot import (
     build_group_snapshot,
     build_principal_snapshot,
     diff_snapshots,
     load_snapshot,
     save_snapshot,
 )
-from databricks_group_audit.stale_checker import StaleGrantChecker
-from databricks_group_audit.table_scanner import TablePermissionScanner
-from databricks_group_audit.workspace import WORKSPACE_DOMAIN_MAP, WorkspaceDiscovery
-from databricks_group_audit.workspace_object_scanner import (
+from databricks_access_audit.stale_checker import StaleGrantChecker
+from databricks_access_audit.table_scanner import TablePermissionScanner
+from databricks_access_audit.workspace import WORKSPACE_DOMAIN_MAP, WorkspaceDiscovery
+from databricks_access_audit.workspace_object_scanner import (
     ALL_OBJECT_TYPES,
     WorkspaceObjectScanner,
 )
 
 # Optional SDK client — only available when databricks-sdk is installed
 try:
-    from databricks_group_audit.sdk_client import SDK_AVAILABLE, DatabricksSDKClient
+    from databricks_access_audit.sdk_client import SDK_AVAILABLE, DatabricksSDKClient
 except ImportError:
     DatabricksSDKClient = None  # type: ignore[assignment,misc]
     SDK_AVAILABLE = False

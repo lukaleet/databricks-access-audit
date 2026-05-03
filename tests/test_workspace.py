@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import responses
 
-from databricks_group_audit.workspace import WorkspaceDiscovery
+from databricks_access_audit.workspace import WorkspaceDiscovery
 from tests.conftest import ACCOUNT_HOST, ACCOUNT_ID
 
 

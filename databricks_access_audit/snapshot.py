@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from databricks_group_audit.models import AuditDiff
+from databricks_access_audit.models import AuditDiff
 
 SNAPSHOT_VERSION = "1"
 

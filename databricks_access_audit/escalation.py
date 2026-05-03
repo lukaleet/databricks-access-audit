@@ -22,7 +22,7 @@ not duplicated here.
 
 Usage::
 
-    from databricks_group_audit.escalation import detect_escalations
+    from databricks_access_audit.escalation import detect_escalations
 
     result = auditor.audit("alice@example.com")
     findings = detect_escalations(result)
@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from typing import List
 
-from databricks_group_audit.models import EscalationFinding, PrincipalAuditResult
+from databricks_access_audit.models import EscalationFinding, PrincipalAuditResult
 
 # The two privileges that represent meaningful escalation vectors in UC.
 ESCALATION_PRIVILEGES: frozenset = frozenset({"ALL_PRIVILEGES", "MANAGE"})
@@ -52,8 +52,8 @@ def detect_escalations(result: PrincipalAuditResult) -> List[EscalationFinding]:
     Parameters
     ----------
     result:
-        A completed :class:`~databricks_group_audit.models.PrincipalAuditResult`
-        from :meth:`~databricks_group_audit.principal_auditor.PrincipalAuditor.audit`.
+        A completed :class:`~databricks_access_audit.models.PrincipalAuditResult`
+        from :meth:`~databricks_access_audit.principal_auditor.PrincipalAuditor.audit`.
 
     Returns
     -------

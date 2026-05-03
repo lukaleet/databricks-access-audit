@@ -5,12 +5,12 @@ This module provides:
 * :class:`DatabricksAPIClient` — raw HTTP client with manual OAuth, pagination,
   and exponential-backoff retry.  Zero external dependencies beyond ``requests``.
 * :func:`create_client` — factory that returns a
-  :class:`~databricks_group_audit.sdk_client.DatabricksSDKClient` when
+  :class:`~databricks_access_audit.sdk_client.DatabricksSDKClient` when
   ``databricks-sdk`` is installed, falling back to the raw HTTP client otherwise.
 
 Typical usage::
 
-    from databricks_group_audit.client import create_client
+    from databricks_access_audit.client import create_client
 
     client = create_client(
         cloud="azure",
@@ -58,7 +58,7 @@ def _scim_filter_escape(value: str) -> str:
 @runtime_checkable
 class AuditClient(Protocol):
     """Structural type satisfied by both :class:`DatabricksAPIClient`
-    and :class:`~databricks_group_audit.sdk_client.DatabricksSDKClient`.
+    and :class:`~databricks_access_audit.sdk_client.DatabricksSDKClient`.
 
     Modules should type-hint their ``api_client`` parameter as
     ``AuditClient`` for maximum flexibility.
@@ -332,7 +332,7 @@ def create_client(
 
     When *prefer_sdk* is ``True`` (default) and ``databricks-sdk`` is
     installed, returns a
-    :class:`~databricks_group_audit.sdk_client.DatabricksSDKClient` which
+    :class:`~databricks_access_audit.sdk_client.DatabricksSDKClient` which
     benefits from automatic auth, pagination, and retries.  Falls back to
     :class:`DatabricksAPIClient` (raw HTTP) when the SDK is unavailable.
 
@@ -350,7 +350,7 @@ def create_client(
     """
     if prefer_sdk:
         try:
-            from databricks_group_audit.sdk_client import (
+            from databricks_access_audit.sdk_client import (
                 SDK_AVAILABLE,
                 DatabricksSDKClient,
             )

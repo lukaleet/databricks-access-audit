@@ -103,7 +103,7 @@ STAGING_CATALOG_GRANTS = {
 @pytest.fixture
 def mock_client():
     """Return a DatabricksAPIClient pointed at mocked endpoints."""
-    from databricks_group_audit.client import DatabricksAPIClient
+    from databricks_access_audit.client import DatabricksAPIClient
     return DatabricksAPIClient(
         client_id="test-id",
         client_secret="test-secret",

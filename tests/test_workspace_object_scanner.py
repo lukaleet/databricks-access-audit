@@ -6,8 +6,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from databricks_group_audit.models import GrantSource, GroupMember, MemberType, WorkspaceInfo
-from databricks_group_audit.workspace_object_scanner import (
+from databricks_access_audit.models import GrantSource, GroupMember, MemberType, WorkspaceInfo
+from databricks_access_audit.workspace_object_scanner import (
     _OBJECT_CONFIGS,
     ALL_OBJECT_TYPES,
     WorkspaceObjectScanner,
@@ -508,7 +508,7 @@ def test_scan_workspace_for_principal_with_alias():
 # ---------------------------------------------------------------------------
 
 def test_workspace_object_grant_model():
-    from databricks_group_audit.models import WorkspaceObjectGrant
+    from databricks_access_audit.models import WorkspaceObjectGrant
     g = WorkspaceObjectGrant(
         object_type="JOB",
         object_id="123",
@@ -529,7 +529,7 @@ def test_workspace_object_grant_model():
 # ---------------------------------------------------------------------------
 
 def test_principal_audit_result_has_workspace_object_grants():
-    from databricks_group_audit.models import PrincipalAuditResult
+    from databricks_access_audit.models import PrincipalAuditResult
     r = PrincipalAuditResult(
         principal_type="USER",
         principal_id="u1",

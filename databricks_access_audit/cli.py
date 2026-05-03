@@ -1,16 +1,16 @@
-"""CLI entry point for databricks-group-audit.
+"""CLI entry point for databricks-access-audit.
 
 Usage (group audit)::
 
-    databricks-group-audit --group "data-engineers" --cloud azure
+    databricks-access-audit --group "data-engineers" --cloud azure
 
 Usage (principal audit)::
 
-    databricks-group-audit --principal "alice@example.com" --cloud azure
+    databricks-access-audit --principal "alice@example.com" --cloud azure
 
 Usage (force raw HTTP instead of SDK)::
 
-    databricks-group-audit --group "data-engineers" --no-sdk
+    databricks-access-audit --group "data-engineers" --no-sdk
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        prog="databricks-group-audit",
+        prog="databricks-access-audit",
         description="Audit Databricks group membership and Unity Catalog permissions.",
     )
     # Credentials
@@ -197,7 +197,7 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
 
 def _build_client(args: argparse.Namespace) -> Any:
     """Create the API client using the factory."""
-    from databricks_group_audit.client import create_client
+    from databricks_access_audit.client import create_client
 
     return create_client(
         cloud=args.cloud,
@@ -215,7 +215,7 @@ def _elevation_context(args: argparse.Namespace, client: Any, workspaces: List):
     """Return a configured PermissionElevator, or a no-op context when not needed."""
     import contextlib
 
-    from databricks_group_audit.elevate import PermissionElevator
+    from databricks_access_audit.elevate import PermissionElevator
 
     use_elevation = args.auto_elevate or args.dry_run_elevation
     if not use_elevation:
@@ -271,7 +271,7 @@ def _run_stale_check(
               file=sys.stderr)
         return []
 
-    from databricks_group_audit.stale_checker import StaleGrantChecker
+    from databricks_access_audit.stale_checker import StaleGrantChecker
 
     ws_url = args.sql_workspace_url
     if not ws_url:
@@ -296,7 +296,7 @@ def _run_local_group_check(
     if not args.check_local_groups:
         return []
 
-    from databricks_group_audit.local_groups import LocalGroupChecker
+    from databricks_access_audit.local_groups import LocalGroupChecker
 
     print("  Checking for workspace-local groups ...")
     checker = LocalGroupChecker(client)
@@ -306,7 +306,7 @@ def _run_local_group_check(
 def _print_diff(diff: Any, output_format: str) -> None:
     """Print an AuditDiff in the requested format."""
     if output_format == "csv":
-        from databricks_group_audit.csv_output import write_diff_csv
+        from databricks_access_audit.csv_output import write_diff_csv
         write_diff_csv(diff)
         return
 
@@ -368,9 +368,9 @@ def _print_diff(diff: Any, output_format: str) -> None:
 
 def _run_principal_audit(args: argparse.Namespace) -> int:
     """Run the principal-centric audit."""
-    from databricks_group_audit.escalation import detect_escalations
-    from databricks_group_audit.principal_auditor import PrincipalAuditor
-    from databricks_group_audit.workspace import WorkspaceDiscovery
+    from databricks_access_audit.escalation import detect_escalations
+    from databricks_access_audit.principal_auditor import PrincipalAuditor
+    from databricks_access_audit.workspace import WorkspaceDiscovery
 
     client = _build_client(args)
     _log = (
@@ -414,14 +414,14 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
 
     # Optional: save snapshot
     if args.save_snapshot:
-        from databricks_group_audit.snapshot import build_principal_snapshot, save_snapshot
+        from databricks_access_audit.snapshot import build_principal_snapshot, save_snapshot
         snap = build_principal_snapshot(result)
         save_snapshot(snap, args.save_snapshot)
         _log(f"  Snapshot saved to: {args.save_snapshot}")
 
     # Optional: diff against baseline
     if args.baseline:
-        from databricks_group_audit.snapshot import (
+        from databricks_access_audit.snapshot import (
             build_principal_snapshot,
             diff_snapshots,
             load_snapshot,
@@ -433,7 +433,7 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
         return 0
 
     if args.output == "csv":
-        from databricks_group_audit.csv_output import write_principal_audit_csv
+        from databricks_access_audit.csv_output import write_principal_audit_csv
         write_principal_audit_csv(result, result.escalation_findings)
         return 0
 
@@ -554,14 +554,14 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
 
 def _run_group_audit(args: argparse.Namespace) -> int:
     """Run the group-centric audit (original behavior)."""
-    from databricks_group_audit.catalog_scanner import CatalogPermissionScanner
-    from databricks_group_audit.group_resolver import GroupMembershipResolver
-    from databricks_group_audit.models import GrantSource, WorkspaceInfo
-    from databricks_group_audit.redundancy import RedundancyDetector
-    from databricks_group_audit.revoke import RevokeScriptGenerator
-    from databricks_group_audit.schema_scanner import SchemaPermissionScanner
-    from databricks_group_audit.table_scanner import TablePermissionScanner
-    from databricks_group_audit.workspace import WorkspaceDiscovery
+    from databricks_access_audit.catalog_scanner import CatalogPermissionScanner
+    from databricks_access_audit.group_resolver import GroupMembershipResolver
+    from databricks_access_audit.models import GrantSource, WorkspaceInfo
+    from databricks_access_audit.redundancy import RedundancyDetector
+    from databricks_access_audit.revoke import RevokeScriptGenerator
+    from databricks_access_audit.schema_scanner import SchemaPermissionScanner
+    from databricks_access_audit.table_scanner import TablePermissionScanner
+    from databricks_access_audit.workspace import WorkspaceDiscovery
 
     client = _build_client(args)
     _log = (
@@ -659,7 +659,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
                 _log(f"  Found {len(table_grants)} table grant(s)")
 
         if args.scan_workspace_objects:
-            from databricks_group_audit.workspace_object_scanner import WorkspaceObjectScanner
+            from databricks_access_audit.workspace_object_scanner import WorkspaceObjectScanner
             obj_scanner = WorkspaceObjectScanner(client, resolver)
             workspace_object_grants = obj_scanner.scan_all_workspaces(
                 workspaces, args.group, group_node, members,
@@ -696,7 +696,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
 
     # Optional: save snapshot
     if args.save_snapshot:
-        from databricks_group_audit.snapshot import build_group_snapshot, save_snapshot
+        from databricks_access_audit.snapshot import build_group_snapshot, save_snapshot
         snap = build_group_snapshot(
             args.group, members, catalog_grants, schema_grants, table_grants,
             workspace_object_grants or None,
@@ -706,7 +706,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
 
     # Optional: diff against baseline
     if args.baseline:
-        from databricks_group_audit.snapshot import (
+        from databricks_access_audit.snapshot import (
             build_group_snapshot,
             diff_snapshots,
             load_snapshot,
@@ -724,7 +724,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     ext_sps = sum(1 for sp in members["service_principals"] if sp.external_id)
 
     if args.output == "csv":
-        from databricks_group_audit.csv_output import write_group_audit_csv
+        from databricks_access_audit.csv_output import write_group_audit_csv
         write_group_audit_csv(catalog_grants, schema_grants, table_grants, redundancy,
                               workspace_object_grants or None)
     elif args.output == "json":

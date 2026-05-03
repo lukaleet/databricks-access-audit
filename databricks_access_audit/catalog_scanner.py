@@ -7,10 +7,10 @@ from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Set
 
-from databricks_group_audit._classification import build_member_lookups, classify_grant
-from databricks_group_audit.client import AuditClient
-from databricks_group_audit.group_resolver import GroupMembershipResolver
-from databricks_group_audit.models import (
+from databricks_access_audit._classification import build_member_lookups, classify_grant
+from databricks_access_audit.client import AuditClient
+from databricks_access_audit.group_resolver import GroupMembershipResolver
+from databricks_access_audit.models import (
     CatalogGrant,
     GroupMember,
     GroupNode,
@@ -99,7 +99,7 @@ class CatalogPermissionScanner:
         """Find ALL upstream (ancestor) groups of the target via BFS.
 
         Delegates the O(N) group-membership fetch to
-        :meth:`~databricks_group_audit.group_resolver.GroupMembershipResolver.get_group_membership_map`,
+        :meth:`~databricks_access_audit.group_resolver.GroupMembershipResolver.get_group_membership_map`,
         which parallelises the individual GETs and caches the result for the
         lifetime of the resolver instance.  Multiple callers within the same
         audit session (catalog scanner, schema scanner, principal auditor) share

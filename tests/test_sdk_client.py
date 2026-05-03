@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from databricks_group_audit.sdk_client import SDK_AVAILABLE, DatabricksSDKClient
+from databricks_access_audit.sdk_client import SDK_AVAILABLE, DatabricksSDKClient
 
 pytestmark = pytest.mark.skipif(not SDK_AVAILABLE, reason="databricks-sdk not installed")
 
@@ -29,7 +29,7 @@ def _sdk_obj(**kwargs):
 
 def _make_client() -> tuple[DatabricksSDKClient, MagicMock, MagicMock]:
     """Return (client, mock_account, mock_ws_client)."""
-    with patch("databricks_group_audit.sdk_client.AccountClient") as MockAC:
+    with patch("databricks_access_audit.sdk_client.AccountClient") as MockAC:
         mock_account = MagicMock()
         MockAC.return_value = mock_account
         client = DatabricksSDKClient(
@@ -576,19 +576,19 @@ def test_workspace_api_patch_table_grants_uses_fallback():
 # ---------------------------------------------------------------------------
 
 def test_for_cloud_azure():
-    with patch("databricks_group_audit.sdk_client.AccountClient"):
+    with patch("databricks_access_audit.sdk_client.AccountClient"):
         c = DatabricksSDKClient.for_cloud("azure", "cid", "sec", "acct")
     assert "azuredatabricks.net" in c.account_host
 
 
 def test_for_cloud_aws():
-    with patch("databricks_group_audit.sdk_client.AccountClient"):
+    with patch("databricks_access_audit.sdk_client.AccountClient"):
         c = DatabricksSDKClient.for_cloud("aws", "cid", "sec", "acct")
     assert "accounts.cloud.databricks.com" in c.account_host
 
 
 def test_for_cloud_gcp():
-    with patch("databricks_group_audit.sdk_client.AccountClient"):
+    with patch("databricks_access_audit.sdk_client.AccountClient"):
         c = DatabricksSDKClient.for_cloud("gcp", "cid", "sec", "acct")
     assert "accounts.gcp.databricks.com" in c.account_host
 
@@ -599,7 +599,7 @@ def test_for_cloud_gcp():
 
 def test_ws_client_cached():
     client, _, _ = _make_client()
-    with patch("databricks_group_audit.sdk_client.WorkspaceClient") as MockWC:
+    with patch("databricks_access_audit.sdk_client.WorkspaceClient") as MockWC:
         MockWC.return_value = MagicMock()
         ws1 = client._get_ws_client("https://new-ws.azuredatabricks.net")
         ws2 = client._get_ws_client("https://new-ws.azuredatabricks.net")
@@ -610,7 +610,7 @@ def test_ws_client_cached():
 
 def test_ws_client_scheme_added():
     client, _, _ = _make_client()
-    with patch("databricks_group_audit.sdk_client.WorkspaceClient") as MockWC:
+    with patch("databricks_access_audit.sdk_client.WorkspaceClient") as MockWC:
         MockWC.return_value = MagicMock()
         client._get_ws_client("no-scheme.azuredatabricks.net")
     call_kwargs = MockWC.call_args[1]

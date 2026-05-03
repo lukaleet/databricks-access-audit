@@ -2,8 +2,8 @@
 
 import pytest
 
-from databricks_group_audit.models import RedundancyLevel, RedundancyResult
-from databricks_group_audit.revoke import RevokeScriptGenerator, _bt
+from databricks_access_audit.models import RedundancyLevel, RedundancyResult
+from databricks_access_audit.revoke import RevokeScriptGenerator, _bt
 
 
 def _result(principal, level, catalog="main", redundant=None, additional=None):

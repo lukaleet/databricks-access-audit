@@ -1,8 +1,8 @@
-# databricks-group-audit
+# databricks-access-audit
 
 > Databricks gives you no native way to answer *"what can this identity access across all my workspaces?"* — this tool does.
 
-[![CI](https://github.com/lukaleet/databricks-group-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/lukaleet/databricks-group-audit/actions/workflows/ci.yml)
+[![CI](https://github.com/lukaleet/databricks-access-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/lukaleet/databricks-access-audit/actions/workflows/ci.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 
@@ -62,8 +62,8 @@ The simplest setup that is guaranteed to work: grant the SP **Account Admin**, a
 The package is not yet published to PyPI. Install from source:
 
 ```bash
-git clone https://github.com/lukaleet/databricks-group-audit.git
-cd databricks-group-audit
+git clone https://github.com/lukaleet/databricks-access-audit.git
+cd databricks-access-audit
 
 # Core install (raw HTTP client only - no extra dependencies beyond requests)
 pip install -e .
@@ -102,17 +102,17 @@ export DATABRICKS_ACCOUNT_ID="your-account-id"
 
 ```bash
 # What can alice access across all workspaces?
-databricks-group-audit --principal "alice@example.com" --cloud azure
+databricks-access-audit --principal "alice@example.com" --cloud azure
 
 # Include workspace object ACLs (jobs, clusters, dashboards, pipelines, ...)
-databricks-group-audit \
+databricks-access-audit \
     --principal "alice@example.com" \
     --cloud azure \
     --scan-workspace-objects \
     --escalation-check
 
 # Deep scan including schema and table grants, export to CSV for a review
-databricks-group-audit \
+databricks-access-audit \
     --principal "alice@example.com" \
     --cloud azure \
     --scan-schemas \
@@ -121,20 +121,20 @@ databricks-group-audit \
     --output csv > alice_access_$(date +%F).csv
 
 # Audit a service principal by display name or application ID
-databricks-group-audit --principal "ETL-Bot" --cloud azure
+databricks-access-audit --principal "ETL-Bot" --cloud azure
 
 # Audit a group (shows what it can access, not who is in it)
-databricks-group-audit --principal "data-engineers" --cloud azure
+databricks-access-audit --principal "data-engineers" --cloud azure
 ```
 
 ### CLI - Group Audit
 
 ```bash
 # Scan all workspaces, catalog level only
-databricks-group-audit --group "data-engineers" --cloud azure
+databricks-access-audit --group "data-engineers" --cloud azure
 
 # Deep scan including schema and table grants, with REVOKE script
-databricks-group-audit \
+databricks-access-audit \
     --group "data-engineers" \
     --cloud azure \
     --scan-schemas \
@@ -142,15 +142,15 @@ databricks-group-audit \
     --revoke-script
 
 # JSON output (progress lines go to stdout before the JSON block)
-databricks-group-audit --group "data-engineers" --output json
+databricks-access-audit --group "data-engineers" --output json
 
 # Scan specific workspaces instead of all discovered ones
-databricks-group-audit \
+databricks-access-audit \
     --group "data-engineers" \
     --workspace-urls "https://adb-123.azuredatabricks.net,https://adb-456.azuredatabricks.net"
 
 # Force raw HTTP client even when databricks-sdk is installed
-databricks-group-audit --group "data-engineers" --no-sdk
+databricks-access-audit --group "data-engineers" --no-sdk
 ```
 
 ### All CLI flags
@@ -238,10 +238,10 @@ This cleanup guarantee is implemented as a context manager `__exit__`, so it run
 
 ```bash
 # Elevate automatically, then restore
-databricks-group-audit --group "data-engineers" --cloud azure --auto-elevate
+databricks-access-audit --group "data-engineers" --cloud azure --auto-elevate
 
 # Preview which workspaces would be elevated (no writes)
-databricks-group-audit --group "data-engineers" --cloud azure --dry-run-elevation
+databricks-access-audit --group "data-engineers" --cloud azure --dry-run-elevation
 ```
 
 ### Scope and limitations
@@ -261,7 +261,7 @@ If cleanup fails (e.g. due to a network error), the tool:
 ### Programmatic usage
 
 ```python
-from databricks_group_audit import create_client, PermissionElevator, WorkspaceDiscovery
+from databricks_access_audit import create_client, PermissionElevator, WorkspaceDiscovery
 
 client = create_client(cloud="azure", client_id="...",
                        client_secret="...", account_id="...")
@@ -287,7 +287,7 @@ with PermissionElevator(client, sp_application_id="<client-id>", dry_run=True) a
 ### Principal audit
 
 ```python
-from databricks_group_audit import create_client, PrincipalAuditor, WorkspaceDiscovery
+from databricks_access_audit import create_client, PrincipalAuditor, WorkspaceDiscovery
 
 client = create_client(cloud="azure", client_id="...",
                        client_secret="...", account_id="...")
@@ -317,7 +317,7 @@ if result.dead_end_groups:
 ### Group audit
 
 ```python
-from databricks_group_audit import (
+from databricks_access_audit import (
     create_client,
     GroupMembershipResolver,
     WorkspaceDiscovery,
@@ -348,14 +348,14 @@ print(RevokeScriptGenerator.generate(redundancy, include_partial=True))
 
 ## Databricks Notebook
 
-Import `Databricks Group Audit Tool.ipynb` into your workspace. The first cell installs the package — adjust the path to match your workspace location and run it, then **Run All**.
+Import `Databricks Access Audit.ipynb` into your workspace. The first cell installs the package — adjust the path to match your workspace location and run it, then **Run All**.
 
 ```python
 # If the package is cloned into your Databricks workspace:
-%pip install -q "/Workspace/Users/your.name@company.com/databricks-group-audit-tool[sdk]"
+%pip install -q "/Workspace/Users/your.name@company.com/databricks-access-audit-tool[sdk]"
 
 # Once published to PyPI:
-# %pip install -q "databricks-group-audit[sdk]"
+# %pip install -q "databricks-access-audit[sdk]"
 ```
 
 > Do **not** use `pip install -e` (editable mode) on a Databricks cluster — the cluster's setuptools may not support PEP 660 and editable installs serve no purpose on a cluster where you are not editing the source.
@@ -503,7 +503,7 @@ The `--revoke-script` flag generates copy-paste REVOKE SQL for both full and par
 ## Architecture
 
 ```
-databricks_group_audit/
+databricks_access_audit/
 ├── __init__.py            # Public API exports
 ├── __main__.py            # python -m entry point
 ├── cli.py                 # argparse CLI (--group / --principal modes)
@@ -575,7 +575,7 @@ JSON output adds `"source": "external"/"internal"` to each group in the `groups`
 The `source` property is available on `GroupMember`, `GroupNode`, `GroupMembership`, and the `principal_source` property on `PrincipalAuditResult`:
 
 ```python
-from databricks_group_audit import PrincipalSource
+from databricks_access_audit import PrincipalSource
 
 node = resolver.resolve_group("data-engineers")
 members = resolver.get_all_members_flat(node)
@@ -595,7 +595,7 @@ The `--escalation-check` flag adds a security pass to the principal audit. After
 | `MANAGE` | Grants the ability to add and remove grants on the securable — can be used to self-escalate or escalate other principals |
 
 ```bash
-databricks-group-audit --principal "alice@example.com" --cloud azure --escalation-check
+databricks-access-audit --principal "alice@example.com" --cloud azure --escalation-check
 ```
 
 Output (text):
@@ -623,7 +623,7 @@ The `--stale-days N` flag cross-references current member-direct catalog grants 
 
 ```bash
 # Flag grants with no activity in 90 days
-databricks-group-audit \
+databricks-access-audit \
     --group "data-engineers" \
     --cloud azure \
     --stale-days 90 \
@@ -651,7 +651,7 @@ The `--check-local-groups` flag scans every workspace's SCIM directory and flags
 Workspace-local groups are a legacy artefact from before Unity Catalog. They cannot hold Unity Catalog grants, are not visible to the Account API, and are invisible to account-level SCIM tooling. If your account still has workspace-local groups, they will not appear in group audit results — this flag helps you find them.
 
 ```bash
-databricks-group-audit --group "data-engineers" --cloud azure --check-local-groups
+databricks-access-audit --group "data-engineers" --cloud azure --check-local-groups
 ```
 
 Output:
@@ -664,7 +664,7 @@ Output:
 Works with both `--group` and `--principal` modes, and is available as a standalone Python API:
 
 ```python
-from databricks_group_audit import LocalGroupChecker, WorkspaceDiscovery
+from databricks_access_audit import LocalGroupChecker, WorkspaceDiscovery
 
 checker = LocalGroupChecker(client)
 workspaces = WorkspaceDiscovery(client, "azure").discover()
@@ -679,11 +679,11 @@ Pass `--output csv` to get audit results as comma-separated values — the forma
 
 ```bash
 # Group audit - export all grants to a spreadsheet
-databricks-group-audit --group "data-engineers" --cloud azure \
+databricks-access-audit --group "data-engineers" --cloud azure \
   --output csv > grants_$(date +%F).csv
 
 # Principal audit - export all permissions
-databricks-group-audit --principal "alice@example.com" --cloud azure \
+databricks-access-audit --principal "alice@example.com" --cloud azure \
   --output csv > alice_permissions.csv
 ```
 
@@ -708,11 +708,11 @@ This is the SOC 2 / ISO 27001 evidence workflow: *"Prove permissions haven't dri
 
 ```bash
 # Save the current state
-databricks-group-audit --group "data-engineers" --cloud azure \
+databricks-access-audit --group "data-engineers" --cloud azure \
   --save-snapshot snapshots/data-engineers_$(date +%F).json
 
 # Three months later - run again and compare
-databricks-group-audit --group "data-engineers" --cloud azure \
+databricks-access-audit --group "data-engineers" --cloud azure \
   --baseline snapshots/data-engineers_2025-01-01.json
 ```
 
@@ -751,7 +751,7 @@ When nothing has changed:
 `--save-snapshot` and `--baseline` are independent and can be combined in a single run:
 
 ```bash
-databricks-group-audit --group "data-engineers" --cloud azure \
+databricks-access-audit --group "data-engineers" --cloud azure \
   --baseline last_quarter.json \
   --save-snapshot snapshots/data-engineers_$(date +%F).json
 ```
@@ -759,7 +759,7 @@ databricks-group-audit --group "data-engineers" --cloud azure \
 Python API:
 
 ```python
-from databricks_group_audit import (
+from databricks_access_audit import (
     build_group_snapshot, save_snapshot, load_snapshot, diff_snapshots,
 )
 

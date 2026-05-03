@@ -20,8 +20,8 @@ See also: https://docs.databricks.com/administration-guide/users-groups/groups.h
 
 Usage::
 
-    from databricks_group_audit.local_groups import LocalGroupChecker
-    from databricks_group_audit.workspace import WorkspaceDiscovery
+    from databricks_access_audit.local_groups import LocalGroupChecker
+    from databricks_access_audit.workspace import WorkspaceDiscovery
 
     checker = LocalGroupChecker(client)
     workspaces = WorkspaceDiscovery(client, "azure").discover()
@@ -35,8 +35,8 @@ from __future__ import annotations
 import logging
 from typing import List, Set
 
-from databricks_group_audit.client import AuditClient
-from databricks_group_audit.models import LocalGroupFinding, WorkspaceInfo
+from databricks_access_audit.client import AuditClient
+from databricks_access_audit.models import LocalGroupFinding, WorkspaceInfo
 
 log = logging.getLogger(__name__)
 
@@ -175,9 +175,9 @@ class LocalGroupChecker:
         Parameters
         ----------
         workspaces:
-            List of :class:`~databricks_group_audit.models.WorkspaceInfo`
+            List of :class:`~databricks_access_audit.models.WorkspaceInfo`
             objects, typically from
-            :meth:`~databricks_group_audit.workspace.WorkspaceDiscovery.discover`.
+            :meth:`~databricks_access_audit.workspace.WorkspaceDiscovery.discover`.
 
         Returns
         -------

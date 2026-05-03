@@ -38,11 +38,11 @@ Usage
 -----
 Typical CLI usage via the ``--auto-elevate`` flag::
 
-    databricks-group-audit --group "data-engineers" --auto-elevate
+    databricks-access-audit --group "data-engineers" --auto-elevate
 
 Programmatic usage::
 
-    from databricks_group_audit.elevate import PermissionElevator
+    from databricks_access_audit.elevate import PermissionElevator
 
     with PermissionElevator(client, sp_application_id="<client-id>") as elev:
         for ws in workspaces:
@@ -64,7 +64,7 @@ import logging
 from dataclasses import dataclass
 from typing import List, Optional
 
-from databricks_group_audit.client import AuditClient, _scim_filter_escape
+from databricks_access_audit.client import AuditClient, _scim_filter_escape
 
 log = logging.getLogger(__name__)
 
