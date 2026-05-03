@@ -1,6 +1,6 @@
 # databricks-group-audit
 
-> Answer Databricks permission questions in one command instead of 30 minutes of clicking through the Account Console.
+> Databricks gives you no native way to answer *"what can this identity access across all my workspaces?"* — this tool does.
 
 [![CI](https://github.com/lukaleet/databricks-group-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/lukaleet/databricks-group-audit/actions/workflows/ci.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
@@ -8,14 +8,16 @@
 
 ## The problem
 
+The Account Console shows you one workspace at a time. `INFORMATION_SCHEMA` shows you one metastore at a time. Neither resolves nested group memberships across workspaces. Neither tells you whether a personal grant duplicates what the group already provides. Neither tells you what workspace objects (jobs, clusters, dashboards, pipelines) a principal can reach.
+
 You're a Databricks admin. Your boss walks over and asks:
 
-- *"Which groups have access to the `main` catalog?"*
-- *"We want to add Alice to `data-engineers` — does she already have her own grants that would become redundant?"*
-- *"Our permissions are a mess. Who has what, and what's safe to revoke?"*
-- *"What can `alice@company.com` actually access across all our workspaces?"*
+- *"What can alice@company.com access across all our workspaces?"*
+- *"We're offboarding Bob — what exactly does he have direct access to before we deprovision him?"*
+- *"Which groups have access to the `main` catalog? Who in those groups has their own redundant grants?"*
+- *"Our quarterly access review is due. Can you export who has what and compare it against last quarter?"*
 
-None of these have a fast answer in the Databricks Account Console. *"What can alice access?"* means opening each workspace, clicking through Unity Catalog, filtering by user, checking workspace assignments — repeated for every workspace you have. You still can't see nested group inheritance. You still can't see whether a personal grant duplicates what the group already provides.
+Answering any of these means opening each workspace, clicking through Unity Catalog, filtering by user, checking workspace assignments — then repeating for every workspace. You still can't see nested group inheritance. You still can't see whether a personal grant duplicates what the group already provides.
 
 This tool answers those questions in one command, across all workspaces at once.
 
@@ -23,22 +25,35 @@ This tool answers those questions in one command, across all workspaces at once.
 
 | Mode | Entry point | Question it answers |
 |---|---|---|
-| **Group audit** | `--group "data-engineers"` | What does this group access? Who has redundant personal grants the group already covers? |
-| **Principal audit** | `--principal "alice@example.com"` | What can this user / SP / group access across every workspace? |
+| **Principal audit** | `--principal "alice@example.com"` | What can this user / SP / group access across every workspace? (Unity Catalog grants + workspace object ACLs) |
+| **Group audit** | `--group "data-engineers"` | What does this group access? Who in it has redundant personal grants the group already covers? |
+
+`--group` and `--principal` are mutually exclusive. Use `--group` to audit a group's grants and find cleanup opportunities; use `--principal` to reverse-lookup what a specific identity can reach.
+
+### When to use this tool
+
+| Scenario | Mode | Key flags |
+|---|---|---|
+| **Offboarding** — pull everything before deprovisioning | `--principal` | `--scan-workspace-objects --output csv` |
+| **Access review** — export permissions, compare to last quarter | either | `--output csv --baseline last_quarter.json` |
+| **Incident response** — map what a compromised identity can reach | `--principal` | `--escalation-check --scan-workspace-objects` |
+| **Permission hygiene** — find redundant personal grants, generate cleanup SQL | `--group` | `--revoke-script` |
+| **Stale access** — flag grants with no recorded activity | `--group` | `--stale-days 90 --sql-warehouse-id ...` |
+| **Compliance snapshot** — prove permissions haven't drifted | either | `--save-snapshot` / `--baseline` |
 
 ## Prerequisites
 
 **Python:** 3.9 or later.
 
-**Databricks account:** Unity Catalog must be enabled. The tool uses the Account API and the per-workspace Unity Catalog API - it does **not** scan Hive Metastore or workspace-local permissions.
+**Databricks account:** Unity Catalog must be enabled. The tool uses the Account API and the per-workspace Unity Catalog API — it does **not** scan Hive Metastore or workspace-local permissions.
 
 **Service Principal permissions:** The SP running the audit requires elevated access at three distinct levels:
 
 | Level | Required role / privilege | Why |
 |---|---|---|
-| **Databricks account** | Account Admin | Required to call the SCIM API (list groups, users, SPs), list workspaces, and read workspace permission assignments - all account-level endpoints enforce Account Admin |
+| **Databricks account** | Account Admin | Required to call the SCIM API (list groups, users, SPs), list workspaces, and read workspace permission assignments — all account-level endpoints enforce Account Admin |
 | **Each workspace** | Workspace Admin (recommended) or Workspace User | The SP must be assigned to each workspace it will scan; Workspace Admin is the safest choice since some permission assignment APIs are not visible to plain users |
-| **Unity Catalog** | Metastore Admin, or `MANAGE` on every catalog to audit | The `GET /permissions/catalog/{name}` endpoint (and the equivalent schema/table endpoints) requires either Metastore Admin or `MANAGE` on the securable - `BROWSE` or `SELECT` are not sufficient to read grant lists |
+| **Unity Catalog** | Metastore Admin, or `MANAGE` on every catalog to audit | The `GET /permissions/catalog/{name}` endpoint (and the equivalent schema/table endpoints) requires either Metastore Admin or `MANAGE` on the securable — `BROWSE` or `SELECT` are not sufficient to read grant lists |
 
 The simplest setup that is guaranteed to work: grant the SP **Account Admin**, add it to each workspace as **Workspace Admin**, and assign it **Metastore Admin**. Scoping to minimum required permissions is possible but requires granting `MANAGE` on every individual catalog, which is difficult to maintain across a large account.
 
@@ -83,6 +98,35 @@ export DATABRICKS_CLIENT_SECRET="your-sp-secret"
 export DATABRICKS_ACCOUNT_ID="your-account-id"
 ```
 
+### CLI - Principal Audit
+
+```bash
+# What can alice access across all workspaces?
+databricks-group-audit --principal "alice@example.com" --cloud azure
+
+# Include workspace object ACLs (jobs, clusters, dashboards, pipelines, ...)
+databricks-group-audit \
+    --principal "alice@example.com" \
+    --cloud azure \
+    --scan-workspace-objects \
+    --escalation-check
+
+# Deep scan including schema and table grants, export to CSV for a review
+databricks-group-audit \
+    --principal "alice@example.com" \
+    --cloud azure \
+    --scan-schemas \
+    --scan-tables \
+    --scan-workspace-objects \
+    --output csv > alice_access_$(date +%F).csv
+
+# Audit a service principal by display name or application ID
+databricks-group-audit --principal "ETL-Bot" --cloud azure
+
+# Audit a group (shows what it can access, not who is in it)
+databricks-group-audit --principal "data-engineers" --cloud azure
+```
+
 ### CLI - Group Audit
 
 ```bash
@@ -108,29 +152,6 @@ databricks-group-audit \
 # Force raw HTTP client even when databricks-sdk is installed
 databricks-group-audit --group "data-engineers" --no-sdk
 ```
-
-### CLI - Principal Audit
-
-```bash
-# Audit a user by email
-databricks-group-audit --principal "alice@example.com" --cloud azure
-
-# Audit a service principal by display name or application ID
-databricks-group-audit --principal "ETL-Bot" --cloud azure
-
-# Audit a group (shows what it can access, not who is in it)
-databricks-group-audit --principal "data-engineers" --cloud azure
-
-# Deep scan with JSON output
-databricks-group-audit \
-    --principal "alice@example.com" \
-    --cloud azure \
-    --scan-schemas \
-    --scan-tables \
-    --output json
-```
-
-> `--group` and `--principal` are mutually exclusive. Use `--group` to audit a group's grants and redundancy; use `--principal` to reverse-lookup what a specific identity can reach.
 
 ### All CLI flags
 
@@ -205,9 +226,9 @@ Client:
 
 Getting Workspace Admin on every workspace is a hard prerequisite for a full audit but granting it permanently can be undesirable. The `--auto-elevate` flag automates the lifecycle:
 
-1. **Before the audit** - for each workspace where the SP lacks Workspace Admin, the tool calls the Account API to grant it temporarily.
-2. **During the audit** - all workspace and Unity Catalog APIs are called with Workspace Admin in place.
-3. **After the audit** - regardless of whether the audit succeeded or failed, the tool restores each workspace to its prior state:
+1. **Before the audit** — for each workspace where the SP lacks Workspace Admin, the tool calls the Account API to grant it temporarily.
+2. **During the audit** — all workspace and Unity Catalog APIs are called with Workspace Admin in place.
+3. **After the audit** — regardless of whether the audit succeeded or failed, the tool restores each workspace to its prior state:
    - If the SP had **no assignment** before elevation, the assignment is **deleted**.
    - If the SP had a **USER-level** assignment before elevation, it is **restored to USER**.
 
@@ -229,9 +250,9 @@ databricks-group-audit --group "data-engineers" --cloud azure --dry-run-elevatio
 |---|---|
 | **Workspace Admin** | Granted temporarily per-workspace; restored after the audit |
 | **Metastore Admin** | **Not managed.** Must be granted manually before running the tool |
-| **Account Admin** | **Not managed.** Hard prerequisite - must be in place before using `--auto-elevate` |
+| **Account Admin** | **Not managed.** Hard prerequisite — must be in place before using `--auto-elevate` |
 
-The SP can only be elevated on workspaces discovered through the Account API (workspaces with a known numeric workspace ID). Workspaces supplied via `--workspace-urls` have no known ID and are skipped with a warning - the SP must already be a Workspace Admin on those.
+The SP can only be elevated on workspaces discovered through the Account API (workspaces with a known numeric workspace ID). Workspaces supplied via `--workspace-urls` have no known ID and are skipped with a warning — the SP must already be a Workspace Admin on those.
 
 If cleanup fails (e.g. due to a network error), the tool:
 - Logs an ERROR with explicit manual revocation instructions (workspace name, SP SCIM ID, and the `DELETE /permissionassignments/principals/{id}` endpoint to call).
@@ -263,6 +284,36 @@ with PermissionElevator(client, sp_application_id="<client-id>", dry_run=True) a
 
 ## Python API
 
+### Principal audit
+
+```python
+from databricks_group_audit import create_client, PrincipalAuditor, WorkspaceDiscovery
+
+client = create_client(cloud="azure", client_id="...",
+                       client_secret="...", account_id="...")
+
+auditor = PrincipalAuditor(
+    client,
+    workspace_discovery=WorkspaceDiscovery(client, "azure"),
+    cloud_provider="azure",
+)
+
+result = auditor.audit("alice@example.com", scan_schemas=True)
+
+for g in result.groups:
+    tag = "direct" if g.is_direct else "transitive"
+    print(f"  {g.group_name} ({tag}) - path: {' → '.join(g.path)}")
+
+for r in result.workspace_roles:
+    print(f"  {r.workspace_name}: {r.permission_level} via {r.via_group}")
+
+for p in result.permissions:
+    print(f"  [{p.securable_type}] {p.securable_name}: {', '.join(p.privileges)} via {p.via_group}")
+
+if result.dead_end_groups:
+    print(f"  Dead-end groups (no workspace access): {result.dead_end_groups}")
+```
+
 ### Group audit
 
 ```python
@@ -293,36 +344,6 @@ grants = scanner.scan_all_workspaces(workspaces, "data-engineers", node, members
 
 redundancy = RedundancyDetector().detect_redundancy(grants, "data-engineers")
 print(RevokeScriptGenerator.generate(redundancy, include_partial=True))
-```
-
-### Principal audit
-
-```python
-from databricks_group_audit import create_client, PrincipalAuditor, WorkspaceDiscovery
-
-client = create_client(cloud="azure", client_id="...",
-                       client_secret="...", account_id="...")
-
-auditor = PrincipalAuditor(
-    client,
-    workspace_discovery=WorkspaceDiscovery(client, "azure"),
-    cloud_provider="azure",
-)
-
-result = auditor.audit("alice@example.com", scan_schemas=True)
-
-for g in result.groups:
-    tag = "direct" if g.is_direct else "transitive"
-    print(f"  {g.group_name} ({tag}) - path: {' → '.join(g.path)}")
-
-for r in result.workspace_roles:
-    print(f"  {r.workspace_name}: {r.permission_level} via {r.via_group}")
-
-for p in result.permissions:
-    print(f"  [{p.securable_type}] {p.securable_name}: {', '.join(p.privileges)} via {p.via_group}")
-
-if result.dead_end_groups:
-    print(f"  Dead-end groups (no workspace access): {result.dead_end_groups}")
 ```
 
 ## Databricks Notebook
@@ -398,26 +419,6 @@ When `export_delta_path` is set, all DataFrames are appended to partitioned Delt
 
 ## Output Reference
 
-### CLI - JSON (group audit)
-
-```json
-{
-  "group": "data-engineers",
-  "timestamp": "2025-01-15T10:30:00+00:00",
-  "users": 12,
-  "service_principals": 2,
-  "catalog_grants": 8,
-  "schema_grants": 0,
-  "table_grants": 0,
-  "full_redundancy": 3,
-  "partial_redundancy": 1,
-  "top_members": [
-    {"principal": "alice@example.com", "personal_grants": 3, "redundancy": "Full"},
-    {"principal": "bob@example.com",   "personal_grants": 1, "redundancy": "Partial"}
-  ]
-}
-```
-
 ### CLI - JSON (principal audit)
 
 ```json
@@ -444,13 +445,33 @@ When `export_delta_path` is set, all DataFrames are appended to partitioned Delt
 }
 ```
 
+### CLI - JSON (group audit)
+
+```json
+{
+  "group": "data-engineers",
+  "timestamp": "2025-01-15T10:30:00+00:00",
+  "users": 12,
+  "service_principals": 2,
+  "catalog_grants": 8,
+  "schema_grants": 0,
+  "table_grants": 0,
+  "full_redundancy": 3,
+  "partial_redundancy": 1,
+  "top_members": [
+    {"principal": "alice@example.com", "personal_grants": 3, "redundancy": "Full"},
+    {"principal": "bob@example.com",   "personal_grants": 1, "redundancy": "Partial"}
+  ]
+}
+```
+
 ## Grant Classification
 
-Each grant on a catalog, schema, or table is classified relative to the target group:
+Each grant on a catalog, schema, or table is classified relative to the target group or principal:
 
 | Classification | Meaning |
 |---|---|
-| **Direct** | The target group itself holds this grant |
+| **Direct** | The target group or principal itself holds this grant |
 | **Upstream** | A parent (ancestor) group of the target holds this grant |
 | **Member Direct** | An individual user or SP within the target group has a personal grant |
 
@@ -473,7 +494,7 @@ Redundancy is computed at the **catalog level**. Member-direct grants are compar
 
 | Level | Meaning | Recommended action |
 |---|---|---|
-| **Full** | Every member privilege is covered by the group | Safe to REVOKE - `--revoke-script` generates the SQL |
+| **Full** | Every member privilege is covered by the group | Safe to REVOKE — `--revoke-script` generates the SQL |
 | **Partial** | Some overlap, some privileges unique to the member | Review: the tool lists which privileges are redundant and which are unique |
 | **None** | No overlap | No action needed |
 
@@ -502,12 +523,12 @@ databricks_group_audit/
 ├── escalation.py          # ALL_PRIVILEGES / MANAGE escalation detection
 ├── stale_checker.py       # Stale grant detection via system.access.audit SQL
 ├── local_groups.py        # Workspace-local (legacy) SCIM group detection
-├── workspace_object_scanner.py  # Workspace-level ACL scanning (13 types: jobs, clusters, pipelines, SQL, Genie, MLflow, serving endpoints, apps)
+├── workspace_object_scanner.py  # Workspace-level ACL scanning (13 types)
 ├── csv_output.py          # CSV serialisation for group and principal audit results
 └── snapshot.py            # Snapshot build/save/load and delta comparison
 ```
 
-**Client protocol:** `AuditClient` is a structural `Protocol` in `client.py`. Both `DatabricksAPIClient` and `DatabricksSDKClient` satisfy it - all scanners, resolvers, and the auditor accept either backend without modification.
+**Client protocol:** `AuditClient` is a structural `Protocol` in `client.py`. Both `DatabricksAPIClient` and `DatabricksSDKClient` satisfy it — all scanners, resolvers, and the auditor accept either backend without modification.
 
 **SCIM performance:** `GroupMembershipResolver` bulk-fetches all users and service principals in two paginated calls before resolving individual members, avoiding N+1 API calls. For accounts with fewer than ~10 000 users this is significantly faster than per-member lookups.
 
@@ -515,7 +536,7 @@ databricks_group_audit/
 
 Every user, service principal, and group in Databricks has an origin: either it was created directly inside Databricks (*Databricks-managed / internal*) or it was provisioned by an external identity provider via SCIM (*IdP-synced / external*).
 
-The tool reads the SCIM `externalId` field - the standard SCIM indicator for IdP-provisioned principals - and tags every member accordingly.
+The tool reads the SCIM `externalId` field — the standard SCIM indicator for IdP-provisioned principals — and tags every member accordingly.
 
 | Source | Indicator | Examples |
 |---|---|---|
@@ -545,10 +566,9 @@ JSON output adds `"source": "external"/"internal"` to each group in the `groups`
 
 ### Why this matters
 
-* **Shadow accounts**: Internal (Databricks-managed) users that don't correspond to any IdP identity may be orphaned service accounts, test accounts, or users who bypassed the provisioning process.
-* **IdP off-boarding gaps**: If an IdP user was removed from the IdP but their Databricks account wasn't deprovisioned, they'll appear as `internal` (no longer externally managed).
-* **Compliance**: Many security policies require that all human users be provisioned through the corporate IdP. Internal users are exceptions that need justification.
-* **Migration readiness**: Accounts mid-migration to Unity Catalog need all groups to be `external` (account-level, IdP-managed) - `internal` groups are candidates for migration.
+- **Shadow accounts:** Internal (Databricks-managed) users that don't correspond to any IdP identity may be orphaned service accounts, test accounts, or users who bypassed the provisioning process.
+- **Off-boarding gaps:** If an IdP user was removed from the IdP but their Databricks account wasn't deprovisioned, they'll appear as `internal` (no longer externally managed) — exactly the accounts that matter during an access review.
+- **Compliance:** Many security policies require that all human users be provisioned through the corporate IdP. Internal users are exceptions that need justification.
 
 ### Python API
 
@@ -567,12 +587,12 @@ print(f"{len(external)} IdP-synced, {len(internal)} Databricks-managed")
 
 ## Privilege Escalation Detection
 
-The `--escalation-check` flag adds a security pass to the principal audit.  After collecting all effective permissions it flags any grant that contains `ALL_PRIVILEGES` or `MANAGE` - the two privileges that represent meaningful escalation vectors in Unity Catalog:
+The `--escalation-check` flag adds a security pass to the principal audit. After collecting all effective permissions it flags any grant that contains `ALL_PRIVILEGES` or `MANAGE` — the two privileges that represent meaningful escalation vectors in Unity Catalog:
 
 | Privilege | Risk |
 |---|---|
 | `ALL_PRIVILEGES` | Grants unrestricted read/write/admin access to the securable and everything beneath it |
-| `MANAGE` | Grants the ability to add and remove grants on the securable - can be used to self-escalate or escalate other principals |
+| `MANAGE` | Grants the ability to add and remove grants on the securable — can be used to self-escalate or escalate other principals |
 
 ```bash
 databricks-group-audit --principal "alice@example.com" --cloud azure --escalation-check
@@ -587,17 +607,17 @@ Output (text):
 
 Output (JSON) adds an `"escalation_findings"` array to the principal audit result.
 
-**What it does not cover:** workspace-level admin roles (`WORKSPACE_ADMIN`) are already visible in the workspace roles section.  Databricks account-level admin is out of scope for the Unity Catalog scan.
+**What it does not cover:** workspace-level admin roles (`WORKSPACE_ADMIN`) are already visible in the workspace roles section. Databricks account-level admin is out of scope for the Unity Catalog scan.
 
 ## Stale Grant Detection
 
-The `--stale-days N` flag cross-references current member-direct catalog grants against `system.access.audit` - the Unity Catalog system table that records every API call, SQL command, and data-access event.  Any grant holder with no recorded activity in the last N days is flagged as potentially stale.
+The `--stale-days N` flag cross-references current member-direct catalog grants against `system.access.audit` — the Unity Catalog system table that records every API call, SQL command, and data-access event. Any grant holder with no recorded activity in the last N days is flagged as potentially stale.
 
 ### Prerequisites
 
-* System tables must be enabled for the account (the `system` catalog must be visible in the metastore).
-* The audit SP must have `SELECT` on `system.access.audit` (requires Metastore Admin or explicit grant).
-* A **SQL warehouse** with access to the system catalog must be available.
+- System tables must be enabled for the account (the `system` catalog must be visible in the metastore).
+- The audit SP must have `SELECT` on `system.access.audit` (requires Metastore Admin or explicit grant).
+- A **SQL warehouse** with access to the system catalog must be available.
 
 ### Usage
 
@@ -628,7 +648,7 @@ Grant holders absent from this result (no activity in the window) are returned a
 
 The `--check-local-groups` flag scans every workspace's SCIM directory and flags groups that exist **only at the workspace level**, absent from the account-level SCIM directory.
 
-Workspace-local groups are a legacy artefact from before Unity Catalog.  Databricks is deprecating them: they cannot hold Unity Catalog grants, are not visible to the Account API, and are not migrated automatically.  Every customer in the middle of a Unity Catalog migration needs to identify and recreate these groups at the account level.
+Workspace-local groups are a legacy artefact from before Unity Catalog. They cannot hold Unity Catalog grants, are not visible to the Account API, and are invisible to account-level SCIM tooling. If your account still has workspace-local groups, they will not appear in group audit results — this flag helps you find them.
 
 ```bash
 databricks-group-audit --group "data-engineers" --cloud azure --check-local-groups
@@ -655,7 +675,7 @@ for f in findings:
 
 ## CSV Output
 
-Pass `--output csv` to get audit results as comma-separated values - the format auditors and security leads need to share findings with people who won't run a CLI themselves.
+Pass `--output csv` to get audit results as comma-separated values — the format auditors and security leads need to share findings with people who won't run a CLI themselves.
 
 ```bash
 # Group audit - export all grants to a spreadsheet
@@ -668,21 +688,21 @@ databricks-group-audit --principal "alice@example.com" --cloud azure \
 ```
 
 **Group audit CSV** contains up to three sections:
-- **Grants table** - one row per grant (catalog, schema, or table level) with columns: `securable_type`, `workspace`, `securable_name`, `principal`, `principal_type`, `privileges` (pipe-separated), `grant_source`, `inherited_from`.
-- **Redundancy table** (appended after a blank row when redundancies are found) - one row per redundant personal grant with `redundancy_level` and `recommendation`.
-- **Workspace objects table** (appended when `--scan-workspace-objects` is used) - one row per workspace ACL grant with `object_type`, `object_id`, `object_name`, `workspace`, `principal`, `permission_level`, `grant_source`.
+- **Grants table** — one row per grant (catalog, schema, or table level) with columns: `securable_type`, `workspace`, `securable_name`, `principal`, `principal_type`, `privileges` (pipe-separated), `grant_source`, `inherited_from`.
+- **Redundancy table** (appended after a blank row when redundancies are found) — one row per redundant personal grant with `redundancy_level` and `recommendation`.
+- **Workspace objects table** (appended when `--scan-workspace-objects` is used) — one row per workspace ACL grant with `object_type`, `object_id`, `object_name`, `workspace`, `principal`, `permission_level`, `grant_source`.
 
 **Principal audit CSV** contains:
-- **Permissions table** - one row per effective Unity Catalog permission with `securable_type`, `securable_name`, `privileges`, `via_group`, `workspace`.
-- **Escalation table** (appended when `--escalation-check` is used) - one row per escalation risk.
+- **Permissions table** — one row per effective Unity Catalog permission with `securable_type`, `securable_name`, `privileges`, `via_group`, `workspace`.
+- **Escalation table** (appended when `--escalation-check` is used) — one row per escalation risk.
 
-Combine with other flags - `--scan-schemas --scan-tables` expands scope before export, `--escalation-check` adds the escalation section to a principal audit CSV.
+Combine with other flags — `--scan-schemas --scan-tables` expands scope before export, `--escalation-check` adds the escalation section to a principal audit CSV.
 
 ---
 
 ## Diff / Delta Mode
 
-Every audit run can save a timestamped JSON snapshot to disk.  Pass a previous snapshot as `--baseline` and the tool reports exactly what changed: new grants, removed grants, new or removed group members.
+Every audit run can save a timestamped JSON snapshot to disk. Pass a previous snapshot as `--baseline` and the tool reports exactly what changed: new grants, removed grants, new or removed group members.
 
 This is the SOC 2 / ISO 27001 evidence workflow: *"Prove permissions haven't drifted since the last quarterly review."*
 
@@ -720,11 +740,11 @@ When nothing has changed:
   No changes detected.
 ```
 
-**Snapshot format:** plain JSON, human-readable without this library.  Snapshots are versioned (`"version": "1"`) and safe to store in version control alongside other compliance artefacts.
+**Snapshot format:** plain JSON, human-readable without this library. Snapshots are versioned (`"version": "1"`) and safe to store in version control alongside other compliance artefacts.
 
 **Change detection rules:**
-- A grant is "added" or "removed" based on a full-field fingerprint - any field change (including privilege modifications) is reported as a removal and addition pair, making every change explicit.
-- Member identity is tracked by ID and type only - display-name changes are not flagged as membership churn.
+- A grant is "added" or "removed" based on a full-field fingerprint — any field change (including privilege modifications) is reported as a removal and addition pair, making every change explicit.
+- Member identity is tracked by ID and type only — display-name changes are not flagged as membership churn.
 
 `--output csv` and `--baseline` compose: `--output csv --baseline previous.json` exports the diff as CSV, one row per change, for import into a spreadsheet or SIEM.
 
@@ -779,20 +799,21 @@ WHERE grantee = 'data-engineers';
 
 Use this tool when you need what `INFORMATION_SCHEMA` does not provide:
 
-- **Cross-workspace aggregation** - scan all workspaces from a single entry point
-- **Recursive group membership resolution** - nested groups, users, and SPs via SCIM
-- **Upstream group detection** - grants inherited through ancestor groups
-- **Redundancy detection** - personal grants that duplicate what the group already provides
-- **REVOKE script generation** - automated cleanup recommendations
-- **Principal reverse lookup** - map any identity to all accessible resources across the account
+- **Cross-workspace aggregation** — scan all workspaces from a single entry point
+- **Recursive group membership resolution** — nested groups, users, and SPs via SCIM
+- **Upstream group detection** — grants inherited through ancestor groups
+- **Redundancy detection** — personal grants that duplicate what the group already provides
+- **REVOKE script generation** — automated cleanup recommendations
+- **Principal reverse lookup** — map any identity to all accessible resources across the account
 
 ## Known Limitations
 
-- **Workspace object scanning is opt-in.** `--scan-workspace-objects` covers 13 object types: jobs, clusters, cluster policies, DLT pipelines, SQL warehouses, SQL queries, SQL alerts, Lakeview dashboards, Genie spaces, MLflow experiments, registered models (workspace registry), model serving endpoints, and Databricks Apps. Notebook ACLs are not covered — listing them requires recursively walking the workspace file tree (unbounded API calls). Remediation requires the Databricks permissions REST API, not SQL.
-- **Account-level SCIM groups only.** Workspace-local groups are not distinguished from account-level groups. If your account still has workspace-local groups that haven't been migrated, results for those groups may be incomplete.
+- **Unity Catalog only.** The tool reads grants via the UC permission API and workspace object ACLs via the permissions REST API. Hive Metastore permissions and workspace-local table ACLs are not scanned.
+- **Workspace object scanning is opt-in.** `--scan-workspace-objects` covers 13 object types: jobs, clusters, cluster policies, DLT pipelines, SQL warehouses, SQL queries, SQL alerts, Lakeview dashboards, Genie spaces, MLflow experiments, registered models (workspace registry), model serving endpoints, and Databricks Apps. Notebook ACLs are not covered — listing them requires recursively walking the workspace file tree (unbounded API calls).
 - **Redundancy detection is catalog-level.** Schema and table grants are reported but not included in the redundancy/REVOKE analysis.
 - **Stale detection is account-wide, not per-catalog.** `system.access.audit` does not always record per-catalog or per-object access; the stale check flags principals with no *any* recorded activity, which is a conservative but imprecise signal.
 - **Escalation detection covers UC privileges only.** `WORKSPACE_ADMIN` escalation through group membership is visible in the workspace roles section but not scored as an escalation finding.
+- **Identity-federation workspace limitation.** `/workspaces/{id}/permissionassignments` only returns explicit assignments. Principals who access a workspace solely through a built-in group like "account users" (no explicit assignment) will show no workspace roles, but the tool still scans their workspace object permissions using all discovered workspaces as a fallback.
 
 ## Multi-Cloud Support
 
@@ -824,8 +845,8 @@ pytest tests/test_redundancy.py::test_full_redundancy
 ruff check .
 ```
 
-Tests use the `responses` library for HTTP mocking - no real Databricks connection is required.
+Tests use the `responses` library for HTTP mocking — no real Databricks connection is required.
 
 ## License
 
-Apache 2.0 - see [LICENSE](LICENSE).
+Apache 2.0 — see [LICENSE](LICENSE).
