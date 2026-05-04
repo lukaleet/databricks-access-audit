@@ -33,7 +33,7 @@ The tool audits Databricks group membership and Unity Catalog permissions across
 
 ### Client layer
 
-`client.py` defines the `AuditClient` structural Protocol — both backends must satisfy it. `DatabricksAPIClient` (raw HTTP, zero extra deps beyond `requests`) handles OAuth client-credentials with per-host token caches, exponential-backoff retry on 429/5xx, and manual SCIM pagination. `sdk_client.py` wraps `databricks-sdk` for automatic auth/pagination/retries and is only imported when the package is installed. `create_client()` is the factory used everywhere — it returns the SDK client when available, raw HTTP otherwise. Pass `prefer_sdk=False` or `--no-sdk` to force raw HTTP.
+`client.py` defines the `AuditClient` structural Protocol — both backends must satisfy it. `DatabricksAPIClient` (raw HTTP, zero extra deps beyond `requests`) handles OAuth client-credentials with per-host token caches, exponential-backoff retry on 429/5xx, and manual SCIM pagination. `sdk_client.py` wraps `databricks-sdk` for automatic auth/pagination/retries and is only imported when the package is installed. `create_client()` is the factory used everywhere — it returns the SDK client when available, raw HTTP otherwise. Pass `prefer_sdk=False` or `--no-sdk` to force raw HTTP. `config.py` handles credential resolution from `~/.databrickscfg` profiles (`load_profile()`) and cloud auto-detection from account host (`cloud_from_host()`); called by `_resolve_credentials()` in `cli.py` before the client is created.
 
 ### Data flow — group audit
 

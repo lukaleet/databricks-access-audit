@@ -199,6 +199,9 @@ Credentials (or set via env vars):
   --client-id          DATABRICKS_CLIENT_ID
   --client-secret      DATABRICKS_CLIENT_SECRET
   --account-id         DATABRICKS_ACCOUNT_ID
+  --profile NAME       ~/.databrickscfg profile to use when credentials are not
+                       supplied via flags or env vars
+                       (env: DATABRICKS_CONFIG_PROFILE, default: DEFAULT)
 
 Target (mutually exclusive):
   --group NAME         Display name of the group to audit
@@ -563,6 +566,7 @@ databricks_access_audit/
 ├── stale_checker.py       # Stale grant detection via system.access.audit SQL
 ├── local_groups.py        # Workspace-local (legacy) SCIM group detection
 ├── workspace_object_scanner.py  # Workspace-level ACL scanning (13 types)
+├── config.py              # Profile loading from ~/.databrickscfg and cloud auto-detection
 ├── csv_output.py          # CSV serialisation for group and principal audit results
 └── snapshot.py            # Snapshot build/save/load and delta comparison
 ```
