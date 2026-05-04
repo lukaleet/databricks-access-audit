@@ -1,0 +1,186 @@
+"""Shared test fixtures with mocked SCIM and Unity Catalog API responses."""
+
+import pytest
+import responses
+
+ACCOUNT_HOST = "https://accounts.azuredatabricks.net"
+ACCOUNT_ID = "test-account-id"
+WORKSPACE_HOST = "https://test-workspace.azuredatabricks.net"
+
+
+# ---------------------------------------------------------------------------
+# SCIM mock data
+# ---------------------------------------------------------------------------
+
+SCIM_GROUP_DATA_ENGINEERS = {
+    "id": "group-1",
+    "displayName": "data-engineers",
+    "members": [
+        {"value": "user-1", "display": "Alice", "$ref": "Users/user-1"},
+        {"value": "user-2", "display": "Bob", "$ref": "Users/user-2"},
+        {"value": "sp-1", "display": "ETL-Bot", "$ref": "ServicePrincipals/sp-1"},
+        {"value": "group-2", "display": "data-analysts", "$ref": "Groups/group-2"},
+    ],
+}
+
+SCIM_GROUP_DATA_ANALYSTS = {
+    "id": "group-2",
+    "displayName": "data-analysts",
+    "members": [
+        {"value": "user-3", "display": "Charlie", "$ref": "Users/user-3"},
+    ],
+}
+
+SCIM_GROUP_PARENT = {
+    "id": "group-parent",
+    "displayName": "all-data-team",
+    "members": [
+        {"value": "group-1", "display": "data-engineers", "$ref": "Groups/group-1"},
+    ],
+}
+
+# Grandparent: org-all contains all-data-team (which contains data-engineers)
+SCIM_GROUP_GRANDPARENT = {
+    "id": "group-grandparent",
+    "displayName": "org-all",
+    "members": [
+        {"value": "group-parent", "display": "all-data-team", "$ref": "Groups/group-parent"},
+    ],
+}
+
+SCIM_USER_ALICE = {
+    "id": "user-1", "displayName": "Alice Smith",
+    "emails": [{"value": "alice@example.com"}],
+}
+SCIM_USER_BOB = {
+    "id": "user-2", "displayName": "Bob Jones",
+    "emails": [{"value": "bob@example.com"}],
+}
+SCIM_USER_CHARLIE = {
+    "id": "user-3", "displayName": "Charlie Brown",
+    "emails": [{"value": "charlie@example.com"}],
+}
+SCIM_SP_ETL = {
+    "id": "sp-1", "displayName": "ETL-Bot", "applicationId": "app-etl-001",
+}
+
+ALL_GROUPS = [
+    SCIM_GROUP_DATA_ENGINEERS, SCIM_GROUP_DATA_ANALYSTS,
+    SCIM_GROUP_PARENT, SCIM_GROUP_GRANDPARENT,
+]
+
+
+# ---------------------------------------------------------------------------
+# Unity Catalog mock data
+# ---------------------------------------------------------------------------
+
+CATALOGS_RESPONSE = {
+    "catalogs": [
+        {"name": "main"},
+        {"name": "staging"},
+    ]
+}
+
+MAIN_CATALOG_GRANTS = {
+    "privilege_assignments": [
+        {"principal": "data-engineers", "privileges": ["USE_CATALOG", "SELECT"]},
+        {"principal": "all-data-team", "privileges": ["ALL_PRIVILEGES"]},
+        {"principal": "alice@example.com", "privileges": ["USE_CATALOG", "SELECT"]},
+    ]
+}
+
+STAGING_CATALOG_GRANTS = {
+    "privilege_assignments": [
+        {"principal": "bob@example.com", "privileges": ["MODIFY"]},
+    ]
+}
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def mock_client():
+    """Return a DatabricksAPIClient pointed at mocked endpoints."""
+    from databricks_access_audit.client import DatabricksAPIClient
+    return DatabricksAPIClient(
+        client_id="test-id",
+        client_secret="test-secret",
+        account_id=ACCOUNT_ID,
+        account_host=ACCOUNT_HOST,
+    )
+
+
+ALL_USERS = [SCIM_USER_ALICE, SCIM_USER_BOB, SCIM_USER_CHARLIE]
+ALL_SPS = [SCIM_SP_ETL]
+
+
+@pytest.fixture
+def mock_scim(mock_client):
+    """Activate responses mock with SCIM endpoints pre-loaded.
+
+    Uses assert_all_requests_are_fired=False because shared fixtures register
+    more endpoints than any single test exercises — some tests only call
+    get_groups_containing_target (bulk SCIM) and never touch per-id routes.
+    """
+    with responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        base = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
+
+        # Token endpoints — account uses account-scoped path
+        rsps.add(
+            responses.POST,
+            f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
+            json={"access_token": "mock-token", "expires_in": 3600},
+        )
+
+        # Paginated group list — used by scim_list_all("Groups") and
+        # by group_resolver._get_group_by_name (filter queries hit this too)
+        rsps.add(responses.GET, f"{base}/scim/v2/Groups",
+                 json={"Resources": ALL_GROUPS, "totalResults": len(ALL_GROUPS),
+                       "itemsPerPage": 100})
+
+        # Individual group lookups — used by _resolve_recursive via _get_group_by_id
+        for g in ALL_GROUPS:
+            rsps.add(responses.GET, f"{base}/scim/v2/Groups/{g['id']}", json=g)
+
+        # Paginated users list — used by _prefetch_users_and_sps
+        rsps.add(responses.GET, f"{base}/scim/v2/Users",
+                 json={"Resources": ALL_USERS, "totalResults": len(ALL_USERS),
+                       "itemsPerPage": 100})
+
+        # Individual user lookups — fallback when cache miss
+        for u in ALL_USERS:
+            rsps.add(responses.GET, f"{base}/scim/v2/Users/{u['id']}", json=u)
+
+        # Paginated SP list — used by _prefetch_users_and_sps
+        rsps.add(responses.GET, f"{base}/scim/v2/ServicePrincipals",
+                 json={"Resources": ALL_SPS, "totalResults": len(ALL_SPS),
+                       "itemsPerPage": 100})
+
+        # Individual SP lookups — fallback when cache miss
+        rsps.add(responses.GET, f"{base}/scim/v2/ServicePrincipals/sp-1", json=SCIM_SP_ETL)
+
+        yield rsps, mock_client
+
+
+@pytest.fixture
+def mock_uc(mock_scim):
+    """Extend SCIM mock with Unity Catalog workspace endpoints."""
+    rsps, client = mock_scim
+
+    # Workspace token
+    rsps.add(responses.POST, f"{WORKSPACE_HOST}/oidc/v1/token",
+             json={"access_token": "ws-token", "expires_in": 3600})
+
+    # Catalogs
+    rsps.add(responses.GET, f"{WORKSPACE_HOST}/api/2.1/unity-catalog/catalogs",
+             json=CATALOGS_RESPONSE)
+
+    # Catalog grants
+    rsps.add(responses.GET, f"{WORKSPACE_HOST}/api/2.1/unity-catalog/permissions/catalog/main",
+             json=MAIN_CATALOG_GRANTS)
+    rsps.add(responses.GET, f"{WORKSPACE_HOST}/api/2.1/unity-catalog/permissions/catalog/staging",
+             json=STAGING_CATALOG_GRANTS)
+
+    yield rsps, client

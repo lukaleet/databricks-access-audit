@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "databricks-access-audit"
+version = "0.18.1"
+description = "Cross-workspace access visibility for Databricks — audit who can reach what across every workspace in your account."
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Lukasz Maron"},
+]
+keywords = ["databricks", "unity-catalog", "scim", "audit", "permissions", "security", "principal",
+            "compliance", "soc2", "escalation", "identity", "snapshot", "diff",
+            "access-review", "offboarding", "governance", "workspace"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: System :: Systems Administration",
+]
+dependencies = [
+    "requests>=2.28",
+]
+
+[project.optional-dependencies]
+sdk = [
+    "databricks-sdk>=0.20.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "responses>=0.23",
+    "ruff",
+]
+notebook = [
+    "pyspark>=3.4",
+]
+all = [
+    "databricks-access-audit[sdk,dev,notebook]",
+]
+
+[project.scripts]
+databricks-access-audit = "databricks_access_audit.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/lukaleet/databricks-access-audit"
+Issues = "https://github.com/lukaleet/databricks-access-audit/issues"
+Changelog = "https://github.com/lukaleet/databricks-access-audit/blob/main/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+include = ["databricks_access_audit*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+exclude = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

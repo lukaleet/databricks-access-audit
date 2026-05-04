@@ -1,0 +1,635 @@
+"""Tests for DatabricksSDKClient adapter layer.
+
+All SDK objects are patched with MagicMock so no real network calls are made.
+Each test verifies that the adapter correctly translates between the raw
+dict-based protocol used by scanners/resolvers and the typed SDK API.
+"""
+
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from databricks_access_audit.sdk_client import SDK_AVAILABLE, DatabricksSDKClient
+
+pytestmark = pytest.mark.skipif(not SDK_AVAILABLE, reason="databricks-sdk not installed")
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _sdk_obj(**kwargs):
+    """Minimal stand-in for an SDK dataclass that has as_dict()."""
+    obj = MagicMock()
+    obj.as_dict.return_value = kwargs
+    return obj
+
+
+def _make_client() -> tuple[DatabricksSDKClient, MagicMock, MagicMock]:
+    """Return (client, mock_account, mock_ws_client)."""
+    with patch("databricks_access_audit.sdk_client.AccountClient") as MockAC:
+        mock_account = MagicMock()
+        MockAC.return_value = mock_account
+        client = DatabricksSDKClient(
+            client_id="cid",
+            client_secret="secret",
+            account_id="acct-1",
+            account_host="https://accounts.azuredatabricks.net",
+        )
+
+    mock_ws = MagicMock()
+    client._workspace_clients["https://ws.azuredatabricks.net"] = mock_ws
+    return client, mock_account, mock_ws
+
+
+# ---------------------------------------------------------------------------
+# account_api — SCIM Groups
+# ---------------------------------------------------------------------------
+
+def test_account_api_groups_list():
+    client, acct, _ = _make_client()
+    acct.api_client.do.return_value = {
+        "Resources": [{"id": "g1", "displayName": "engineers"}],
+        "totalResults": 1,
+    }
+
+    resp = client.account_api("GET", "/scim/v2/Groups")
+
+    acct.api_client.do.assert_called_once_with(
+        "GET",
+        "/api/2.0/accounts/acct-1/scim/v2/Groups",
+        query={"count": 100},
+    )
+    assert resp["Resources"][0]["id"] == "g1"
+    assert resp["totalResults"] == 1
+
+
+def test_account_api_groups_list_with_filter():
+    client, acct, _ = _make_client()
+    acct.api_client.do.return_value = {"Resources": [], "totalResults": 0}
+    client.account_api("GET", "/scim/v2/Groups", params={"filter": 'displayName eq "eng"'})
+    acct.api_client.do.assert_called_once_with(
+        "GET",
+        "/api/2.0/accounts/acct-1/scim/v2/Groups",
+        query={"count": 100, "filter": 'displayName eq "eng"'},
+    )
+
+
+def test_account_api_group_by_id():
+    client, acct, _ = _make_client()
+    g = _sdk_obj(id="g42", displayName="admins")
+    acct.groups.get.return_value = g
+
+    resp = client.account_api("GET", "/scim/v2/Groups/g42")
+
+    acct.groups.get.assert_called_once_with("g42")
+    assert resp["id"] == "g42"
+
+
+# ---------------------------------------------------------------------------
+# account_api — SCIM Users
+# ---------------------------------------------------------------------------
+
+def test_account_api_users_list():
+    client, acct, _ = _make_client()
+    u = _sdk_obj(id="u1", displayName="Alice", emails=[{"value": "alice@example.com"}])
+    acct.users.list.return_value = [u]
+
+    resp = client.account_api("GET", "/scim/v2/Users")
+    assert resp["Resources"][0]["id"] == "u1"
+
+
+def test_account_api_user_by_id():
+    client, acct, _ = _make_client()
+    acct.users.get.return_value = _sdk_obj(id="u99")
+
+    resp = client.account_api("GET", "/scim/v2/Users/u99")
+    acct.users.get.assert_called_once_with("u99")
+    assert resp["id"] == "u99"
+
+
+# ---------------------------------------------------------------------------
+# account_api — SCIM ServicePrincipals
+# ---------------------------------------------------------------------------
+
+def test_account_api_sps_list():
+    client, acct, _ = _make_client()
+    sp = _sdk_obj(id="sp1", displayName="ETL-Bot", applicationId="app-001")
+    acct.service_principals.list.return_value = [sp]
+
+    resp = client.account_api("GET", "/scim/v2/ServicePrincipals")
+    assert resp["Resources"][0]["displayName"] == "ETL-Bot"
+
+
+def test_account_api_sp_by_id():
+    client, acct, _ = _make_client()
+    acct.service_principals.get.return_value = _sdk_obj(id="sp7")
+
+    client.account_api("GET", "/scim/v2/ServicePrincipals/sp7")
+    acct.service_principals.get.assert_called_once_with("sp7")
+
+
+# ---------------------------------------------------------------------------
+# account_api — Workspaces
+# ---------------------------------------------------------------------------
+
+def test_account_api_workspaces_list():
+    client, acct, _ = _make_client()
+    acct.workspaces.list.return_value = [
+        _sdk_obj(workspace_id=111, workspace_name="ws-a", workspace_status="RUNNING"),
+    ]
+
+    resp = client.account_api("GET", "/workspaces")
+    assert isinstance(resp, list)
+    assert resp[0]["workspace_id"] == 111
+
+
+# ---------------------------------------------------------------------------
+# account_api — Permission Assignments
+# ---------------------------------------------------------------------------
+
+def test_account_api_permission_assignments():
+    client, acct, _ = _make_client()
+    pa = _sdk_obj(principal={"display_name": "eng"}, permissions=["CAN_USE"])
+    acct.workspace_assignment.list.return_value = [pa]
+
+    resp = client.account_api("GET", "/workspaces/12345/permissionassignments")
+    acct.workspace_assignment.list.assert_called_once_with(12345)
+    assert len(resp["permission_assignments"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# account_api — unknown endpoint falls back to raw HTTP
+# ---------------------------------------------------------------------------
+
+def test_account_api_unknown_endpoint_falls_back():
+    client, acct, _ = _make_client()
+    acct.api_client.do.return_value = {"result": "ok"}
+
+    resp = client.account_api("GET", "/some/custom/endpoint")
+    acct.api_client.do.assert_called_once()
+    assert resp == {"result": "ok"}
+
+
+def test_account_api_fallback_non_dict_returns_empty():
+    client, acct, _ = _make_client()
+    acct.api_client.do.return_value = "unexpected string"
+
+    resp = client.account_api("GET", "/weird")
+    assert resp == {}
+
+
+# ---------------------------------------------------------------------------
+# workspace_api — Unity Catalog catalogs
+# ---------------------------------------------------------------------------
+
+def test_workspace_api_catalogs():
+    client, _, ws = _make_client()
+    ws.catalogs.list.return_value = [
+        _sdk_obj(name="main"), _sdk_obj(name="staging"),
+    ]
+
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.1/unity-catalog/catalogs",
+    )
+    cats = [c["name"] for c in resp["catalogs"]]
+    assert cats == ["main", "staging"]
+
+
+# ---------------------------------------------------------------------------
+# workspace_api — catalog grants
+# ---------------------------------------------------------------------------
+
+def test_workspace_api_catalog_grants():
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {
+        "privilege_assignments": [{"principal": "data-engineers", "privileges": ["USE_CATALOG"]}]
+    }
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.1/unity-catalog/permissions/catalog/main",
+    )
+    assert len(resp["privilege_assignments"]) == 1
+    assert resp["privilege_assignments"][0]["principal"] == "data-engineers"
+    ws.api_client.do.assert_called_once_with(
+        "GET", "/api/2.1/unity-catalog/permissions/catalog/main"
+    )
+
+
+def test_workspace_api_catalog_grants_null_assignments():
+    """Non-dict response from api_client.do (e.g. SDK quirk) returns {}."""
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = "unexpected string"
+
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.1/unity-catalog/permissions/catalog/main",
+    )
+    assert resp == {}
+
+
+# ---------------------------------------------------------------------------
+# workspace_api — schemas
+# ---------------------------------------------------------------------------
+
+def test_workspace_api_schemas():
+    client, _, ws = _make_client()
+    ws.schemas.list.return_value = [_sdk_obj(name="bronze")]
+
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.1/unity-catalog/schemas",
+        params={"catalog_name": "main"},
+    )
+    ws.schemas.list.assert_called_once_with(catalog_name="main")
+    assert resp["schemas"][0]["name"] == "bronze"
+
+
+# ---------------------------------------------------------------------------
+# workspace_api — schema grants
+# ---------------------------------------------------------------------------
+
+def test_workspace_api_schema_grants():
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {
+        "privilege_assignments": [{"principal": "data-engineers", "privileges": ["USE_SCHEMA"]}]
+    }
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.1/unity-catalog/permissions/schema/main.bronze",
+    )
+    assert resp["privilege_assignments"][0]["privileges"] == ["USE_SCHEMA"]
+    ws.api_client.do.assert_called_once_with(
+        "GET", "/api/2.1/unity-catalog/permissions/schema/main.bronze"
+    )
+
+
+# ---------------------------------------------------------------------------
+# workspace_api — tables
+# ---------------------------------------------------------------------------
+
+def test_workspace_api_tables():
+    client, _, ws = _make_client()
+    ws.tables.list.return_value = [_sdk_obj(name="events", table_type="MANAGED")]
+
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.1/unity-catalog/tables",
+        params={"catalog_name": "main", "schema_name": "bronze"},
+    )
+    ws.tables.list.assert_called_once_with(catalog_name="main", schema_name="bronze")
+    assert resp["tables"][0]["name"] == "events"
+
+
+# ---------------------------------------------------------------------------
+# workspace_api — table grants
+# ---------------------------------------------------------------------------
+
+def test_workspace_api_table_grants():
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {
+        "privilege_assignments": [{"principal": "alice@example.com", "privileges": ["SELECT"]}]
+    }
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.1/unity-catalog/permissions/table/main.bronze.events",
+    )
+    assert resp["privilege_assignments"][0]["principal"] == "alice@example.com"
+    ws.api_client.do.assert_called_once_with(
+        "GET", "/api/2.1/unity-catalog/permissions/table/main.bronze.events"
+    )
+
+
+# ---------------------------------------------------------------------------
+# workspace_api — unknown endpoint falls back to raw HTTP
+# ---------------------------------------------------------------------------
+
+def test_workspace_api_unknown_endpoint_falls_back():
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {"custom": "data"}
+
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET", "/api/2.0/some/unknown/endpoint",
+    )
+    ws.api_client.do.assert_called_once()
+    assert resp == {"custom": "data"}
+
+
+# ---------------------------------------------------------------------------
+# workspace_api — workspace object list endpoints
+# ---------------------------------------------------------------------------
+
+def test_workspace_api_jobs_list():
+    client, _, ws = _make_client()
+    ws.jobs.list.return_value = [
+        _sdk_obj(job_id=1, settings={"name": "nightly-etl"}),
+    ]
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET", "/api/2.1/jobs/list",
+    )
+    ws.jobs.list.assert_called_once()
+    assert len(resp["jobs"]) == 1
+    assert resp["jobs"][0]["job_id"] == 1
+
+
+def test_workspace_api_clusters_list():
+    client, _, ws = _make_client()
+    ws.clusters.list.return_value = [
+        _sdk_obj(cluster_id="c-1", cluster_name="shared"),
+    ]
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET", "/api/2.0/clusters/list",
+    )
+    ws.clusters.list.assert_called_once()
+    assert resp["clusters"][0]["cluster_id"] == "c-1"
+
+
+def test_workspace_api_warehouses_list():
+    client, _, ws = _make_client()
+    ws.warehouses.list.return_value = [_sdk_obj(id="wh-1", name="gold")]
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET", "/api/2.0/sql/warehouses",
+    )
+    ws.warehouses.list.assert_called_once()
+    assert resp["warehouses"][0]["id"] == "wh-1"
+
+
+def test_workspace_api_pipelines_list():
+    client, _, ws = _make_client()
+    ws.pipelines.list_pipelines.return_value = [
+        _sdk_obj(pipeline_id="p-1", name="bronze-ingest"),
+    ]
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET", "/api/2.0/pipelines",
+    )
+    ws.pipelines.list_pipelines.assert_called_once()
+    assert resp["statuses"][0]["pipeline_id"] == "p-1"
+
+
+def test_workspace_api_cluster_policies_list():
+    client, _, ws = _make_client()
+    ws.cluster_policies.list.return_value = [_sdk_obj(policy_id="pol-1", name="compute")]
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET", "/api/2.0/policies/clusters/list",
+    )
+    ws.cluster_policies.list.assert_called_once()
+    assert resp["policies"][0]["policy_id"] == "pol-1"
+
+
+# ---------------------------------------------------------------------------
+# workspace_api — workspace object permissions via raw REST
+# ---------------------------------------------------------------------------
+
+def test_workspace_api_job_permissions_uses_raw_rest():
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {
+        "access_control_list": [
+            {"group_name": "data-engineers",
+             "all_permissions": [{"permission_level": "CAN_MANAGE"}]}
+        ]
+    }
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.0/permissions/jobs/123",
+    )
+    ws.api_client.do.assert_called_once_with("GET", "/api/2.0/permissions/jobs/123")
+    assert resp["access_control_list"][0]["group_name"] == "data-engineers"
+
+
+def test_workspace_api_cluster_permissions_uses_raw_rest():
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {"access_control_list": []}
+    client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.0/permissions/clusters/c-1",
+    )
+    ws.api_client.do.assert_called_once_with("GET", "/api/2.0/permissions/clusters/c-1")
+
+
+def test_workspace_api_warehouse_permissions_uses_raw_rest():
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {"access_control_list": []}
+    client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.0/permissions/warehouses/wh-1",
+    )
+    ws.api_client.do.assert_called_once_with("GET", "/api/2.0/permissions/warehouses/wh-1")
+
+
+def test_workspace_api_permissions_non_dict_returns_empty():
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = None
+    resp = client.workspace_api(
+        "https://ws.azuredatabricks.net", "GET",
+        "/api/2.0/permissions/jobs/42",
+    )
+    assert resp == {}
+
+
+# ---------------------------------------------------------------------------
+# scim_list_all
+# ---------------------------------------------------------------------------
+
+def test_scim_list_all_groups():
+    client, acct, _ = _make_client()
+    acct.api_client.do.return_value = {
+        "Resources": [{"id": "g1", "displayName": "eng"}],
+        "totalResults": 1,
+    }
+
+    result = client.scim_list_all("Groups")
+    assert len(result) == 1
+    assert result[0]["id"] == "g1"
+
+
+def test_scim_list_all_users():
+    client, acct, _ = _make_client()
+    acct.users.list.return_value = [_sdk_obj(id="u1")]
+    result = client.scim_list_all("Users")
+    assert result[0]["id"] == "u1"
+
+
+def test_scim_list_all_service_principals():
+    client, acct, _ = _make_client()
+    acct.service_principals.list.return_value = [_sdk_obj(id="sp1")]
+    result = client.scim_list_all("ServicePrincipals")
+    assert result[0]["id"] == "sp1"
+
+
+def test_scim_list_all_unknown_resource_uses_account_api():
+    client, acct, _ = _make_client()
+    acct.api_client.do.return_value = {"Resources": [{"id": "x1"}]}
+
+    result = client.scim_list_all("CustomResource")
+    assert result[0]["id"] == "x1"
+
+
+def test_scim_list_all_with_filter():
+    client, acct, _ = _make_client()
+    acct.api_client.do.return_value = {"Resources": [], "totalResults": 0}
+    client.scim_list_all("Groups", params={"filter": 'displayName eq "eng"'})
+    acct.api_client.do.assert_called_once_with(
+        "GET",
+        "/api/2.0/accounts/acct-1/scim/v2/Groups",
+        query={"count": 100, "filter": 'displayName eq "eng"'},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Method-routing correctness — non-GET must fall through to raw HTTP
+# ---------------------------------------------------------------------------
+
+def test_account_api_post_to_scim_groups_uses_fallback():
+    """POST /scim/v2/Groups must NOT be intercepted by the GET-only list route."""
+    client, acct, _ = _make_client()
+    acct.api_client.do.return_value = {"id": "new-group", "displayName": "created"}
+
+    resp = client.account_api(
+        "POST", "/scim/v2/Groups",
+        json={"displayName": "created", "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"]},
+    )
+
+    # Must reach the raw fallback, NOT groups.list or api_client.do with the list URL+query
+    call_args = acct.api_client.do.call_args
+    assert call_args[0][0] == "POST"
+    assert call_args[0][1] == "/api/2.0/accounts/acct-1/scim/v2/Groups"
+    assert resp["id"] == "new-group"
+
+
+def test_account_api_patch_group_by_id_uses_fallback():
+    """PATCH /scim/v2/Groups/{id} must not be routed to groups.get()."""
+    client, acct, _ = _make_client()
+    acct.api_client.do.return_value = {"id": "g42", "displayName": "updated"}
+
+    resp = client.account_api("PATCH", "/scim/v2/Groups/g42", json={"displayName": "updated"})
+
+    acct.groups.get.assert_not_called()
+    assert resp["displayName"] == "updated"
+
+
+def test_account_api_delete_group_uses_fallback():
+    """DELETE /scim/v2/Groups/{id} must fall through — not silently become a GET."""
+    client, acct, _ = _make_client()
+    acct.api_client.do.return_value = {}
+
+    client.account_api("DELETE", "/scim/v2/Groups/g42")
+
+    acct.groups.get.assert_not_called()
+    call_args = acct.api_client.do.call_args
+    assert call_args[0][0] == "DELETE"
+
+
+def test_workspace_api_patch_catalog_grants_uses_fallback():
+    """PATCH to a catalog-permissions endpoint must not be routed to the GET handler."""
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {"privilege_assignments": []}
+
+    client.workspace_api(
+        "https://ws.azuredatabricks.net",
+        "PATCH",
+        "/api/2.1/unity-catalog/permissions/catalog/main",
+        json={"changes": [{"principal": "eng", "add": ["USE_CATALOG"]}]},
+    )
+
+    call_args = ws.api_client.do.call_args
+    assert call_args[0][0] == "PATCH"
+    assert call_args[0][1] == "/api/2.1/unity-catalog/permissions/catalog/main"
+
+
+def test_workspace_api_patch_schema_grants_uses_fallback():
+    """PATCH to a schema-permissions endpoint must not be routed to the GET handler."""
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {}
+
+    client.workspace_api(
+        "https://ws.azuredatabricks.net",
+        "PATCH",
+        "/api/2.1/unity-catalog/permissions/schema/main.bronze",
+        json={"changes": [{"principal": "eng", "add": ["USE_SCHEMA"]}]},
+    )
+
+    call_args = ws.api_client.do.call_args
+    assert call_args[0][0] == "PATCH"
+
+
+def test_workspace_api_patch_table_grants_uses_fallback():
+    """PATCH to a table-permissions endpoint must not be routed to the GET handler."""
+    client, _, ws = _make_client()
+    ws.api_client.do.return_value = {}
+
+    client.workspace_api(
+        "https://ws.azuredatabricks.net",
+        "PATCH",
+        "/api/2.1/unity-catalog/permissions/table/main.bronze.events",
+        json={"changes": [{"principal": "eng", "add": ["SELECT"]}]},
+    )
+
+    call_args = ws.api_client.do.call_args
+    assert call_args[0][0] == "PATCH"
+
+
+# ---------------------------------------------------------------------------
+# for_cloud factory
+# ---------------------------------------------------------------------------
+
+def test_for_cloud_azure():
+    with patch("databricks_access_audit.sdk_client.AccountClient"):
+        c = DatabricksSDKClient.for_cloud("azure", "cid", "sec", "acct")
+    assert "azuredatabricks.net" in c.account_host
+
+
+def test_for_cloud_aws():
+    with patch("databricks_access_audit.sdk_client.AccountClient"):
+        c = DatabricksSDKClient.for_cloud("aws", "cid", "sec", "acct")
+    assert "accounts.cloud.databricks.com" in c.account_host
+
+
+def test_for_cloud_gcp():
+    with patch("databricks_access_audit.sdk_client.AccountClient"):
+        c = DatabricksSDKClient.for_cloud("gcp", "cid", "sec", "acct")
+    assert "accounts.gcp.databricks.com" in c.account_host
+
+
+# ---------------------------------------------------------------------------
+# _get_ws_client caching
+# ---------------------------------------------------------------------------
+
+def test_ws_client_cached():
+    client, _, _ = _make_client()
+    with patch("databricks_access_audit.sdk_client.WorkspaceClient") as MockWC:
+        MockWC.return_value = MagicMock()
+        ws1 = client._get_ws_client("https://new-ws.azuredatabricks.net")
+        ws2 = client._get_ws_client("https://new-ws.azuredatabricks.net")
+    # WorkspaceClient should only be constructed once
+    assert MockWC.call_count == 1
+    assert ws1 is ws2
+
+
+def test_ws_client_scheme_added():
+    client, _, _ = _make_client()
+    with patch("databricks_access_audit.sdk_client.WorkspaceClient") as MockWC:
+        MockWC.return_value = MagicMock()
+        client._get_ws_client("no-scheme.azuredatabricks.net")
+    call_kwargs = MockWC.call_args[1]
+    assert call_kwargs["host"].startswith("https://")
+
+
+# ---------------------------------------------------------------------------
+# _to_dict
+# ---------------------------------------------------------------------------
+
+def test_to_dict_with_as_dict():
+    obj = MagicMock()
+    obj.as_dict.return_value = {"k": "v"}
+    assert DatabricksSDKClient._to_dict(obj) == {"k": "v"}
+
+
+def test_to_dict_plain_dict():
+    assert DatabricksSDKClient._to_dict({"a": 1}) == {"a": 1}
+
+
+def test_to_dict_unknown_returns_empty():
+    assert DatabricksSDKClient._to_dict(42) == {}
