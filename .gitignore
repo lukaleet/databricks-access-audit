@@ -47,3 +47,6 @@ coverage.xml
 *.env
 databricks.cfg
 .databrickscfg
+
+# Claude Code local settings (may contain credentials from live testing sessions)
+.claude/
