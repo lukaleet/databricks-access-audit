@@ -140,9 +140,9 @@ def test_parse_workspace_urls_extracts_id_azure(discovery):
     """Azure URL encodes workspace ID: adb-<id>.<shard>.azuredatabricks.net."""
     disco, _ = discovery
     result = disco.parse_workspace_urls(
-        "https://adb-2911063737282309.9.azuredatabricks.net"
+        "https://adb-1234567890123456.9.azuredatabricks.net"
     )
-    assert result[0].workspace_id == "2911063737282309"
+    assert result[0].workspace_id == "1234567890123456"
 
 
 def test_parse_workspace_urls_extracts_id_aws(discovery):
