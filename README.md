@@ -90,13 +90,52 @@ The tool ships two interchangeable API backends, selected automatically by `crea
 
 ### Credentials
 
-All three credential flags can be set as environment variables:
+Three methods, evaluated in priority order:
 
+**1. CLI flags** (highest priority)
+```bash
+databricks-access-audit --principal "alice@example.com" \
+  --client-id "your-sp-client-id" \
+  --client-secret "your-sp-secret" \
+  --account-id "your-account-id"
+```
+
+**2. Environment variables**
 ```bash
 export DATABRICKS_CLIENT_ID="your-sp-client-id"
 export DATABRICKS_CLIENT_SECRET="your-sp-secret"
 export DATABRICKS_ACCOUNT_ID="your-account-id"
 ```
+
+**3. `~/.databrickscfg` profile** (lowest priority, fills any gaps left by the above)
+
+Add a section to your `~/.databrickscfg`:
+```ini
+[DEFAULT]
+host        = https://accounts.azuredatabricks.net
+account_id  = xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+client_id   = xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+client_secret = your-sp-secret
+```
+
+Then just run without any credential flags:
+```bash
+# Uses DEFAULT profile, cloud auto-detected from host
+databricks-access-audit --principal "alice@example.com"
+
+# Named profile
+databricks-access-audit --principal "alice@example.com" --profile prod
+```
+
+The `host` field determines `--cloud` automatically:
+
+| `host` | Cloud |
+|---|---|
+| `https://accounts.azuredatabricks.net` | `azure` |
+| `https://accounts.cloud.databricks.com` | `aws` |
+| `https://accounts.gcp.databricks.com` | `gcp` |
+
+You can also set `DATABRICKS_CONFIG_PROFILE` to select a profile without passing `--profile`, and `DATABRICKS_CONFIG_FILE` to point to a non-default config file path.
 
 ### CLI - Principal Audit
 
