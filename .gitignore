@@ -48,5 +48,8 @@ coverage.xml
 databricks.cfg
 .databrickscfg
 
+# MkDocs build output
+site/
+
 # Claude Code local settings (may contain credentials from live testing sessions)
 .claude/
