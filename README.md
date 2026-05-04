@@ -59,16 +59,20 @@ The simplest setup that is guaranteed to work: grant the SP **Account Admin**, a
 
 ## Installation
 
-The package is not yet published to PyPI. Install from source:
+```bash
+# Recommended: includes the Databricks SDK for automatic auth and retries
+pip install "databricks-access-audit[sdk]"
+
+# Core install (raw HTTP client only — no extra dependencies beyond requests)
+pip install databricks-access-audit
+```
+
+### Install from source
 
 ```bash
 git clone https://github.com/lukaleet/databricks-access-audit.git
 cd databricks-access-audit
 
-# Core install (raw HTTP client only - no extra dependencies beyond requests)
-pip install -e .
-
-# Recommended: include the Databricks SDK for automatic auth and retries
 pip install -e ".[sdk]"
 
 # Full development install
@@ -393,11 +397,7 @@ print(RevokeScriptGenerator.generate(redundancy, include_partial=True))
 Import `Databricks Access Audit.ipynb` into your workspace. The first cell installs the package — adjust the path to match your workspace location and run it, then **Run All**.
 
 ```python
-# If the package is cloned into your Databricks workspace:
-%pip install -q "/Workspace/Users/your.name@company.com/databricks-access-audit-tool[sdk]"
-
-# Once published to PyPI:
-# %pip install -q "databricks-access-audit[sdk]"
+%pip install -q "databricks-access-audit[sdk]"
 ```
 
 > Do **not** use `pip install -e` (editable mode) on a Databricks cluster — the cluster's setuptools may not support PEP 660 and editable installs serve no purpose on a cluster where you are not editing the source.
