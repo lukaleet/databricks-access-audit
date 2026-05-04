@@ -2,7 +2,7 @@
 
 > Databricks gives you no native way to answer *"what can this identity access across all my workspaces?"* — this tool does.
 
-[![CI](https://github.com/lukaleet/databricks-access-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/lukaleet/databricks-access-audit/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/lukaleet/databricks-access-audit/ci.yml?branch=main&label=CI)](https://github.com/lukaleet/databricks-access-audit/actions/workflows/ci.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 
