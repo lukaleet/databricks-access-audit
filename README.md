@@ -59,16 +59,20 @@ The simplest setup that is guaranteed to work: grant the SP **Account Admin**, a
 
 ## Installation
 
-The package is not yet published to PyPI. Install from source:
+```bash
+# Recommended: includes the Databricks SDK for automatic auth and retries
+pip install "databricks-access-audit[sdk]"
+
+# Core install (raw HTTP client only — no extra dependencies beyond requests)
+pip install databricks-access-audit
+```
+
+### Install from source
 
 ```bash
 git clone https://github.com/lukaleet/databricks-access-audit.git
 cd databricks-access-audit
 
-# Core install (raw HTTP client only - no extra dependencies beyond requests)
-pip install -e .
-
-# Recommended: include the Databricks SDK for automatic auth and retries
 pip install -e ".[sdk]"
 
 # Full development install
@@ -90,13 +94,52 @@ The tool ships two interchangeable API backends, selected automatically by `crea
 
 ### Credentials
 
-All three credential flags can be set as environment variables:
+Three methods, evaluated in priority order:
 
+**1. CLI flags** (highest priority)
+```bash
+databricks-access-audit --principal "alice@example.com" \
+  --client-id "your-sp-client-id" \
+  --client-secret "your-sp-secret" \
+  --account-id "your-account-id"
+```
+
+**2. Environment variables**
 ```bash
 export DATABRICKS_CLIENT_ID="your-sp-client-id"
 export DATABRICKS_CLIENT_SECRET="your-sp-secret"
 export DATABRICKS_ACCOUNT_ID="your-account-id"
 ```
+
+**3. `~/.databrickscfg` profile** (lowest priority, fills any gaps left by the above)
+
+Add a section to your `~/.databrickscfg`:
+```ini
+[DEFAULT]
+host        = https://accounts.azuredatabricks.net
+account_id  = xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+client_id   = xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+client_secret = your-sp-secret
+```
+
+Then just run without any credential flags:
+```bash
+# Uses DEFAULT profile, cloud auto-detected from host
+databricks-access-audit --principal "alice@example.com"
+
+# Named profile
+databricks-access-audit --principal "alice@example.com" --profile prod
+```
+
+The `host` field determines `--cloud` automatically:
+
+| `host` | Cloud |
+|---|---|
+| `https://accounts.azuredatabricks.net` | `azure` |
+| `https://accounts.cloud.databricks.com` | `aws` |
+| `https://accounts.gcp.databricks.com` | `gcp` |
+
+You can also set `DATABRICKS_CONFIG_PROFILE` to select a profile without passing `--profile`, and `DATABRICKS_CONFIG_FILE` to point to a non-default config file path.
 
 ### CLI - Principal Audit
 
@@ -160,6 +203,9 @@ Credentials (or set via env vars):
   --client-id          DATABRICKS_CLIENT_ID
   --client-secret      DATABRICKS_CLIENT_SECRET
   --account-id         DATABRICKS_ACCOUNT_ID
+  --profile NAME       ~/.databrickscfg profile to use when credentials are not
+                       supplied via flags or env vars
+                       (env: DATABRICKS_CONFIG_PROFILE, default: DEFAULT)
 
 Target (mutually exclusive):
   --group NAME         Display name of the group to audit
@@ -351,11 +397,7 @@ print(RevokeScriptGenerator.generate(redundancy, include_partial=True))
 Import `Databricks Access Audit.ipynb` into your workspace. The first cell installs the package — adjust the path to match your workspace location and run it, then **Run All**.
 
 ```python
-# If the package is cloned into your Databricks workspace:
-%pip install -q "/Workspace/Users/your.name@company.com/databricks-access-audit-tool[sdk]"
-
-# Once published to PyPI:
-# %pip install -q "databricks-access-audit[sdk]"
+%pip install -q "databricks-access-audit[sdk]"
 ```
 
 > Do **not** use `pip install -e` (editable mode) on a Databricks cluster — the cluster's setuptools may not support PEP 660 and editable installs serve no purpose on a cluster where you are not editing the source.
@@ -524,6 +566,7 @@ databricks_access_audit/
 ├── stale_checker.py       # Stale grant detection via system.access.audit SQL
 ├── local_groups.py        # Workspace-local (legacy) SCIM group detection
 ├── workspace_object_scanner.py  # Workspace-level ACL scanning (13 types)
+├── config.py              # Profile loading from ~/.databrickscfg and cloud auto-detection
 ├── csv_output.py          # CSV serialisation for group and principal audit results
 └── snapshot.py            # Snapshot build/save/load and delta comparison
 ```

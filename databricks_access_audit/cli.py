@@ -39,8 +39,17 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
                    help="Service principal secret (env: DATABRICKS_CLIENT_SECRET)")
     p.add_argument("--account-id", default=os.getenv("DATABRICKS_ACCOUNT_ID", ""),
                    help="Databricks account ID (env: DATABRICKS_ACCOUNT_ID)")
-    p.add_argument("--cloud", choices=["azure", "aws", "gcp"], default="azure",
-                   help="Cloud provider (default: azure)")
+    p.add_argument("--cloud", choices=["azure", "aws", "gcp"], default=None,
+                   help="Cloud provider (default: azure, or auto-detected from --profile host)")
+    p.add_argument(
+        "--profile",
+        default=os.getenv("DATABRICKS_CONFIG_PROFILE", "DEFAULT"),
+        metavar="NAME",
+        help=(
+            "~/.databrickscfg profile to use when credentials are not supplied "
+            "via flags or env vars (env: DATABRICKS_CONFIG_PROFILE, default: DEFAULT)"
+        ),
+    )
 
     # Target (mutually exclusive: --group OR --principal)
     target = p.add_mutually_exclusive_group(required=True)
@@ -193,6 +202,26 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     )
 
     return p.parse_args(argv)
+
+
+def _resolve_credentials(args: argparse.Namespace) -> None:
+    """Fill missing credentials from ~/.databrickscfg profile. Mutates args in place.
+
+    Priority: explicit flags / env vars → named profile → cloud auto-detection.
+    """
+    from databricks_access_audit.config import cloud_from_host, load_profile
+
+    if not (args.client_id and args.client_secret and args.account_id):
+        profile = load_profile(args.profile)
+        args.client_id = args.client_id or profile.get("client_id", "")
+        args.client_secret = args.client_secret or profile.get("client_secret", "")
+        args.account_id = args.account_id or profile.get("account_id", "")
+
+        if args.cloud is None and "host" in profile:
+            args.cloud = cloud_from_host(profile["host"])
+
+    if args.cloud is None:
+        args.cloud = "azure"
 
 
 def _build_client(args: argparse.Namespace) -> Any:
@@ -834,10 +863,14 @@ def _run_group_audit(args: argparse.Namespace) -> int:
 
 def main(argv: List[str] | None = None) -> int:
     args = _parse_args(argv)
+    _resolve_credentials(args)
 
     if not args.client_id or not args.client_secret or not args.account_id:
         print(
-            "ERROR: --client-id, --client-secret, and --account-id are required.",
+            "ERROR: credentials are required.  Supply --client-id / --client-secret / "
+            "--account-id (or set DATABRICKS_CLIENT_ID / DATABRICKS_CLIENT_SECRET / "
+            "DATABRICKS_ACCOUNT_ID), or configure a ~/.databrickscfg profile and pass "
+            "--profile NAME.",
             file=sys.stderr,
         )
         return 1

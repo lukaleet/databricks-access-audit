@@ -44,8 +44,11 @@ dev = [
 notebook = [
     "pyspark>=3.4",
 ]
+docs = [
+    "mkdocs-material>=9.0",
+]
 all = [
-    "databricks-access-audit[sdk,dev,notebook]",
+    "databricks-access-audit[sdk,dev,notebook,docs]",
 ]
 
 [project.scripts]

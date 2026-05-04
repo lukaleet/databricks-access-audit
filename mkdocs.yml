@@ -1,0 +1,71 @@
+site_name: databricks-access-audit
+site_description: Cross-workspace access visibility for Databricks — audit who can reach what across every workspace in your account.
+site_url: https://lukaleet.github.io/databricks-access-audit
+repo_url: https://github.com/lukaleet/databricks-access-audit
+repo_name: lukaleet/databricks-access-audit
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Use Cases:
+    - Offboarding: use-cases/offboarding.md
+    - Access Review: use-cases/access-review.md
+    - Incident Response: use-cases/incident-response.md
+    - Compliance Snapshots: use-cases/compliance.md
+  - Reference:
+    - CLI Flags: reference/cli.md
+    - Python API: reference/python-api.md
+    - Output Formats: reference/output-formats.md
+  - How It Works:
+    - Architecture: how-it-works/architecture.md
+    - Grant Classification: how-it-works/grant-classification.md
+    - Azure AD B2B Guests: how-it-works/azure-b2b-guests.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - tables
+  - toc:
+      permalink: true
+  - attr_list
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/lukaleet/databricks-access-audit
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/databricks-access-audit

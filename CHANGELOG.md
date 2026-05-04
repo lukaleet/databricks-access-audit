@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.18.1] - 2026-05-04
+
+### Added
+- **`~/.databrickscfg` profile-based authentication** — credentials are now resolved in priority order: CLI flags → environment variables → `~/.databrickscfg` profile → default `azure` cloud.  New `--profile NAME` flag (env: `DATABRICKS_CONFIG_PROFILE`, default: `DEFAULT`) selects a named profile.  `DATABRICKS_CONFIG_FILE` points to a non-default config file path.
+- **Cloud auto-detection from profile host** — when `--cloud` is not explicitly passed, the cloud provider is inferred from the `host` field in the profile (`accounts.azuredatabricks.net` → `azure`, `accounts.cloud.databricks.com` → `aws`, `accounts.gcp.databricks.com` → `gcp`).  No need to pass `--cloud` on every invocation when using a profile.
+- **New module `config.py`** — `load_profile()` reads named sections from `~/.databrickscfg` (merging `DEFAULT` fallbacks via `configparser`); `cloud_from_host()` maps account host URLs to cloud identifiers.
+- **Improved credential error message** — when credentials are missing, the error now mentions `--profile` and `~/.databrickscfg` as the resolution path.
+- **Package renamed** — `databricks-group-audit` → `databricks-access-audit`; module renamed `databricks_group_audit` → `databricks_access_audit`; CLI command renamed to `databricks-access-audit`.
+
+### Tests
+- 477 tests (up from 451): 14 new tests in `tests/test_config.py` covering `load_profile` and `cloud_from_host`; 12 new integration tests in `tests/test_cli.py` covering `_resolve_credentials`.
+
+---
+
 ## [0.18.0] - 2026-04-30
 
 ### Added

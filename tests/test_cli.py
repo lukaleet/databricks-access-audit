@@ -598,3 +598,87 @@ def test_principal_audit_no_workspace_objects_key_without_flag(capsys):
     out = capsys.readouterr().out
     data = json.loads(out[out.find("{"):])
     assert "workspace_object_permissions" not in data
+
+
+# ---------------------------------------------------------------------------
+# _resolve_credentials — profile-based auth
+# ---------------------------------------------------------------------------
+
+def test_resolve_credentials_from_profile(tmp_path, monkeypatch):
+    """Credentials missing from flags are filled from ~/.databrickscfg profile."""
+    from databricks_access_audit.cli import _resolve_credentials
+
+    cfg = tmp_path / ".databrickscfg"
+    cfg.write_text(
+        "[DEFAULT]\n"
+        "host = https://accounts.azuredatabricks.net\n"
+        "account_id = prof-acc\n"
+        "client_id = prof-cid\n"
+        "client_secret = prof-csc\n"
+    )
+    monkeypatch.setenv("DATABRICKS_CONFIG_FILE", str(cfg))
+
+    args = _parse_args(["--group", "g"])
+    _resolve_credentials(args)
+
+    assert args.client_id == "prof-cid"
+    assert args.client_secret == "prof-csc"
+    assert args.account_id == "prof-acc"
+    assert args.cloud == "azure"
+
+
+def test_resolve_credentials_cloud_auto_detected_from_profile(tmp_path, monkeypatch):
+    """--cloud is auto-detected from the host field when not explicitly passed."""
+    from databricks_access_audit.cli import _resolve_credentials
+
+    cfg = tmp_path / ".databrickscfg"
+    cfg.write_text(
+        "[DEFAULT]\n"
+        "host = https://accounts.cloud.databricks.com\n"
+        "account_id = acc\nclient_id = cid\nclient_secret = csc\n"
+    )
+    monkeypatch.setenv("DATABRICKS_CONFIG_FILE", str(cfg))
+
+    args = _parse_args(["--group", "g"])
+    _resolve_credentials(args)
+
+    assert args.cloud == "aws"
+
+
+def test_resolve_credentials_explicit_flag_takes_priority(tmp_path, monkeypatch):
+    """Explicit CLI flags override profile values."""
+    from databricks_access_audit.cli import _resolve_credentials
+
+    cfg = tmp_path / ".databrickscfg"
+    cfg.write_text(
+        "[DEFAULT]\nclient_id = prof-cid\nclient_secret = prof-csc\naccount_id = prof-acc\n"
+    )
+    monkeypatch.setenv("DATABRICKS_CONFIG_FILE", str(cfg))
+
+    args = _parse_args(["--group", "g", "--client-id", "explicit-cid",
+                        "--client-secret", "explicit-csc", "--account-id", "explicit-acc"])
+    _resolve_credentials(args)
+
+    assert args.client_id == "explicit-cid"
+    assert args.client_secret == "explicit-csc"
+    assert args.account_id == "explicit-acc"
+
+
+def test_resolve_credentials_cloud_default_azure_when_no_profile(monkeypatch):
+    """Falls back to azure when --cloud is not set and no profile host exists."""
+    from databricks_access_audit.cli import _resolve_credentials
+
+    monkeypatch.setenv("DATABRICKS_CONFIG_FILE", "/nonexistent/.databrickscfg")
+    args = _parse_args(["--group", "g", "--client-id", "cid",
+                        "--client-secret", "csc", "--account-id", "acc"])
+    _resolve_credentials(args)
+
+    assert args.cloud == "azure"
+
+
+def test_missing_credentials_error_message_mentions_profile(capsys, monkeypatch):
+    """Error message tells the user about --profile when credentials are missing."""
+    monkeypatch.setenv("DATABRICKS_CONFIG_FILE", "/nonexistent/.databrickscfg")
+    rc = main(["--group", "data-engineers"])
+    assert rc == 1
+    assert "--profile" in capsys.readouterr().err
