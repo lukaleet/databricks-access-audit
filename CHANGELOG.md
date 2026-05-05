@@ -5,9 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [0.18.1] - 2026-05-04
+## [0.18.1] - 2026-05-05
 
 ### Added
+- **MkDocs documentation site** — full docs published to GitHub Pages at `https://lukaleet.github.io/databricks-access-audit`. Sections: Getting Started, Capabilities, Use Cases (offboarding, access review, incident response, compliance snapshots), Reference (CLI flags, Python API, output formats), How It Works (architecture, grant classification, Azure B2B guests).
+- **Capabilities page** — each core feature (multi-workspace scanning, recursive group resolution, permission inheritance tracking, schema drill-down, redundancy analysis, resilient API calls) documented with example commands and sample output.
+- **GitHub Actions docs workflow** (`.github/workflows/docs.yml`) — automatically redeploys the site on every push to `main` that touches `docs/` or `mkdocs.yml`.
+- **`[docs]` optional dependency** — `pip install "databricks-access-audit[docs]"` installs `mkdocs-material` for local doc builds.
+- **README slimmed to ~100 lines** — hook, two modes, capabilities list, quick-start examples, and links to the full docs site. Detailed reference content moved to GitHub Pages.
 - **`~/.databrickscfg` profile-based authentication** — credentials are now resolved in priority order: CLI flags → environment variables → `~/.databrickscfg` profile → default `azure` cloud.  New `--profile NAME` flag (env: `DATABRICKS_CONFIG_PROFILE`, default: `DEFAULT`) selects a named profile.  `DATABRICKS_CONFIG_FILE` points to a non-default config file path.
 - **Cloud auto-detection from profile host** — when `--cloud` is not explicitly passed, the cloud provider is inferred from the `host` field in the profile (`accounts.azuredatabricks.net` → `azure`, `accounts.cloud.databricks.com` → `aws`, `accounts.gcp.databricks.com` → `gcp`).  No need to pass `--cloud` on every invocation when using a profile.
 - **New module `config.py`** — `load_profile()` reads named sections from `~/.databrickscfg` (merging `DEFAULT` fallbacks via `configparser`); `cloud_from_host()` maps account host URLs to cloud identifiers.

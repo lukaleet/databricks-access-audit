@@ -33,6 +33,7 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Capabilities: capabilities.md
   - Use Cases:
     - Offboarding: use-cases/offboarding.md
     - Access Review: use-cases/access-review.md
