@@ -13,6 +13,17 @@ The Account Console shows you one workspace at a time. `INFORMATION_SCHEMA` show
 | **Principal audit** | `--principal "alice@company.com"` | What can this user / SP / group access across every workspace? |
 | **Group audit** | `--group "data-engineers"` | What does this group access? Who in it has redundant personal grants? |
 
+## What it does under the hood
+
+- **Multi-workspace scanning** — auto-discovers every workspace in your account and scans them in parallel
+- **Recursive group resolution** — traces nested group membership chains (users, SPs, nested groups) with full hierarchy
+- **Permission inheritance tracking** — classifies every grant as `Direct`, `Upstream` (inherited from a parent group), or `Member Direct` (a personal bypass)
+- **Schema and table drill-down** — optionally scans schema and table-level UC grants within accessible catalogs
+- **Redundancy and overlap analysis** — compares personal grants against group coverage (`FULL` / `PARTIAL` / `NONE`) and generates REVOKE SQL
+- **Resilient API calls** — automatic retry with exponential backoff on 429 / 5xx responses
+
+[See all capabilities →](capabilities.md)
+
 ## When to use it
 
 | Scenario | Mode | Key flags |
