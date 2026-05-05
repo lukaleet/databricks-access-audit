@@ -86,16 +86,20 @@ def write_principal_audit_csv(
 
     # Workspace roles
     w.writerow([])
-    w.writerow(["workspace_id", "workspace_name", "permission_level", "via_group"])
+    w.writerow(["workspace_id", "workspace_name", "permission_level", "via_group", "via_path"])
     for r in result.workspace_roles:
-        w.writerow([r.workspace_id, r.workspace_name, r.permission_level, r.via_group])
+        w.writerow([r.workspace_id, r.workspace_name, r.permission_level, r.via_group,
+                    " → ".join(r.via_path) if r.via_path else ""])
 
     # Permissions table
     w.writerow([])
-    w.writerow(["securable_type", "securable_name", "privileges", "via_group", "workspace"])
+    w.writerow(["securable_type", "securable_name", "privileges", "via_group", "via_path",
+                "workspace"])
     for p in result.permissions:
         w.writerow([p.securable_type, p.securable_name,
-                    "|".join(p.privileges), p.via_group, p.workspace_name])
+                    "|".join(p.privileges), p.via_group,
+                    " → ".join(p.via_path) if p.via_path else "",
+                    p.workspace_name])
 
     if escalation_findings:
         w.writerow([])

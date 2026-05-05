@@ -129,6 +129,7 @@ def build_principal_snapshot(result: Any) -> Dict:
             "securable_name": p.securable_name,
             "privileges": sorted(p.privileges),
             "via_group": p.via_group,
+            "via_path": p.via_path,
             "workspace_name": p.workspace_name,
         }
         for p in result.permissions
@@ -158,6 +159,7 @@ def build_principal_snapshot(result: Any) -> Dict:
                 "workspace_name": r.workspace_name,
                 "permission_level": r.permission_level,
                 "via_group": r.via_group,
+                "via_path": r.via_path,
             }
             for r in result.workspace_roles
         ],

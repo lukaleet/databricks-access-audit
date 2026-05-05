@@ -477,12 +477,12 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
             } for g in result.groups],
             "workspace_roles": [{
                 "workspace": r.workspace_name, "permission": r.permission_level,
-                "via_group": r.via_group,
+                "via_group": r.via_group, "via_path": r.via_path,
             } for r in result.workspace_roles],
             "permissions": [{
                 "type": p.securable_type, "name": p.securable_name,
                 "privileges": p.privileges, "via_group": p.via_group,
-                "workspace": p.workspace_name,
+                "via_path": p.via_path, "workspace": p.workspace_name,
             } for p in result.permissions],
             "dead_end_groups": result.dead_end_groups,
             "uc_only_groups": result.uc_only_groups,
@@ -534,7 +534,11 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
 
         print(f"\n  Workspace access ({len(result.workspace_roles)}):")
         for r in result.workspace_roles:
-            print(f"    * {r.workspace_name}: {r.permission_level} (via {r.via_group})")
+            if r.via_path:
+                print(f"    * {r.workspace_name}: {r.permission_level}"
+                      f"  [{' → '.join(r.via_path)}]")
+            else:
+                print(f"    * {r.workspace_name}: {r.permission_level} (direct)")
 
         if result.uc_only_groups:
             print(f"\n  UC-only groups ({len(result.uc_only_groups)}):")
@@ -550,9 +554,14 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
 
         print(f"\n  UC permissions ({len(result.permissions)}):")
         for p in result.permissions:
-            print(f"    * [{p.securable_type}] {p.securable_name}")
-            print(f"      privileges: {', '.join(p.privileges)}")
-            print(f"      via: {p.via_group} @ {p.workspace_name}")
+            if p.via_path:
+                path_str = " → ".join(p.via_path)
+                print(f"    * [{p.securable_type}] {p.securable_name}"
+                      f"  {', '.join(p.privileges)}"
+                      f"  [{path_str}]  @ {p.workspace_name}")
+            else:
+                print(f"    * [{p.securable_type}] {p.securable_name}"
+                      f"  {', '.join(p.privileges)}  (direct) @ {p.workspace_name}")
 
         if args.escalation_check:
             findings = result.escalation_findings

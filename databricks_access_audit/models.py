@@ -217,6 +217,7 @@ class WorkspaceRole:
     permission_level: str  # USER, ADMIN
     via_group: str  # group name that provides this access
     via_group_id: str = ""
+    via_path: List[str] = field(default_factory=list)  # full chain: principal → ... → group
 
 
 @dataclass
@@ -228,6 +229,7 @@ class EffectivePermission:
     via_group: str = ""  # group name holding the grant
     workspace_name: str = ""
     workspace_url: str = ""
+    via_path: List[str] = field(default_factory=list)  # full chain: principal → ... → group
 
 
 @dataclass
