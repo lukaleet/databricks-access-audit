@@ -35,7 +35,7 @@ class PrincipalAuditor:
     2. Checks **workspace permission assignments** for each group.
     3. Scans **Unity Catalog grants** (catalog / schema / table) that flow
        through those groups.
-    4. Flags **dead-end groups** — memberships that contribute no workspace
+    4. Flags **workspace-unassigned groups** — memberships that contribute no workspace
        access through any path in the group hierarchy.
     """
 
@@ -530,7 +530,9 @@ class PrincipalAuditor:
                                                   max_workers=max_workers)
         log.info("Found %d workspace role(s)", len(ws_roles))
 
-        # 5. Dead-end groups — groups that provide no workspace access through any path.
+        # 5. Groups with no workspace assignment — provide no workspace access through any path.
+        # Note: these may still hold UC grants (catalog/schema/table level) without being
+        # assigned to a workspace — a valid UC-only access pattern.
         #
         # A group G is NOT a dead end when:
         #   a) G itself is directly assigned to a workspace, OR

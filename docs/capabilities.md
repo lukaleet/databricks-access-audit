@@ -162,13 +162,16 @@ This resolves any principal type:
 
 The membership list includes every group in the chain with `is_direct` and the full path, so you can see not just what Alice can access, but *why* — which specific group grants it and through how many hops.
 
-**Dead-end groups** — groups Alice belongs to that have no workspace assignment — are reported separately so you can clean them up:
+**Groups with no workspace assignment** are reported separately:
 
 ```
-  Dead-end groups (no workspace access): 2
-    - legacy-analysts
-    - old-bi-team
+  Groups with no workspace assignment (2):
+    (may be UC-only access groups — check UC permissions below before acting)
+    - catalog-main-readers
+    - data-quality-monitors
 ```
+
+This is not necessarily a problem. A group can be intentionally assigned to Unity Catalog securables (catalogs, schemas, tables) without being assigned to any workspace — this is a valid and recommended pattern for fine-grained data access control decoupled from workspace membership. Check the UC permissions section before treating these as cleanup candidates: if the group appears in the permissions list below, it is providing real access.
 
 ---
 

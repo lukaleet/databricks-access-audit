@@ -536,7 +536,8 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
             print(f"    * {r.workspace_name}: {r.permission_level} (via {r.via_group})")
 
         if result.dead_end_groups:
-            print(f"\n  Dead-end groups (no workspace access): {len(result.dead_end_groups)}")
+            print(f"\n  Groups with no workspace assignment ({len(result.dead_end_groups)}):")
+            print("    (may be UC-only access groups — check UC permissions below before acting)")
             for dg in result.dead_end_groups:
                 print(f"    - {dg}")
 

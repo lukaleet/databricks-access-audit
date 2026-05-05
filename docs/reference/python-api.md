@@ -132,7 +132,7 @@ result = auditor.audit(
 | `workspace_roles` | `List[WorkspaceRole]` | Workspace access assignments |
 | `permissions` | `List[EffectivePermission]` | Unity Catalog permissions |
 | `workspace_object_grants` | `List[WorkspaceObjectGrant]` | Workspace object ACLs |
-| `dead_end_groups` | `List[str]` | Groups with no workspace access |
+| `dead_end_groups` | `List[str]` | Groups with no workspace assignment. May be UC-only access groups — check `permissions` before treating as unused. |
 | `escalation_findings` | `List[EscalationFinding]` | Populated after `detect_escalations()` |
 
 ---
