@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.18.2] - 2026-05-04
+
+### Added
+- **`uc_only_groups` in principal audit** — groups with no workspace permission assignment but that still grant Unity Catalog access are now separated from true dead-end groups.  `PrincipalAuditResult` gains a new `uc_only_groups: List[str]` field.  Text output shows two labelled buckets: *UC-only groups* (intentional pattern — access via UC grants only) and *Unused groups* (no workspace or UC grants — safe to review for removal).  JSON and CSV output include both fields.
+- **`via_path` inheritance chain on workspace roles and UC permissions** — `WorkspaceRole` and `EffectivePermission` now carry `via_path: List[str]` (the full membership chain from the principal to the grant-holding group, e.g. `["alice@company.com", "team-A", "data-engineers"]`).  Built from the BFS walk at zero extra API cost.  Text output shows the chain in brackets; CSV adds a `via_path` column; JSON and snapshots include the field.  Parallel paths (same securable reachable via multiple groups) each appear as separate entries with distinct chains.
+- **Permission Hygiene and Stale Access use-case pages** — `docs/use-cases/permission-hygiene.md` and `docs/use-cases/stale-access.md` added to the docs site, covering redundancy analysis, REVOKE SQL generation, `--stale-days` usage, SQL warehouse prerequisites, threshold tuning, and Python API examples.
+
+### Tests
+- 3 CSV tests updated to account for the new `via_path` column in workspace-roles and permissions headers.
+- `test_dead_end_groups_detected` renamed to `test_workspace_unassigned_groups_split_into_uc_only_and_dead_end`; updated assertions verify groups with UC grants land in `uc_only_groups` and groups with no grants land in `dead_end_groups`.
+- `test_cli.py` asserts `uc_only_groups` key present in principal JSON output.
+
+---
+
 ## [0.18.1] - 2026-05-05
 
 ### Added

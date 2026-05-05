@@ -37,6 +37,8 @@ nav:
   - Use Cases:
     - Offboarding: use-cases/offboarding.md
     - Access Review: use-cases/access-review.md
+    - Permission Hygiene: use-cases/permission-hygiene.md
+    - Stale Access Detection: use-cases/stale-access.md
     - Incident Response: use-cases/incident-response.md
     - Compliance Snapshots: use-cases/compliance.md
   - Reference:
