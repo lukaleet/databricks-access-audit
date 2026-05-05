@@ -485,6 +485,7 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
                 "workspace": p.workspace_name,
             } for p in result.permissions],
             "dead_end_groups": result.dead_end_groups,
+            "uc_only_groups": result.uc_only_groups,
             "principal_source": result.principal_source.value,
         }
         if args.escalation_check:
@@ -535,9 +536,15 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
         for r in result.workspace_roles:
             print(f"    * {r.workspace_name}: {r.permission_level} (via {r.via_group})")
 
+        if result.uc_only_groups:
+            print(f"\n  UC-only groups ({len(result.uc_only_groups)}):")
+            print("    (no workspace assignment — access via Unity Catalog grants only)")
+            for dg in result.uc_only_groups:
+                print(f"    - {dg}")
+
         if result.dead_end_groups:
-            print(f"\n  Groups with no workspace assignment ({len(result.dead_end_groups)}):")
-            print("    (may be UC-only access groups — check UC permissions below before acting)")
+            print(f"\n  Unused groups ({len(result.dead_end_groups)}):")
+            print("    (no workspace assignment and no UC grants — may be safe to remove)")
             for dg in result.dead_end_groups:
                 print(f"    - {dg}")
 

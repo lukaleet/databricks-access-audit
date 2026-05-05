@@ -69,7 +69,8 @@ databricks-access-audit --group "data-engineers" --output json | jq '.catalog_gr
   "permissions": [
     {"type": "CATALOG", "name": "main", "privileges": ["USE_CATALOG", "SELECT"], "via_group": "data-engineers", "workspace": "prod-workspace"}
   ],
-  "dead_end_groups": [],   // groups with no workspace assignment — may be UC-only access groups
+  "dead_end_groups": [],    // no workspace assignment AND no UC grants — truly unused
+  "uc_only_groups": [],     // no workspace assignment but have UC grants — intentional pattern
   "principal_source": "external",
   "escalation_findings": [...],
   "workspace_object_permissions": [...]

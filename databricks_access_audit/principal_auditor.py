@@ -619,6 +619,12 @@ class PrincipalAuditor:
                 )
             log.info("Found %d workspace object grant(s)", len(ws_obj_grants))
 
+        # Split workspace-unassigned groups into two buckets now that UC perms are known.
+        # A group that appears as via_group in any UC permission is intentionally UC-only.
+        groups_providing_uc = {p.via_group for p in perms}
+        truly_dead = [g for g in dead_ends if g not in groups_providing_uc]
+        uc_only = [g for g in dead_ends if g in groups_providing_uc]
+
         return PrincipalAuditResult(
             principal_type=ptype,
             principal_id=pid,
@@ -627,6 +633,7 @@ class PrincipalAuditor:
             groups=memberships,
             workspace_roles=ws_roles,
             permissions=perms,
-            dead_end_groups=dead_ends,
+            dead_end_groups=truly_dead,
+            uc_only_groups=uc_only,
             workspace_object_grants=ws_obj_grants,
         )

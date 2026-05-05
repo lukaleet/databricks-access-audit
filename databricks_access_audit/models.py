@@ -240,6 +240,7 @@ class PrincipalAuditResult:
     workspace_roles: List[WorkspaceRole] = field(default_factory=list)
     permissions: List[EffectivePermission] = field(default_factory=list)
     dead_end_groups: List[str] = field(default_factory=list)
+    uc_only_groups: List[str] = field(default_factory=list)
     escalation_findings: List["EscalationFinding"] = field(default_factory=list)
     workspace_object_grants: List["WorkspaceObjectGrant"] = field(default_factory=list)
     # SCIM externalId of the principal — non-empty when provisioned by an IdP.
