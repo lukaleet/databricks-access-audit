@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://lukaleet.github.io/databricks-access-audit/getting-started/">
+        <link rel="canonical" href="https://lukaleet.github.io/databricks-access-audit/capabilities/">
       
       
-        <link rel="prev" href="..">
+        <link rel="prev" href="../getting-started/">
       
       
-        <link rel="next" href="../capabilities/">
+        <link rel="next" href="../use-cases/offboarding/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Getting Started - databricks-access-audit</title>
+        <title>Capabilities - databricks-access-audit</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#getting-started" class="md-skip">
+        <a href="#capabilities" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Getting Started
+              Capabilities
             
           </span>
         </div>
@@ -242,11 +242,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../getting-started/" class="md-tabs__link">
         
   
   
@@ -263,9 +261,11 @@
   
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../capabilities/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
   
@@ -414,6 +414,33 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -433,7 +460,7 @@
   <span class="md-ellipsis">
     
   
-    Getting Started
+    Capabilities
   
 
     
@@ -451,7 +478,7 @@
   <span class="md-ellipsis">
     
   
-    Getting Started
+    Capabilities
   
 
     
@@ -477,10 +504,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#install" class="md-nav__link">
+  <a href="#multi-workspace-scanning" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Install
+        Multi-workspace scanning
       
     </span>
   </a>
@@ -488,60 +515,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configure-credentials" class="md-nav__link">
+  <a href="#recursive-group-resolution" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configure credentials
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Configure credentials">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#option-1-databrickscfg-recommended" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 1 — ~/.databrickscfg (recommended)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-2-environment-variables" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 2 — environment variables
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-3-cli-flags" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 3 — CLI flags
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#service-principal-permissions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Service Principal permissions
+        Recursive group resolution
       
     </span>
   </a>
@@ -549,71 +526,54 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#your-first-audit" class="md-nav__link">
+  <a href="#permission-inheritance-tracking" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Your first audit
+        Permission inheritance tracking
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Your first audit">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#principal-audit-what-can-alice-access" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Principal audit — what can alice access?
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#group-audit-what-does-data-engineers-access" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Group audit — what does data-engineers access?
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#add-workspace-object-scanning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Add workspace object scanning
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#export-to-csv" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Export to CSV
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
+  <a href="#schema-and-table-drill-down" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next steps
+        Schema and table drill-down
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resilient-api-calls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resilient API calls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#principal-group-membership-with-hierarchy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Principal group membership with hierarchy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#redundancy-and-overlap-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Redundancy and overlap analysis
       
     </span>
   </a>
@@ -624,33 +584,6 @@
   
 </nav>
       
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../capabilities/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Capabilities
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -1139,10 +1072,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#install" class="md-nav__link">
+  <a href="#multi-workspace-scanning" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Install
+        Multi-workspace scanning
       
     </span>
   </a>
@@ -1150,60 +1083,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configure-credentials" class="md-nav__link">
+  <a href="#recursive-group-resolution" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configure credentials
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Configure credentials">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#option-1-databrickscfg-recommended" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 1 — ~/.databrickscfg (recommended)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-2-environment-variables" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 2 — environment variables
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-3-cli-flags" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 3 — CLI flags
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#service-principal-permissions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Service Principal permissions
+        Recursive group resolution
       
     </span>
   </a>
@@ -1211,71 +1094,54 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#your-first-audit" class="md-nav__link">
+  <a href="#permission-inheritance-tracking" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Your first audit
+        Permission inheritance tracking
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Your first audit">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#principal-audit-what-can-alice-access" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Principal audit — what can alice access?
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#group-audit-what-does-data-engineers-access" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Group audit — what does data-engineers access?
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#add-workspace-object-scanning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Add workspace object scanning
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#export-to-csv" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Export to CSV
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
+  <a href="#schema-and-table-drill-down" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next steps
+        Schema and table drill-down
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resilient-api-calls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resilient API calls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#principal-group-membership-with-hierarchy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Principal group membership with hierarchy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#redundancy-and-overlap-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Redundancy and overlap analysis
       
     </span>
   </a>
@@ -1302,149 +1168,190 @@
   
 
 
-<h1 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h1>
-<h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Recommended — includes the Databricks SDK for automatic auth and retries</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;databricks-access-audit[sdk]&quot;</span>
+<h1 id="capabilities">Capabilities<a class="headerlink" href="#capabilities" title="Permanent link">&para;</a></h1>
+<p>The core engine behind both audit modes. Each of these works out of the box — no configuration beyond credentials.</p>
+<hr />
+<h2 id="multi-workspace-scanning">Multi-workspace scanning<a class="headerlink" href="#multi-workspace-scanning" title="Permanent link">&para;</a></h2>
+<p>Databricks spreads your estate across multiple workspaces. The tool discovers all of them automatically via the Account API and scans them in parallel.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Scan every workspace in the account</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Core install — raw HTTP client only, no extra dependencies beyond requests</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>pip<span class="w"> </span>install<span class="w"> </span>databricks-access-audit
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Or target specific workspaces</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span>--workspace-urls<span class="w"> </span><span class="s2">&quot;https://adb-111.azuredatabricks.net,https://adb-222.azuredatabricks.net&quot;</span>
 </code></pre></div>
-<p>Requires Python 3.9 or later.</p>
-<h2 id="configure-credentials">Configure credentials<a class="headerlink" href="#configure-credentials" title="Permanent link">&para;</a></h2>
-<p>The tool needs three values to talk to the Databricks Account API:</p>
-<table>
-<thead>
-<tr>
-<th>Value</th>
-<th>What it is</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>client_id</code></td>
-<td>Service Principal application (client) ID</td>
-</tr>
-<tr>
-<td><code>client_secret</code></td>
-<td>Service Principal secret</td>
-</tr>
-<tr>
-<td><code>account_id</code></td>
-<td>Databricks account ID (visible in the Account Console URL)</td>
-</tr>
-</tbody>
-</table>
-<h3 id="option-1-databrickscfg-recommended">Option 1 — <code>~/.databrickscfg</code> (recommended)<a class="headerlink" href="#option-1-databrickscfg-recommended" title="Permanent link">&para;</a></h3>
-<p>Add a section to your <code>~/.databrickscfg</code>. The <code>host</code> field determines the cloud automatically.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[DEFAULT]</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="na">host</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="s">https://accounts.azuredatabricks.net</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="na">account_id</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s">xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="na">client_id</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="s">xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="na">client_secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">your-sp-secret</span>
+<p>Sample output shows workspace context on every grant:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>  Workspace access (2):
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    * prod-workspace: USER (via data-engineers)
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    * analytics-workspace: USER (via data-engineers)
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  UC permissions (4):
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    * [CATALOG] main: USE_CATALOG, SELECT via data-engineers (prod-workspace)
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    * [CATALOG] raw: USE_CATALOG via data-engineers (analytics-workspace)
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    * [SCHEMA]  main.analytics: USE_SCHEMA via data-engineers (prod-workspace)
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    * [TABLE]   main.analytics.events: SELECT via data-engineers (prod-workspace)
 </code></pre></div>
-<p>Then run without any credential flags:</p>
+<p>With <code>--workers N</code> (default: 8) all workspace scans run in parallel — scanning 10 workspaces takes about the same time as scanning 1.</p>
+<hr />
+<h2 id="recursive-group-resolution">Recursive group resolution<a class="headerlink" href="#recursive-group-resolution" title="Permanent link">&para;</a></h2>
+<p>Databricks groups nest. A user in <code>data-engineers</code> may inherit access through <code>all-data-team → platform-users → account-users</code>. The tool traces the full chain.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span>
 </code></pre></div>
-<p>Use named profiles for multiple environments:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[prod]</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="na">host</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="s">https://accounts.azuredatabricks.net</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="na">account_id</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s">xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="na">client_id</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="s">xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="na">client_secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">your-prod-secret</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="k">[staging]</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="na">host</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="s">https://accounts.azuredatabricks.net</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="na">account_id</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s">yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="na">client_id</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="s">yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="na">client_secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">your-staging-secret</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>  Group memberships (3, 3 IdP-synced, 0 Databricks-managed):
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    * data-engineers (direct, external)
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>      path: alice@company.com -&gt; data-engineers
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    - all-data-team (transitive, external)
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>      path: alice@company.com -&gt; data-engineers -&gt; all-data-team
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    - platform-users (transitive, external)
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>      path: alice@company.com -&gt; data-engineers -&gt; all-data-team -&gt; platform-users
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span>--profile<span class="w"> </span>prod
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span>--profile<span class="w"> </span>staging
+<p><code>*</code> = direct membership, <code>-</code> = transitive. Each path shows the exact chain so you know which group to modify if you want to revoke access.</p>
+<p>For group audit, the resolver bulk pre-fetches all users and SPs upfront — no N+1 SCIM calls even for groups with hundreds of members.</p>
+<hr />
+<h2 id="permission-inheritance-tracking">Permission inheritance tracking<a class="headerlink" href="#permission-inheritance-tracking" title="Permanent link">&para;</a></h2>
+<p>Every grant is classified by how the principal acquired it. This is what makes cleanup decisions safe.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--scan-schemas<span class="w"> </span>--output<span class="w"> </span>csv
 </code></pre></div>
-<h3 id="option-2-environment-variables">Option 2 — environment variables<a class="headerlink" href="#option-2-environment-variables" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">DATABRICKS_CLIENT_ID</span><span class="o">=</span><span class="s2">&quot;your-sp-client-id&quot;</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">DATABRICKS_CLIENT_SECRET</span><span class="o">=</span><span class="s2">&quot;your-sp-secret&quot;</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">DATABRICKS_ACCOUNT_ID</span><span class="o">=</span><span class="s2">&quot;your-account-id&quot;</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span>--cloud<span class="w"> </span>azure
-</code></pre></div>
-<h3 id="option-3-cli-flags">Option 3 — CLI flags<a class="headerlink" href="#option-3-cli-flags" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>--client-id<span class="w"> </span><span class="s2">&quot;your-sp-client-id&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>--client-secret<span class="w"> </span><span class="s2">&quot;your-sp-secret&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>--account-id<span class="w"> </span><span class="s2">&quot;your-account-id&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">  </span>--cloud<span class="w"> </span>azure
-</code></pre></div>
-<p>Credentials are resolved in priority order: <strong>CLI flags → env vars → <code>~/.databrickscfg</code> profile</strong>.</p>
-<h2 id="service-principal-permissions">Service Principal permissions<a class="headerlink" href="#service-principal-permissions" title="Permanent link">&para;</a></h2>
-<p>The SP running the audit requires:</p>
 <table>
 <thead>
 <tr>
-<th>Level</th>
-<th>Required</th>
+<th><code>grant_source</code></th>
+<th>What it means</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Databricks account</strong></td>
-<td>Account Admin</td>
+<td><code>Direct</code></td>
+<td>The group itself holds this grant on the securable</td>
 </tr>
 <tr>
-<td><strong>Each workspace</strong></td>
-<td>Workspace Admin (recommended)</td>
+<td><code>Upstream</code></td>
+<td>A parent group of <code>data-engineers</code> holds the grant — inherited</td>
 </tr>
 <tr>
-<td><strong>Unity Catalog</strong></td>
-<td>Metastore Admin, or <code>MANAGE</code> on every catalog to audit</td>
+<td><code>Member Direct</code></td>
+<td>A member of the group holds this grant personally — bypasses the group</td>
 </tr>
 </tbody>
 </table>
-<div class="admonition tip">
-<p class="admonition-title">Just-in-time elevation</p>
-<p>Use <code>--auto-elevate</code> to temporarily grant Workspace Admin to the SP on workspaces where it lacks that role, then restore the prior state after the audit. See <a href="../reference/cli/#permission-elevation">CLI reference</a>.</p>
+<p>Example: the <code>main</code> catalog has three grant rows for <code>data-engineers</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>securable_name  principal           grant_source    privileges
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>main            data-engineers      Direct          USE_CATALOG, SELECT
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>main            all-data-team       Upstream        USE_CATALOG
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>main            bob@company.com     Member Direct   USE_CATALOG, SELECT
+</code></pre></div>
+<p>Bob's personal grant (<code>Member Direct</code>) duplicates what the group already provides. The tool flags this for cleanup (see <a href="#redundancy-and-overlap-analysis">Redundancy analysis</a> below).</p>
+<hr />
+<h2 id="schema-and-table-drill-down">Schema and table drill-down<a class="headerlink" href="#schema-and-table-drill-down" title="Permanent link">&para;</a></h2>
+<p>Catalog-level grants are the default. When you need the full picture:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Include schema-level grants</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--scan-schemas
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Include schema and table/view grants</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--scan-schemas<span class="w"> </span>--scan-tables
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Principal audit — same flags work</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span>--scan-schemas<span class="w"> </span>--scan-tables
+</code></pre></div>
+<p>The output cascades — catalog → schema → table — so you can see exactly where access starts and where it stops:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>  UC permissions (6):
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    * [CATALOG] main: USE_CATALOG, SELECT via data-engineers (prod-workspace)
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    * [SCHEMA]  main.analytics: USE_SCHEMA via data-engineers (prod-workspace)
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    * [SCHEMA]  main.raw: USE_SCHEMA via data-engineers (prod-workspace)
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    * [TABLE]   main.analytics.events: SELECT via data-engineers (prod-workspace)
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    * [TABLE]   main.analytics.sessions: SELECT via data-engineers (prod-workspace)
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    * [TABLE]   main.raw.ingest: USE_SCHEMA via all-data-team (prod-workspace)
+</code></pre></div>
+<p>Note <code>main.raw.ingest</code> — inherited from <code>all-data-team</code> (an upstream group), not from <code>data-engineers</code> directly. This level of detail is invisible in the Databricks UI.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code>--scan-tables</code> adds one API call per schema per workspace. On large metastores this can be slow — use <code>--workers</code> to parallelise and <code>--scan-schemas</code> first to confirm the catalog picture before going deeper.</p>
 </div>
-<h2 id="your-first-audit">Your first audit<a class="headerlink" href="#your-first-audit" title="Permanent link">&para;</a></h2>
-<h3 id="principal-audit-what-can-alice-access">Principal audit — what can alice access?<a class="headerlink" href="#principal-audit-what-can-alice-access" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span>
-</code></pre></div>
-<p>Example output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>============================================================
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>  Principal audit: alice@company.com (USER, external)
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>============================================================
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>  Group memberships (2):
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    * data-engineers (direct, external)
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    - all-data-team (transitive, external)
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>
-<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>  Workspace access (1):
-<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>    * prod-workspace: USER (via data-engineers)
-<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>
-<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>  UC permissions (3):
-<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>    [CATALOG] main: USE_CATALOG, SELECT via data-engineers (prod-workspace)
-<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>    [SCHEMA]  main.analytics: USE_SCHEMA via data-engineers (prod-workspace)
-<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>    [TABLE]   main.analytics.events: SELECT via data-engineers (prod-workspace)
-<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a>============================================================
-</code></pre></div>
-<h3 id="group-audit-what-does-data-engineers-access">Group audit — what does data-engineers access?<a class="headerlink" href="#group-audit-what-does-data-engineers-access" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span>
-</code></pre></div>
-<h3 id="add-workspace-object-scanning">Add workspace object scanning<a class="headerlink" href="#add-workspace-object-scanning" title="Permanent link">&para;</a></h3>
-<p>Jobs, clusters, dashboards, pipelines and more — off by default, opt in with a flag:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span>--scan-workspace-objects
-</code></pre></div>
-<h3 id="export-to-csv">Export to CSV<a class="headerlink" href="#export-to-csv" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span>--scan-workspace-objects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;<span class="w"> </span>alice_access_<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.csv
-</code></pre></div>
-<h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<hr />
+<h2 id="resilient-api-calls">Resilient API calls<a class="headerlink" href="#resilient-api-calls" title="Permanent link">&para;</a></h2>
+<p>Rate limits and transient errors are inevitable at scale. The raw HTTP client handles them automatically:</p>
 <ul>
-<li><a href="../use-cases/offboarding/">Offboarding walkthrough</a></li>
-<li><a href="../use-cases/access-review/">Access review workflow</a></li>
-<li><a href="../reference/cli/">Full CLI reference</a></li>
+<li><strong>429 Too Many Requests</strong> — respects the <code>Retry-After</code> response header when present; falls back to exponential backoff</li>
+<li><strong>5xx Server Errors</strong> — retries up to <code>--max-retries</code> times (default: 5)</li>
+<li><strong>Exponential backoff</strong> — starts at <code>--retry-base-delay</code> seconds (default: 1.0), caps at <code>--retry-max-delay</code> seconds (default: 60.0)</li>
+<li><strong>Per-host token cache</strong> — OAuth tokens are cached per account host and refreshed before expiry, so parallel workspace scans don't each trigger a new token exchange</li>
 </ul>
+<p>When using <code>databricks-sdk</code> (<code>pip install ".[sdk]"</code>), the SDK manages retries and auth independently with its own battle-tested implementation.</p>
+<p>Tune for high-volume scans:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>--scan-tables<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>--workers<span class="w"> </span><span class="m">16</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span>--max-retries<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">  </span>--retry-max-delay<span class="w"> </span><span class="m">120</span>
+</code></pre></div>
+<hr />
+<h2 id="principal-group-membership-with-hierarchy">Principal group membership with hierarchy<a class="headerlink" href="#principal-group-membership-with-hierarchy" title="Permanent link">&para;</a></h2>
+<p>The reverse of group audit — start from a person, trace upward through every group they belong to, and show what each group provides.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span>
+</code></pre></div>
+<p>This resolves any principal type:</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Resolves as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>alice@company.com</code></td>
+<td>User by email</td>
+</tr>
+<tr>
+<td><code>etl-pipeline-sp</code></td>
+<td>Service principal by display name</td>
+</tr>
+<tr>
+<td><code>00000000-0000-0000-0000-000000000001</code></td>
+<td>Service principal by application ID</td>
+</tr>
+<tr>
+<td><code>data-engineers</code></td>
+<td>Group — audits the group's own reachable permissions</td>
+</tr>
+</tbody>
+</table>
+<p>The membership list includes every group in the chain with <code>is_direct</code> and the full path, so you can see not just what Alice can access, but <em>why</em> — which specific group grants it and through how many hops.</p>
+<p><strong>Dead-end groups</strong> — groups Alice belongs to that have no workspace assignment — are reported separately so you can clean them up:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>  Dead-end groups (no workspace access): 2
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    - legacy-analysts
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    - old-bi-team
+</code></pre></div>
+<hr />
+<h2 id="redundancy-and-overlap-analysis">Redundancy and overlap analysis<a class="headerlink" href="#redundancy-and-overlap-analysis" title="Permanent link">&para;</a></h2>
+<p>Members of a group sometimes hold personal catalog grants that the group already covers. The tool compares every <code>Member Direct</code> grant against the group's effective privileges and classifies the overlap:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--revoke-script
+</code></pre></div>
+<p><strong>Full redundancy</strong> — every privilege the member holds personally is already provided by the group:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>  bob@company.com: SELECT, USE_CATALOG on main
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>    → Group already grants: SELECT, USE_CATALOG
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    → Redundancy: FULL — safe to revoke entirely
+</code></pre></div>
+<p><strong>Partial redundancy</strong> — the member has some privileges the group covers and some it doesn't:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>  carol@company.com: SELECT, MODIFY, USE_CATALOG on staging
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    → Group already grants: SELECT, USE_CATALOG
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    → Additional (not covered): MODIFY
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    → Redundancy: PARTIAL — revoke only the overlapping privileges
+</code></pre></div>
+<p><strong>No redundancy</strong> — the personal grant is intentional (e.g. access to a catalog the group doesn't touch):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>  dave@company.com: SELECT on sensitive_catalog
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    → Group has no grant on sensitive_catalog
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    → Redundancy: NONE
+</code></pre></div>
+<p><code>ALL_PRIVILEGES</code> is expanded to its component privileges before comparison, so a group with <code>ALL_PRIVILEGES</code> on a catalog correctly flags member-level <code>SELECT</code> or <code>MODIFY</code> as fully redundant.</p>
+<p>With <code>--revoke-script</code>, the tool generates copy-paste SQL for all redundant grants:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1">-- Full redundancy: bob@company.com</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="k">REVOKE</span><span class="w"> </span><span class="n">USE_CATALOG</span><span class="p">,</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">CATALOG</span><span class="w"> </span><span class="n">main</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="o">`</span><span class="n">bob</span><span class="o">@</span><span class="n">company</span><span class="p">.</span><span class="n">com</span><span class="o">`</span><span class="p">;</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c1">-- Partial redundancy: only the covered privileges</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="k">REVOKE</span><span class="w"> </span><span class="n">USE_CATALOG</span><span class="p">,</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">CATALOG</span><span class="w"> </span><span class="n">staging</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="o">`</span><span class="n">carol</span><span class="o">@</span><span class="n">company</span><span class="p">.</span><span class="n">com</span><span class="o">`</span><span class="p">;</span>
+</code></pre></div>
+<p>The script targets individuals, not the group — the group grant is untouched.</p>
 
 
 
