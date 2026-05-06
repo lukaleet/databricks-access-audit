@@ -197,7 +197,7 @@ class AccessCloner:
                 log.info("Added target to group %s (%s)", action.group_name, action.group_id)
             except Exception as exc:
                 action.error = str(exc)
-                log.error("Failed to add target to group %s: %s", action.group_name, exc)
+                log.debug("Failed to add target to group %s: %s", action.group_name, exc)
 
     # ------------------------------------------------------------------
     # Internal helpers

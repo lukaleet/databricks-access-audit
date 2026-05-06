@@ -639,8 +639,8 @@ def _run_compare(args: argparse.Namespace) -> int:
     from databricks_access_audit.principal_comparer import PrincipalComparer
     client = _build_client(args)
     _log = (
-        (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr}))
-        if args.output == "json" else print
+        print if args.output == "text"
+        else (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr}))
     )
     identifier_a, identifier_b = args.compare
     _log(f"Comparing: {identifier_a} vs {identifier_b} ...")
@@ -730,8 +730,8 @@ def _run_clone(args: argparse.Namespace) -> int:
     from databricks_access_audit.access_cloner import AccessCloner
     client = _build_client(args)
     _log = (
-        (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr}))
-        if args.output == "json" else print
+        print if args.output == "text"
+        else (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr}))
     )
     _log(f"Building clone report: {args.clone_from} → {args.to} ...")
     if args.apply:
