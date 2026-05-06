@@ -11,12 +11,14 @@ The Account Console shows you one workspace at a time. `INFORMATION_SCHEMA` show
 
 `databricks-access-audit` answers cross-workspace access questions in one command, across every workspace in your account at once.
 
-## Two modes
+## Four modes
 
 | Mode | Entry point | Question it answers |
 |---|---|---|
 | **Principal audit** | `--principal "alice@company.com"` | What can this user / SP / group access across every workspace? |
 | **Group audit** | `--group "data-engineers"` | What does this group access? Who in it has redundant personal grants? |
+| **Compare** | `--compare "alice@company.com" "bob@company.com"` | Which groups does Alice have that Bob doesn't, and vice versa? |
+| **Access provisioning** | `--clone-from "alice@company.com" --to "bob@company.com"` | How do I give Bob the same access as Alice? |
 
 ## What it does
 
@@ -27,6 +29,7 @@ The Account Console shows you one workspace at a time. `INFORMATION_SCHEMA` show
 - **Redundancy and overlap analysis** — compares personal grants against group coverage, generates REVOKE SQL
 - **Workspace object ACLs** — jobs, clusters, pipelines, SQL warehouses, dashboards and 8 more types
 - **Escalation detection** — flags `ALL_PRIVILEGES` and `MANAGE` grants across the principal's access chain
+- **Access provisioning** — compare group memberships between two principals; clone access with IdP vs Databricks group classification and optional SCIM apply
 - **Compliance snapshots** — save a run to JSON, diff against a previous snapshot, export changes as CSV
 - **Resilient API calls** — automatic retry with exponential backoff on 429 / 5xx responses
 
@@ -77,6 +80,15 @@ databricks-access-audit --group "data-engineers" \
   --baseline snapshots/data-engineers_2025-01-01.json \
   --save-snapshot snapshots/data-engineers_$(date +%F).json \
   --output csv
+
+# Onboarding: give Bob the same access as Alice
+# Step 1 — see the gap
+databricks-access-audit --compare "alice@company.com" "bob@company.com"
+
+# Step 2 — plan + apply Databricks-managed groups; IdP groups listed separately
+databricks-access-audit --clone-from "alice@company.com" --to "bob@company.com" \
+  --scan-uc \
+  --apply
 ```
 
 ## Documentation
@@ -85,7 +97,7 @@ databricks-access-audit --group "data-engineers" \
 
 - [Getting Started](https://lukaleet.github.io/databricks-access-audit/getting-started/) — install, credentials, first audit
 - [Capabilities](https://lukaleet.github.io/databricks-access-audit/capabilities/) — how each feature works with examples
-- [Use Cases](https://lukaleet.github.io/databricks-access-audit/use-cases/offboarding/) — offboarding, access review, incident response, compliance
+- [Use Cases](https://lukaleet.github.io/databricks-access-audit/use-cases/offboarding/) — offboarding, access provisioning, access review, incident response, compliance
 - [CLI Reference](https://lukaleet.github.io/databricks-access-audit/reference/cli/) — every flag documented
 - [Python API](https://lukaleet.github.io/databricks-access-audit/reference/python-api/) — use as a library
 
@@ -93,7 +105,7 @@ databricks-access-audit --group "data-engineers" \
 
 ```bash
 pip install -e ".[sdk,dev]"
-pytest          # 477 tests, no real Databricks connection required
+pytest          # 513 tests, no real Databricks connection required
 ruff check .
 ```
 
