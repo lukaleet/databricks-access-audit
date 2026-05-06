@@ -343,3 +343,93 @@ class AuditDiff:
             self.grants_added or self.grants_removed
             or self.members_added or self.members_removed
         )
+
+
+# ---------------------------------------------------------------------------
+# Principal comparison models
+# ---------------------------------------------------------------------------
+
+@dataclass
+class GroupComparison:
+    """A group appearing in a principal comparison, with membership info for each side."""
+    group_id: str
+    group_name: str
+    external_id: Optional[str]
+    in_a: bool
+    in_b: bool
+    is_direct_in_a: bool = False
+    is_direct_in_b: bool = False
+    path_in_a: List[str] = field(default_factory=list)
+    path_in_b: List[str] = field(default_factory=list)
+
+    @property
+    def source(self) -> PrincipalSource:
+        return _source_from_external_id(self.external_id)
+
+
+@dataclass
+class CompareResult:
+    """Membership diff between two principals."""
+    principal_a: str          # identifier used (email / display name)
+    principal_b: str
+    display_name_a: str       # resolved display name
+    display_name_b: str
+    only_in_a: List[GroupComparison] = field(default_factory=list)
+    only_in_b: List[GroupComparison] = field(default_factory=list)
+    in_both: List[GroupComparison] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Access clone / provisioning models
+# ---------------------------------------------------------------------------
+
+class CloneActionType(str, Enum):
+    """How an access-clone action should be handled."""
+    DATABRICKS = "Databricks"    # Databricks-managed group — tool can SCIM PATCH
+    IDP_REQUIRED = "IdP required"  # IdP-synced group — must be done in Entra/Okta/etc.
+    UNVERIFIED = "Unverified"    # No workspace assignment; UC not scanned — verify before cloning
+    SKIPPED = "Skipped"          # Dead-end verified (no workspace, no UC grants)
+
+
+@dataclass
+class CloneAction:
+    """One recommended action in a clone provisioning report."""
+    action_type: CloneActionType
+    group_id: str
+    group_name: str
+    external_id: Optional[str]          # non-empty for IdP-synced groups
+    path: List[str]                     # source principal's path to this group
+    workspace_accesses: List[str] = field(default_factory=list)  # workspace names
+    uc_grants_summary: str = ""         # e.g. "SELECT on pii_catalog.schema" (when --scan-uc)
+    applied: bool = False               # True after successful SCIM PATCH
+    error: Optional[str] = None         # set when apply fails
+
+    @property
+    def source(self) -> PrincipalSource:
+        return _source_from_external_id(self.external_id)
+
+
+@dataclass
+class CloneReport:
+    """Provisioning report: make target's access mirror source's access."""
+    source_principal: str
+    target_principal: str
+    source_display_name: str
+    target_display_name: str
+    actions: List[CloneAction] = field(default_factory=list)
+
+    @property
+    def idp_actions(self) -> List[CloneAction]:
+        return [a for a in self.actions if a.action_type == CloneActionType.IDP_REQUIRED]
+
+    @property
+    def databricks_actions(self) -> List[CloneAction]:
+        return [a for a in self.actions if a.action_type == CloneActionType.DATABRICKS]
+
+    @property
+    def unverified_actions(self) -> List[CloneAction]:
+        return [a for a in self.actions if a.action_type == CloneActionType.UNVERIFIED]
+
+    @property
+    def skipped(self) -> List[CloneAction]:
+        return [a for a in self.actions if a.action_type == CloneActionType.SKIPPED]

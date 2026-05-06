@@ -3,10 +3,10 @@
 ## Synopsis
 
 ```bash
-databricks-access-audit (--group NAME | --principal NAME) [OPTIONS]
+databricks-access-audit (--group NAME | --principal NAME | --compare A B | --clone-from NAME) [OPTIONS]
 ```
 
-`--group` and `--principal` are mutually exclusive and one is required.
+`--group`, `--principal`, `--compare`, and `--clone-from` are mutually exclusive and one is required.
 
 ---
 
@@ -54,6 +54,60 @@ Audit a group: who's in it, what can they access, who has redundant personal gra
 
 Audit a principal: every workspace and UC object this user, service principal, or group can reach.  
 Accepts: email address, SP display name, SP application ID, or group name.
+
+### `--compare A B`
+
+Compare group memberships between two principals. Pure read — no writes.
+
+```bash
+databricks-access-audit --compare "alice@company.com" "bob@company.com" --cloud azure
+```
+
+Shows which groups are unique to each principal and which are shared. Each group is annotated with:
+
+- **Source** — `external` (IdP-synced via Entra/Okta) or `internal` (Databricks-managed)
+- **Directness** — whether the membership is direct or transitive
+- **Path** — the full membership chain
+
+Works with all `--output` formats (`text`, `json`, `csv`).
+
+### `--clone-from NAME`
+
+Build a provisioning report to replicate one principal's group access onto another.  
+Requires `--to TARGET`.
+
+```bash
+databricks-access-audit --clone-from "alice@company.com" --to "bob@company.com" --cloud azure
+```
+
+Each of the source's **direct** group memberships is classified as:
+
+| Action | Meaning |
+|---|---|
+| `Databricks` | Group is Databricks-managed and provides access — can be applied with `--apply` |
+| `IdP required` | Group is IdP-synced (Entra/Okta) — must be managed in your identity provider |
+| `Unverified` | Group is Databricks-managed but no workspace assignment detected — use `--scan-uc` to resolve |
+| `Skipped` | Verified dead-end — no workspace or UC grants (requires `--scan-uc`) |
+
+### `--to TARGET`
+
+Target principal for `--clone-from`. Accepts the same identifier formats as `--principal`.
+
+### `--apply`
+
+Execute the provisioning — perform SCIM PATCH for each `Databricks`-classified group, adding the target as a member. Without `--apply` the command is a dry-run that only prints the report.
+
+```bash
+databricks-access-audit --clone-from "alice@company.com" --to "bob@company.com" \
+  --apply --cloud azure
+```
+
+### `--scan-uc`
+
+For `--clone-from`: scan Unity Catalog grants to resolve `Unverified` groups.  
+Groups with UC grants → classified as `Databricks`. Groups with no grants → classified as `Skipped`.
+
+Off by default because it adds catalog-scan API calls per workspace. Use when source has UC-only groups (no workspace assignment but catalog access).
 
 ---
 

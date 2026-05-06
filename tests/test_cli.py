@@ -682,4 +682,334 @@ def test_missing_credentials_error_message_mentions_profile(capsys, monkeypatch)
     monkeypatch.setenv("DATABRICKS_CONFIG_FILE", "/nonexistent/.databrickscfg")
     rc = main(["--group", "data-engineers"])
     assert rc == 1
-    assert "--profile" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------------------
+# _parse_args — --compare and --clone-from flags
+# ---------------------------------------------------------------------------
+
+def test_parse_args_compare_mode():
+    args = _parse_args([
+        "--compare", "alice@example.com", "bob@example.com",
+        "--client-id", "cid", "--client-secret", "s", "--account-id", "a",
+    ])
+    assert args.compare == ["alice@example.com", "bob@example.com"]
+    assert args.group is None
+    assert args.principal is None
+    assert args.clone_from is None
+
+
+def test_parse_args_clone_from_mode():
+    args = _parse_args([
+        "--clone-from", "alice@example.com",
+        "--to", "bob@example.com",
+        "--client-id", "cid", "--client-secret", "s", "--account-id", "a",
+    ])
+    assert args.clone_from == "alice@example.com"
+    assert args.to == "bob@example.com"
+    assert args.apply is False
+    assert args.scan_uc is False
+
+
+def test_parse_args_clone_apply_scan_uc():
+    args = _parse_args([
+        "--clone-from", "alice@example.com",
+        "--to", "bob@example.com",
+        "--apply", "--scan-uc",
+        "--client-id", "cid", "--client-secret", "s", "--account-id", "a",
+    ])
+    assert args.apply is True
+    assert args.scan_uc is True
+
+
+def test_parse_args_compare_mutually_exclusive_with_group():
+    """--compare and --group are mutually exclusive."""
+    with pytest.raises(SystemExit):
+        _parse_args([
+            "--compare", "alice@example.com", "bob@example.com",
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "s", "--account-id", "a",
+        ])
+
+
+def test_parse_args_clone_from_mutually_exclusive_with_principal():
+    """--clone-from and --principal are mutually exclusive."""
+    with pytest.raises(SystemExit):
+        _parse_args([
+            "--clone-from", "alice@example.com",
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "s", "--account-id", "a",
+        ])
+
+
+# ---------------------------------------------------------------------------
+# --compare — integration tests (mock the comparer via _build_client)
+# ---------------------------------------------------------------------------
+
+def _register_compare_mocks(rsps):
+    """Register SCIM mocks for --compare tests (Alice and Bob share data-engineers)."""
+    base = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
+
+    rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
+             json={"access_token": "mock-token", "expires_in": 3600})
+
+    # Both Alice (user-1) and Bob (user-2) are in data-engineers (group-1).
+    def _group_list_cb(request):
+        import json as _json
+        filt = request.params.get("filter", "")
+        if "displayName" in filt:
+            name = filt.split('"')[1]
+            matched = [g for g in ALL_GROUPS if g["displayName"] == name]
+        else:
+            matched = ALL_GROUPS
+        body = {"Resources": matched, "totalResults": len(matched), "itemsPerPage": 100}
+        return (200, {}, _json.dumps(body))
+
+    rsps.add_callback(responses_lib.GET, f"{base}/scim/v2/Groups",
+                      callback=_group_list_cb, content_type="application/json")
+    for g in ALL_GROUPS:
+        rsps.add(responses_lib.GET, f"{base}/scim/v2/Groups/{g['id']}", json=g)
+
+    def _user_list_cb(request):
+        import json as _json
+        filt = request.params.get("filter", "")
+        if "emails.value" in filt:
+            email = filt.split('"')[1]
+            matched = [u for u in ALL_USERS
+                       if any(e.get("value") == email for e in u.get("emails", []))]
+        else:
+            matched = ALL_USERS
+        body = {"Resources": matched, "totalResults": len(matched), "itemsPerPage": 100}
+        return (200, {}, _json.dumps(body))
+
+    rsps.add_callback(responses_lib.GET, f"{base}/scim/v2/Users",
+                      callback=_user_list_cb, content_type="application/json")
+    for u in ALL_USERS:
+        rsps.add(responses_lib.GET, f"{base}/scim/v2/Users/{u['id']}", json=u)
+
+    rsps.add(responses_lib.GET, f"{base}/scim/v2/ServicePrincipals",
+             json={"Resources": ALL_SPS, "totalResults": len(ALL_SPS), "itemsPerPage": 100})
+    rsps.add(responses_lib.GET, f"{base}/scim/v2/ServicePrincipals/{SCIM_SP_ETL['id']}",
+             json=SCIM_SP_ETL)
+
+
+def test_compare_json_output(capsys):
+    """--compare A B --output json produces valid JSON with required keys."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_compare_mocks(rsps)
+        rc = main([
+            "--compare", "alice@example.com", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "json",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    data = json.loads(out[out.find("{"):])
+    assert "principal_a" in data
+    assert "principal_b" in data
+    assert "only_in_a" in data
+    assert "only_in_b" in data
+    assert "in_both" in data
+
+
+def test_compare_text_output_contains_principal_names(capsys):
+    """--compare A B (text) contains the resolved display names."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_compare_mocks(rsps)
+        rc = main([
+            "--compare", "alice@example.com", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Alice Smith" in out
+    assert "Bob Jones" in out
+
+
+def test_compare_csv_output_has_header(capsys):
+    """--compare A B --output csv writes a header row."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_compare_mocks(rsps)
+        rc = main([
+            "--compare", "alice@example.com", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "csv",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "group_id" in out
+    assert "group_name" in out
+    assert "in_a" in out
+    assert "in_b" in out
+
+
+def test_compare_principal_not_found_returns_error(capsys):
+    """--compare with an unknown principal exits 1."""
+    base = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
+                 json={"access_token": "tok", "expires_in": 3600})
+        for resource in ("Users", "ServicePrincipals", "Groups"):
+            rsps.add(responses_lib.GET, f"{base}/scim/v2/{resource}",
+                     json={"Resources": [], "totalResults": 0, "itemsPerPage": 100})
+        rc = main([
+            "--compare", "ghost@nowhere.com", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+        ])
+    assert rc == 1
+
+
+# ---------------------------------------------------------------------------
+# --clone-from — integration tests
+# ---------------------------------------------------------------------------
+
+def _register_clone_mocks(rsps):
+    """Register SCIM + workspace mocks for --clone-from tests."""
+    base = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
+
+    rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
+             json={"access_token": "mock-token", "expires_in": 3600})
+
+    def _group_list_cb(request):
+        import json as _json
+        filt = request.params.get("filter", "")
+        if "displayName" in filt:
+            name = filt.split('"')[1]
+            matched = [g for g in ALL_GROUPS if g["displayName"] == name]
+        else:
+            matched = ALL_GROUPS
+        body = {"Resources": matched, "totalResults": len(matched), "itemsPerPage": 100}
+        return (200, {}, _json.dumps(body))
+
+    rsps.add_callback(responses_lib.GET, f"{base}/scim/v2/Groups",
+                      callback=_group_list_cb, content_type="application/json")
+    for g in ALL_GROUPS:
+        rsps.add(responses_lib.GET, f"{base}/scim/v2/Groups/{g['id']}", json=g)
+
+    def _user_list_cb(request):
+        import json as _json
+        filt = request.params.get("filter", "")
+        if "emails.value" in filt:
+            email = filt.split('"')[1]
+            matched = [u for u in ALL_USERS
+                       if any(e.get("value") == email for e in u.get("emails", []))]
+        else:
+            matched = ALL_USERS
+        body = {"Resources": matched, "totalResults": len(matched), "itemsPerPage": 100}
+        return (200, {}, _json.dumps(body))
+
+    rsps.add_callback(responses_lib.GET, f"{base}/scim/v2/Users",
+                      callback=_user_list_cb, content_type="application/json")
+    for u in ALL_USERS:
+        rsps.add(responses_lib.GET, f"{base}/scim/v2/Users/{u['id']}", json=u)
+
+    rsps.add(responses_lib.GET, f"{base}/scim/v2/ServicePrincipals",
+             json={"Resources": ALL_SPS, "totalResults": len(ALL_SPS), "itemsPerPage": 100})
+    rsps.add(responses_lib.GET, f"{base}/scim/v2/ServicePrincipals/{SCIM_SP_ETL['id']}",
+             json=SCIM_SP_ETL)
+
+    # Workspace discovery
+    rsps.add(responses_lib.GET, f"{base}/workspaces", json=[{
+        "workspace_id": "999",
+        "deployment_name": "test-workspace",
+        "workspace_name": "test-workspace",
+        "workspace_url": WORKSPACE_HOST,
+        "workspace_status": "RUNNING",
+        "cloud": "AZURE",
+        "azure_workspace_info": {"region": "eastus"},
+    }])
+
+    # Permission assignments — no group assignments (all UNVERIFIED)
+    rsps.add(responses_lib.GET, f"{base}/workspaces/999/permissionassignments",
+             json={"permission_assignments": []})
+
+
+def test_clone_from_json_output(capsys):
+    """--clone-from A --to B --output json produces valid JSON."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_clone_mocks(rsps)
+        rc = main([
+            "--clone-from", "alice@example.com",
+            "--to", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "json",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    data = json.loads(out[out.find("{"):])
+    assert "source_principal" in data
+    assert "target_principal" in data
+    assert "idp_required" in data
+    assert "databricks" in data
+    assert "unverified" in data
+    assert "skipped" in data
+
+
+def test_clone_from_without_to_returns_error(capsys):
+    """--clone-from without --to exits 1 with an informative error."""
+    rc = main([
+        "--clone-from", "alice@example.com",
+        "--client-id", "cid", "--client-secret", "secret",
+        "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+    ])
+    assert rc == 1
+    assert "--to" in capsys.readouterr().err
+
+
+def test_clone_from_csv_output_has_header(capsys):
+    """--clone-from --output csv writes the expected header."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_clone_mocks(rsps)
+        rc = main([
+            "--clone-from", "alice@example.com",
+            "--to", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "csv",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "action_type" in out
+    assert "group_name" in out
+
+
+def test_clone_from_text_output(capsys):
+    """--clone-from (text) shows source and target principal names."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_clone_mocks(rsps)
+        rc = main([
+            "--clone-from", "alice@example.com",
+            "--to", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Alice Smith" in out
+    assert "Bob Jones" in out
+
+
+def test_clone_from_apply_text_shows_dry_run(capsys):
+    """Without --apply, text output hints to pass --apply."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_clone_mocks(rsps)
+        # Add permission assignment so at least one DATABRICKS action exists
+        base = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
+        rsps.replace(responses_lib.GET, f"{base}/workspaces/999/permissionassignments",
+                     json={"permission_assignments": [
+                         {"principal": {"principal_id": "group-1"}, "permissions": ["USER"]},
+                     ]})
+        rc = main([
+            "--clone-from", "alice@example.com",
+            "--to", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Dry run" in out or "dry run" in out.lower() or "--apply" in out

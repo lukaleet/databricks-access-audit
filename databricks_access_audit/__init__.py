@@ -12,16 +12,22 @@ Quick start::
     node = resolver.resolve_group("data-engineers")
 """
 
-__version__ = "0.18.1"
+__version__ = "0.18.3"
 
 from databricks_access_audit._classification import build_member_lookups, classify_grant
+from databricks_access_audit.access_cloner import AccessCloner
 from databricks_access_audit.catalog_scanner import CatalogPermissionScanner, classify_catalog_grant
 from databricks_access_audit.client import (
     AuditClient,
     DatabricksAPIClient,
     create_client,
 )
-from databricks_access_audit.csv_output import write_group_audit_csv, write_principal_audit_csv
+from databricks_access_audit.csv_output import (
+    write_clone_report_csv,
+    write_compare_csv,
+    write_group_audit_csv,
+    write_principal_audit_csv,
+)
 from databricks_access_audit.elevate import PermissionElevator
 from databricks_access_audit.escalation import ESCALATION_PRIVILEGES, detect_escalations
 from databricks_access_audit.group_resolver import GroupMembershipResolver
@@ -29,10 +35,17 @@ from databricks_access_audit.local_groups import LocalGroupChecker
 from databricks_access_audit.models import (
     AuditDiff,
     CatalogGrant,
+    # Clone / provisioning models
+    CloneAction,
+    CloneActionType,
+    CloneReport,
+    # Compare models
+    CompareResult,
     EffectivePermission,
     # Feature models
     EscalationFinding,
     GrantSource,
+    GroupComparison,
     GroupMember,
     # Principal audit models
     GroupMembership,
@@ -51,6 +64,7 @@ from databricks_access_audit.models import (
     WorkspaceRole,
 )
 from databricks_access_audit.principal_auditor import PrincipalAuditor
+from databricks_access_audit.principal_comparer import PrincipalComparer
 from databricks_access_audit.redundancy import RedundancyDetector
 from databricks_access_audit.revoke import RevokeScriptGenerator
 from databricks_access_audit.schema_scanner import SchemaPermissionScanner
@@ -95,6 +109,8 @@ __all__ = [
     "RedundancyDetector",
     "RevokeScriptGenerator",
     "PrincipalAuditor",
+    "PrincipalComparer",
+    "AccessCloner",
     "PermissionElevator",
     "detect_escalations",
     "ESCALATION_PRIVILEGES",
@@ -120,9 +136,17 @@ __all__ = [
     "StaleFinding",
     "LocalGroupFinding",
     "AuditDiff",
+    # Compare / clone models
+    "GroupComparison",
+    "CompareResult",
+    "CloneActionType",
+    "CloneAction",
+    "CloneReport",
     # CSV / snapshot
     "write_group_audit_csv",
     "write_principal_audit_csv",
+    "write_compare_csv",
+    "write_clone_report_csv",
     "build_group_snapshot",
     "build_principal_snapshot",
     "save_snapshot",

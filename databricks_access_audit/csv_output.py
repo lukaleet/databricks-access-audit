@@ -121,6 +121,39 @@ def write_principal_audit_csv(
                         g.inherited_from or ""])
 
 
+def write_compare_csv(result: Any, output: Optional[TextIO] = None) -> None:
+    """Write a CompareResult as CSV."""
+    out = output or sys.stdout
+    w = csv.writer(out)
+
+    w.writerow(["group_id", "group_name", "source",
+                "in_a", "in_b", "is_direct_in_a", "is_direct_in_b",
+                "path_in_a", "path_in_b"])
+    for section in (result.only_in_a, result.only_in_b, result.in_both):
+        for gc in section:
+            w.writerow([
+                gc.group_id, gc.group_name, gc.source.value,
+                gc.in_a, gc.in_b, gc.is_direct_in_a, gc.is_direct_in_b,
+                " → ".join(gc.path_in_a), " → ".join(gc.path_in_b),
+            ])
+
+
+def write_clone_report_csv(report: Any, output: Optional[TextIO] = None) -> None:
+    """Write a CloneReport as CSV."""
+    out = output or sys.stdout
+    w = csv.writer(out)
+
+    w.writerow(["action_type", "group_name", "group_id", "source",
+                "path", "workspace_accesses", "uc_grants_summary",
+                "applied", "error"])
+    for a in report.actions:
+        w.writerow([
+            a.action_type.value, a.group_name, a.group_id, a.source.value,
+            " → ".join(a.path), ", ".join(a.workspace_accesses),
+            a.uc_grants_summary, a.applied, a.error or "",
+        ])
+
+
 def write_diff_csv(diff: Any, output: Optional[TextIO] = None) -> None:
     """Write an AuditDiff as CSV."""
     out = output or sys.stdout

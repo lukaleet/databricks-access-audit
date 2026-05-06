@@ -5,6 +5,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.18.3] - 2026-05-05
+
+### Added
+- **`--compare A B`** — pure-read membership diff between two principals.  Shows which groups are unique to each principal and which are shared.  Each group is annotated with source (`external` = IdP-managed, `internal` = Databricks-managed), directness (`is_direct`), and the full membership chain.  Available in `text`, `json`, and `csv` output formats.
+- **`--clone-from SOURCE --to TARGET`** — provisioning report that classifies each of the source's direct group memberships into one of four actions:
+  - `Databricks` — the group is Databricks-managed and has a workspace assignment or UC grants; the tool can perform the SCIM PATCH when `--apply` is passed.
+  - `IdP required` — the group is synced from an external IdP (Entra / Okta); the target must be added in the identity provider — Databricks has no write access to IdP-managed group membership.
+  - `Unverified` — the group is Databricks-managed but has no detected workspace assignment; UC grants are not checked by default (pass `--scan-uc` to resolve these into `Databricks` or `Skipped`).
+  - `Skipped` — verified dead-end: no workspace assignment and no UC grants (requires `--scan-uc`).
+- **`--apply`** — when passed alongside `--clone-from / --to`, executes the SCIM PATCH for every `Databricks`-classified group, adding the target to each group.
+- **`--scan-uc`** — optional flag for `--clone-from`; scans Unity Catalog catalog grants in parallel to resolve `Unverified` groups into `Databricks` (has grants) or `Skipped` (dead-end).  Adds catalog-scan API calls per workspace, so it is off by default.
+- **`PrincipalComparer`** — Python API class wrapping the compare logic.  Takes two principal identifiers, BFS-walks group memberships for both, and returns a `CompareResult`.
+- **`AccessCloner`** — Python API class with `build_report()` (dry-run analysis) and `apply()` (SCIM writes).  `apply()` mutates the `CloneReport` in place, setting `applied=True` or `error=...` per action.
+- **New models** — `GroupComparison`, `CompareResult`, `CloneActionType`, `CloneAction`, `CloneReport` in `models.py`.
+- **CSV output functions** — `write_compare_csv()` and `write_clone_report_csv()` in `csv_output.py`.
+- **Access Provisioning use-case page** — `docs/use-cases/access-provisioning.md` covering the "match one user's access to another" scenario with CLI and Python API examples, IdP vs Databricks group classification explanation, and `--scan-uc` guidance.
+
+### Tests
+- 513 tests (up from 477): 12 new tests in `tests/test_principal_comparer.py`, 10 new tests in `tests/test_access_cloner.py`, 22 new tests in `tests/test_cli.py` (compare and clone modes across all output formats, `--apply` success/error paths, missing `--to` guard, mutually-exclusive mode validation).
+
+---
+
 ## [0.18.2] - 2026-05-04
 
 ### Added

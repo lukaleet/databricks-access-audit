@@ -51,11 +51,22 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         ),
     )
 
-    # Target (mutually exclusive: --group OR --principal)
+    # Target (mutually exclusive: --group OR --principal OR --compare OR --clone-from)
     target = p.add_mutually_exclusive_group(required=True)
     target.add_argument("--group", help="Display name of the group to audit")
     target.add_argument("--principal",
                         help="User email, SP app-ID/name, or group name for principal audit")
+    target.add_argument(
+        "--compare",
+        nargs=2,
+        metavar=("PRINCIPAL_A", "PRINCIPAL_B"),
+        help="Compare group memberships of two principals side-by-side",
+    )
+    target.add_argument(
+        "--clone-from",
+        metavar="SOURCE",
+        help="Build a provisioning report to replicate SOURCE's group access",
+    )
 
     p.add_argument("--workspace-urls", default="",
                    help="Comma-separated workspace URLs (omit to scan all)")
@@ -198,6 +209,31 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
             "sql_queries, sql_alerts, lakeview_dashboards, genie_spaces, "
             "mlflow_experiments, registered_models, serving_endpoints, apps.  "
             "Default: all 13 types."
+        ),
+    )
+
+    p.add_argument(
+        "--to",
+        metavar="TARGET",
+        default="",
+        help="Target principal for --clone-from (required when using --clone-from)",
+    )
+    p.add_argument(
+        "--apply",
+        action="store_true",
+        help=(
+            "Apply Databricks-managed group changes from --clone-from.  "
+            "Without this flag the report is a dry run.  IdP-managed groups "
+            "are never touched — those must be handled in your identity provider."
+        ),
+    )
+    p.add_argument(
+        "--scan-uc",
+        action="store_true",
+        help=(
+            "For --clone-from: scan Unity Catalog grants to classify groups with "
+            "no workspace assignment as UC-only (clone-able) or dead-end (skip).  "
+            "Adds catalog-scan API calls — may be slow with many workspaces."
         ),
     )
 
@@ -598,6 +634,237 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_compare(args: argparse.Namespace) -> int:
+    """Run principal comparison."""
+    from databricks_access_audit.principal_comparer import PrincipalComparer
+    client = _build_client(args)
+    _log = (
+        (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr}))
+        if args.output == "json" else print
+    )
+    identifier_a, identifier_b = args.compare
+    _log(f"Comparing: {identifier_a} vs {identifier_b} ...")
+    comparer = PrincipalComparer(client, cloud_provider=args.cloud)
+    try:
+        result = comparer.compare(identifier_a, identifier_b)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    if args.output == "csv":
+        from databricks_access_audit.csv_output import write_compare_csv
+        write_compare_csv(result)
+        return 0
+
+    if args.output == "json":
+        def _gc(gc):
+            return {
+                "group_id": gc.group_id,
+                "group_name": gc.group_name,
+                "source": gc.source.value,
+                "in_a": gc.in_a,
+                "in_b": gc.in_b,
+                "is_direct_in_a": gc.is_direct_in_a,
+                "is_direct_in_b": gc.is_direct_in_b,
+                "path_in_a": gc.path_in_a,
+                "path_in_b": gc.path_in_b,
+            }
+        out = {
+            "principal_a": result.principal_a,
+            "principal_b": result.principal_b,
+            "display_name_a": result.display_name_a,
+            "display_name_b": result.display_name_b,
+            "only_in_a": [_gc(g) for g in result.only_in_a],
+            "only_in_b": [_gc(g) for g in result.only_in_b],
+            "in_both": [_gc(g) for g in result.in_both],
+        }
+        print(json.dumps(out, indent=2))
+        return 0
+
+    # Text output
+    na, nb = result.display_name_a, result.display_name_b
+    print(f"\n{'='*60}")
+    print(f"  Comparison: {na}  vs  {nb}")
+    print(f"{'='*60}")
+
+    def _fmt_group(gc, side: str) -> str:
+        path = gc.path_in_a if side == "a" else gc.path_in_b
+        is_direct = gc.is_direct_in_a if side == "a" else gc.is_direct_in_b
+        tag = "direct" if is_direct else "transitive"
+        src = gc.source.value
+        path_str = " → ".join(path) if path else "?"
+        return f"    {gc.group_name} ({tag}, {src})\n      path: {path_str}"
+
+    if result.only_in_a:
+        print(f"\n  Groups {na} has that {nb} does not ({len(result.only_in_a)}):")
+        for gc in result.only_in_a:
+            print(_fmt_group(gc, "a"))
+    else:
+        print(f"\n  {na} has no groups that {nb} is missing.")
+
+    if result.only_in_b:
+        print(f"\n  Groups {nb} has that {na} does not ({len(result.only_in_b)}):")
+        for gc in result.only_in_b:
+            print(_fmt_group(gc, "b"))
+    else:
+        print(f"\n  {nb} has no groups that {na} is missing.")
+
+    if result.in_both:
+        print(f"\n  Groups both belong to ({len(result.in_both)}):")
+        for gc in result.in_both:
+            a_tag = "direct" if gc.is_direct_in_a else "transitive"
+            b_tag = "direct" if gc.is_direct_in_b else "transitive"
+            src = gc.source.value
+            print(f"    {gc.group_name} ({src})  [{na}: {a_tag}  |  {nb}: {b_tag}]")
+
+    print(f"\n{'='*60}")
+    return 0
+
+
+def _run_clone(args: argparse.Namespace) -> int:
+    """Run access clone / provisioning report."""
+    if not args.to:
+        print("ERROR: --clone-from requires --to <target_principal>.", file=sys.stderr)
+        return 1
+
+    from databricks_access_audit.access_cloner import AccessCloner
+    client = _build_client(args)
+    _log = (
+        (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr}))
+        if args.output == "json" else print
+    )
+    _log(f"Building clone report: {args.clone_from} → {args.to} ...")
+    if args.apply:
+        _log("  --apply is set: Databricks-managed group memberships will be written.")
+    if args.scan_uc:
+        _log("  --scan-uc is set: scanning Unity Catalog grants for unverified groups ...")
+
+    cloner = AccessCloner(client, cloud_provider=args.cloud)
+    try:
+        report = cloner.build_report(
+            source=args.clone_from,
+            target=args.to,
+            scan_uc=args.scan_uc,
+            explicit_workspace_urls=args.workspace_urls,
+            max_workers=args.workers,
+        )
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    # Apply Databricks-side changes if requested
+    if args.apply and report.databricks_actions:
+        # Re-resolve target to get their SCIM ID
+        from databricks_access_audit.principal_auditor import PrincipalAuditor
+        auditor = PrincipalAuditor(client, cloud_provider=args.cloud)
+        try:
+            _, target_id, _, _, _ = auditor.find_principal(args.to)
+        except ValueError as exc:
+            print(f"ERROR resolving target for apply: {exc}", file=sys.stderr)
+            return 1
+        _log(f"  Applying {len(report.databricks_actions)} Databricks group addition(s) ...")
+        cloner.apply(report, target_id)
+
+    if args.output == "csv":
+        from databricks_access_audit.csv_output import write_clone_report_csv
+        write_clone_report_csv(report)
+        return 0
+
+    if args.output == "json":
+        def _action_dict(a):
+            return {
+                "action_type": a.action_type.value,
+                "group_id": a.group_id,
+                "group_name": a.group_name,
+                "source": a.source.value,
+                "path": a.path,
+                "workspace_accesses": a.workspace_accesses,
+                "uc_grants_summary": a.uc_grants_summary,
+                "applied": a.applied,
+                "error": a.error,
+            }
+        out = {
+            "source_principal": report.source_principal,
+            "target_principal": report.target_principal,
+            "source_display_name": report.source_display_name,
+            "target_display_name": report.target_display_name,
+            "idp_required": [_action_dict(a) for a in report.idp_actions],
+            "databricks": [_action_dict(a) for a in report.databricks_actions],
+            "unverified": [_action_dict(a) for a in report.unverified_actions],
+            "skipped": [_action_dict(a) for a in report.skipped],
+        }
+        print(json.dumps(out, indent=2))
+        return 0
+
+    # Text output
+    src_name = report.source_display_name
+    tgt_name = report.target_display_name
+    print(f"\n{'='*60}")
+    print("  Access provisioning report")
+    print(f"  Source: {src_name} ({report.source_principal})")
+    print(f"  Target: {tgt_name} ({report.target_principal})")
+    print(f"{'='*60}")
+
+    if report.idp_actions:
+        print(f"\n  Actions required in your identity provider ({len(report.idp_actions)}):")
+        print("  (Cannot be done from Databricks — add target in Entra ID / Okta / etc.)")
+        for a in report.idp_actions:
+            path_str = " → ".join(a.path) if a.path else a.group_name
+            ws_str = (
+                f"  [workspaces: {', '.join(a.workspace_accesses)}]"
+                if a.workspace_accesses else ""
+            )
+            print(f"    ! {a.group_name} (IdP-synced){ws_str}")
+            print(f"      path: {path_str}")
+
+    if report.databricks_actions:
+        applied_count = sum(1 for a in report.databricks_actions if a.applied)
+        label = (
+            f"Applied ({applied_count}/{len(report.databricks_actions)})"
+            if args.apply
+            else f"Actions in Databricks ({len(report.databricks_actions)})"
+        )
+        print(f"\n  {label}:")
+        for a in report.databricks_actions:
+            ws_str = (
+                f"  [workspaces: {', '.join(a.workspace_accesses)}]"
+                if a.workspace_accesses else ""
+            )
+            uc_str = f"  [{a.uc_grants_summary}]" if a.uc_grants_summary else ""
+            status = ""
+            if args.apply:
+                if a.applied:
+                    status = "  applied"
+                elif a.error:
+                    status = f"  ERROR: {a.error}"
+            print(f"    + {a.group_name} (Databricks-managed){ws_str}{uc_str}{status}")
+            path_str = " → ".join(a.path) if a.path else a.group_name
+            print(f"      path: {path_str}")
+
+    if report.unverified_actions:
+        n = len(report.unverified_actions)
+        print(f"\n  Unverified — no workspace assignment, UC not scanned ({n}):")
+        print("  (Databricks-managed; run with --scan-uc to classify as UC-only or dead-end)")
+        for a in report.unverified_actions:
+            path_str = " → ".join(a.path) if a.path else a.group_name
+            print(f"    ? {a.group_name} (Databricks-managed)")
+            print(f"      path: {path_str}")
+
+    if report.skipped:
+        print(f"\n  Skipped — verified dead-end, no effective grants ({len(report.skipped)}):")
+        for a in report.skipped:
+            print(f"    - {a.group_name} (Databricks-managed, no grants detected)")
+
+    if not args.apply and report.databricks_actions:
+        print(
+            f"\n  Dry run — pass --apply to write the {len(report.databricks_actions)}"
+            f" Databricks group addition(s)."
+        )
+
+    print(f"\n{'='*60}")
+    return 0
+
+
 def _run_group_audit(args: argparse.Namespace) -> int:
     """Run the group-centric audit (original behavior)."""
     from databricks_access_audit.catalog_scanner import CatalogPermissionScanner
@@ -892,7 +1159,10 @@ def main(argv: List[str] | None = None) -> int:
         )
         return 1
 
+    if args.compare:
+        return _run_compare(args)
+    if args.clone_from:
+        return _run_clone(args)
     if args.principal:
         return _run_principal_audit(args)
-    else:
-        return _run_group_audit(args)
+    return _run_group_audit(args)

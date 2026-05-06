@@ -36,6 +36,7 @@ nav:
   - Capabilities: capabilities.md
   - Use Cases:
     - Offboarding: use-cases/offboarding.md
+    - Access Provisioning: use-cases/access-provisioning.md
     - Access Review: use-cases/access-review.md
     - Permission Hygiene: use-cases/permission-hygiene.md
     - Stale Access Detection: use-cases/stale-access.md
