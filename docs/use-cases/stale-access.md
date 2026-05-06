@@ -1,15 +1,25 @@
 # Stale Access Detection
 
-A member-direct catalog grant with no recorded activity in 90 days is a risk — the person may have changed roles, left the project, or simply never used the access. `--stale-days` cross-references current grants against `system.access.audit` and flags the quiet ones.
+Alice moved from the data team to engineering eight months ago. Her calendar is full of infrastructure tickets. She hasn't opened a notebook in months.
+
+Her `SELECT` and `USE_CATALOG` grants on the production catalog are still there.
+
+Nobody revoked them because the move happened through an org change, not an offboarding. She's still in `data-engineers` — she was just quietly reassigned. The access never came up because she never tried to use it. It's invisible until something goes wrong: a security review, an audit finding, or an incident where "former data team member" turns up in the audit log accessing production data.
+
+`--stale-days` finds all of this by cross-referencing current grants against `system.access.audit`. Anyone holding a personal catalog grant with no recorded activity in the last N days gets flagged.
+
+---
 
 ## Prerequisites
 
-- **System tables must be enabled** — the `system` catalog must be visible in the metastore. Enable it in the Account Console under Settings → System tables.
-- **The audit SP needs `SELECT` on `system.access.audit`** — grant it via Metastore Admin or directly:
+- **System tables must be enabled** — the `system` catalog must be visible in your metastore. Enable it in the Account Console under Settings → System tables.
+- **The audit SP needs `SELECT` on `system.access.audit`:**
   ```sql
   GRANT SELECT ON system.access.audit TO `your-sp-client-id`;
   ```
-- **A SQL warehouse** with access to the system catalog must be running.
+- **A running SQL warehouse** with access to the system catalog.
+
+---
 
 ## Basic usage
 
@@ -19,15 +29,17 @@ databricks-access-audit --group "data-engineers" \
   --sql-warehouse-id "abc123def456"
 ```
 
-Output:
-
 ```
-  Stale grants (2, no activity in 90 days):
-    ! bob@company.com: SELECT, USE_CATALOG on main
-    ! carol@company.com: USE_CATALOG on staging
+  Stale grants (2, no activity in last 90 days):
+    ! alice@company.com: SELECT, USE_CATALOG on main
+      last recorded access: 2024-09-14
+    ! mark@company.com: USE_CATALOG on staging
+      last recorded access: never recorded in window
 ```
 
-If you have multiple workspaces, specify which one holds your system catalog:
+`last recorded access: never recorded in window` means no entry appeared in `system.access.audit` for this principal during the entire lookback period — they haven't touched Databricks in at least 90 days.
+
+If your system tables span multiple workspaces, point to the right one:
 
 ```bash
 databricks-access-audit --group "data-engineers" \
@@ -35,6 +47,8 @@ databricks-access-audit --group "data-engineers" \
   --sql-warehouse-id "abc123def456" \
   --sql-workspace-url "https://adb-123.azuredatabricks.net"
 ```
+
+---
 
 ## Export for review
 
@@ -45,11 +59,13 @@ databricks-access-audit --group "data-engineers" \
   --output csv > stale_$(date +%F).csv
 ```
 
-The CSV includes `last_access` (last recorded date in the audit log, or blank if no activity at all within the window) and `stale_days` (the threshold you configured).
+The CSV includes `last_access` (last recorded date, or empty for no activity) and `stale_days` (the threshold configured). Share with the team lead or data steward for sign-off before revoking.
+
+---
 
 ## Combine with redundancy analysis
 
-Stale detection and redundancy analysis run in the same pass:
+Stale detection and redundancy analysis run together — it's one scan, one pass:
 
 ```bash
 databricks-access-audit --group "data-engineers" \
@@ -59,11 +75,13 @@ databricks-access-audit --group "data-engineers" \
   --output csv > full_hygiene_$(date +%F).csv
 ```
 
-A grant that is both stale and redundant is a clear revocation candidate.
+A grant that is both stale **and** redundant (also covered by the group) is the clearest possible revocation case: the person isn't using it, and the group already covers it anyway.
+
+---
 
 ## What the query checks
 
-The tool runs a query against `system.access.audit` to find the last recorded activity per principal within the configured window:
+The stale check queries `system.access.audit` for the last recorded activity per principal within the configured window:
 
 ```sql
 SELECT
@@ -74,30 +92,36 @@ WHERE event_time >= DATEADD(DAY, -90, CURRENT_TIMESTAMP())
 GROUP BY 1
 ```
 
-Any grant holder absent from this result (no events in the window) is returned as a stale finding with `last_access = None`.
+Any grant holder absent from this result — no events in the lookback window — is returned as a stale finding.
+
+---
 
 ## Interpreting results
 
 !!! warning "Absence of activity is a signal, not proof"
-    Stale findings do not automatically generate REVOKE SQL. Some legitimate access patterns are infrequent — a quarterly batch job, an on-call script, a report that runs monthly. Review the finding before acting.
+    The stale check does not generate REVOKE SQL automatically. Some legitimate access patterns are infrequent — a quarterly batch job, a monthly report, an on-call runbook. Review before acting.
 
 A sensible triage process:
 
-1. Cross-reference with HR/IT to confirm the person is still active
-2. Check if there's a job or pipeline running under their identity that you missed
-3. If genuinely unused, revoke and document it in the access review record
+1. Cross-reference with HR/IT: is the person still in the role that warranted this access?
+2. Check whether a job or pipeline runs under their identity — look in the workspace job list or `system.workflow.job_run_timeline`
+3. If genuinely unused: revoke, document it in the access review record
+
+---
 
 ## Adjusting the threshold
 
-90 days is a common starting point for SOC 2 compliance. Some organisations use 60 days for sensitive catalogs or 180 days for rarely-accessed archives:
+90 days is a common starting point. Adjust based on sensitivity:
 
 ```bash
-# Sensitive data — tighter window
+# PII or sensitive catalog — tighter window
 databricks-access-audit --group "pii-readers" --stale-days 60 ...
 
-# Archive catalog — longer window acceptable
+# Rarely-accessed archive — longer window acceptable
 databricks-access-audit --group "archive-readers" --stale-days 180 ...
 ```
+
+---
 
 ## Python API
 

@@ -1,134 +1,151 @@
 # Access Provisioning
 
-## The scenario
+> "Please add Uwe to Databricks. He should have the same access as Thomas."
+>
+> "OK — what groups is Thomas in?"
+>
+> "I don't know. He's been here three years."
 
-> "We need to onboard a new hire.  Give them the same access as Alice — she's already in all the right groups."
+In a large account this is a surprisingly hard question. Thomas might be in 40 groups. Some are synced from Entra ID — you can't manage those from Databricks, you need to go to your identity provider. Some are Databricks-managed — you can add Uwe directly. Some are nested: Thomas is in group A because group A is nested inside group B, not because anyone added him to B directly. And some groups exist only for Unity Catalog access, with no workspace assignment at all.
 
-In a large Databricks account this is surprisingly hard to answer from the UI.  A principal can be a direct or transitive member of hundreds of groups.  Some groups are synced from Entra ID or Okta (you can't manage them from Databricks), others are Databricks-managed (you can add members via SCIM).  Some groups carry workspace assignments, others exist only for Unity Catalog access, and some are dead-ends that grant nothing at all.
-
-`--compare` shows you the gap.  `--clone-from` tells you exactly what to do about it — and with `--apply`, does it for you.
-
----
-
-## Compare two principals
-
-Before provisioning, see what Alice has that Bob doesn't:
-
-```bash
-databricks-access-audit \
-  --compare "alice@company.com" "bob@company.com" \
-  --cloud azure
-```
-
-```
-Compare: alice@company.com  vs  bob@company.com
-
-Only alice@company.com (3):
-  data-engineers          [external]  direct
-  bi-consumers            [external]  via: alice → bi-consumers
-  scratch-workspace-admins [internal]  direct
-
-Only bob@company.com (1):
-  legacy-etl-users        [internal]  direct
-
-Shared (5):
-  account-users           [internal]  ...
-  ...
-```
-
-Each group shows:
-
-- **source** — `external` means it's synced from an IdP (Entra/Okta); `internal` means it's Databricks-managed.
-- **directness** — `direct` vs transitive (with the full chain).
-
-Use `--output json` or `--output csv` to pipe the diff into a SIEM or spreadsheet.
+Without tooling, you open the Account Console. You find Thomas. You see his direct groups. You start clicking through each one. Forty groups, two types (some with a little Entra icon, some without), and you're not sure which ones grant what. An hour later you have a list, half of it wrong, and you still don't know which ones you can actually provision from Databricks.
 
 ---
 
-## Build a provisioning plan
+## Step 1 — see the gap
+
+Before doing anything, compare Thomas and Uwe's current memberships:
 
 ```bash
-databricks-access-audit \
-  --clone-from "alice@company.com" \
-  --to "bob@company.com" \
-  --cloud azure
+databricks-access-audit --compare "thomas@company.com" "uwe@company.com"
 ```
 
 ```
-Clone report: alice@company.com → bob@company.com
+============================================================
+  Comparison: Thomas Müller  vs  Uwe Becker
+============================================================
 
-[IdP required] (2 groups)  — add bob@company.com in Entra / Okta
-  data-engineers          workspaces: prod-workspace, dev-workspace
-  bi-consumers            workspaces: prod-workspace
+  Groups Thomas has that Uwe does not (5):
+    data-engineers         (direct, external)   ← must add in Entra
+      path: Thomas Müller → data-engineers
+    bi-consumers           (transitive, external) ← follows once data-engineers is done
+      path: Thomas Müller → data-engineers → bi-consumers
+    npb-platform-users     (direct, internal)   ← can add in Databricks
+      path: Thomas Müller → npb-platform-users
+    scratch-workspace-admins (direct, internal) ← can add in Databricks
+      path: Thomas Müller → scratch-workspace-admins
+    ml-catalog-readers     (direct, internal)   ← no workspace assignment, run --scan-uc
 
-[Databricks] (1 group)  — will be applied with --apply
-  scratch-workspace-admins  workspaces: scratch-workspace
+  Groups Uwe has that Thomas does not (1):
+    legacy-etl-users       (direct, internal)   ← different project, leave it
 
-[Unverified] (1 group)  — run with --scan-uc to check UC grants
-  ml-catalog-readers      (no workspace assignment detected)
+  Groups both belong to (3):
+    account users  |  npb-developers  |  ...
 
-Dry-run complete. Pass --apply to execute Databricks actions.
+============================================================
 ```
 
-The tool only considers **direct** memberships from the source.  Transitive group memberships follow automatically once the direct ones are in place — you never need to manually add someone to a parent group's nested groups.
+This tells you the exact gap — not all of Thomas's memberships, just the ones Uwe is missing. And crucially, it tells you the **source** of each group: `external` means Entra/Okta, `internal` means Databricks-managed.
 
 ---
 
-## Understanding the four action types
+## Step 2 — build the provisioning plan
 
-### `Databricks` — you can act now
+```bash
+databricks-access-audit --clone-from "thomas@company.com" --to "uwe@company.com" --scan-uc
+```
 
-The group is created and managed inside Databricks.  It has a workspace assignment (or UC grants when `--scan-uc` is used).  Pass `--apply` to SCIM-PATCH the target into it immediately.
+```
+============================================================
+  Access provisioning report
+  Source: Thomas Müller (thomas@company.com)
+  Target: Uwe Becker (uwe@company.com)
+============================================================
 
-### `IdP required` — act in your identity provider
+  Actions required in your identity provider (2):
+  (Cannot be done from Databricks — add target in Entra ID / Okta / etc.)
+    ! data-engineers     [workspaces: prod-workspace, dev-workspace]
+    ! bi-consumers       [transitive — follows once data-engineers is done]
 
-The group is synced from an external IdP — its `externalId` field in SCIM is set.  Databricks mirrors IdP state; it does not own it.  You must add the target in Entra, Okta, or whichever IdP manages this group.  Once the sync runs (usually minutes), the membership will appear in Databricks automatically.
+  Actions in Databricks (2):
+    + npb-platform-users      [workspaces: prod-workspace]
+    + scratch-workspace-admins [workspaces: scratch-workspace]
 
-!!! tip
-    `--output json` prints the `group_id` for each IdP-required group.  You can use that ID to look up the exact Entra/Okta group name if your IAM tooling supports it.
+  Skipped — verified dead-end, no effective grants (1):
+    - ml-catalog-readers  (no workspace assignment, no UC grants detected)
 
-### `Unverified` — no workspace assignment detected, UC unknown
+  Dry run — pass --apply to write the 2 Databricks group addition(s).
 
-The group is Databricks-managed (no `externalId`) but does not appear in any workspace's `permissionassignments` response.  This can happen for:
+============================================================
+```
 
-- **UC-only groups** — the group has Unity Catalog grants but no workspace assignment.  Common for fine-grained catalog/schema access control.
-- **Dead-end groups** — the group was created but never had grants assigned.
+The plan splits into two actionable tracks:
 
-Pass `--scan-uc` to resolve these:
+**Identity provider (Entra/Okta):** Add Uwe to `data-engineers`. Once the SCIM sync runs (usually minutes), `bi-consumers` follows automatically because it's nested inside `data-engineers` — you don't need to add him there separately.
+
+**Databricks:** Two groups you can provision immediately with `--apply`. No IdP ticket needed.
+
+---
+
+## Why the IdP split matters
+
+If you didn't know which groups were Entra-synced, here's what would happen: you'd try to PATCH Uwe into `data-engineers` from Databricks. You'd get a `403 Forbidden`. You'd try again. Still 403. You'd assume it's a permissions issue and spend time debugging — when the real answer is that Databricks doesn't own this group. Entra does.
+
+The tool checks SCIM `externalId` on each group. If it's set, the group is managed by an external IdP. Databricks mirrors that state; it can't write to it. The only path is your IdP.
+
+---
+
+## Step 3 — apply the Databricks actions
 
 ```bash
 databricks-access-audit \
-  --clone-from "alice@company.com" \
-  --to "bob@company.com" \
+  --clone-from "thomas@company.com" \
+  --to "uwe@company.com" \
   --scan-uc \
-  --cloud azure
+  --apply
 ```
 
-Groups with detected UC grants are promoted to `Databricks`; groups with neither workspace nor UC grants are marked `Skipped`.
+```
+  Applied (2/2):
+    + npb-platform-users       ✓ applied
+    + scratch-workspace-admins ✓ applied
+```
 
-### `Skipped` — verified dead-end
-
-Requires `--scan-uc`.  The group is Databricks-managed, has no workspace assignment, and has no UC grants.  Adding the target would have no practical effect.
+The Databricks side is done. Go add Uwe to `data-engineers` in Entra and the rest follows through the SCIM sync.
 
 ---
 
-## Apply the Databricks actions
+## What gets cloned
+
+Only **direct** memberships from the source are in the provisioning plan. Transitive memberships follow automatically once the direct ones are in place — you never need to manually add someone to every nested group in a chain.
+
+In the example above: Thomas is directly in `data-engineers`. `bi-consumers` is a transitive membership (he's in it because `data-engineers` is nested inside `bi-consumers`). The plan only asks you to add Uwe to `data-engineers`. Once that's done, `bi-consumers` access follows on its own.
+
+---
+
+## UC-only groups and `--scan-uc`
+
+Some groups have no workspace assignment — they exist purely to grant Unity Catalog access (a catalog, a schema, a table). These don't appear in workspace `permissionassignments` responses, so without extra scanning they're classified as `Unverified`.
+
+Pass `--scan-uc` to check them against actual catalog grants:
+
+- Groups with UC grants → promoted to `Databricks` (SCIM PATCH works, and it matters)
+- Groups with no grants anywhere → `Skipped` (adding Uwe would have no effect)
+
+`--scan-uc` adds catalog-scan API calls per workspace, so it's off by default. Worth running when the source might have UC-only access.
+
+---
+
+## Service principal provisioning
+
+The same flow works for service principals. Useful when a new automation account needs to mirror an existing SP:
 
 ```bash
 databricks-access-audit \
-  --clone-from "alice@company.com" \
-  --to "bob@company.com" \
-  --apply \
-  --cloud azure
+  --clone-from "etl-pipeline-sp" \
+  --to "new-etl-pipeline-sp" \
+  --apply
 ```
-
-Without `--apply` the command is a dry-run — it only prints the report.  With `--apply`, it performs a SCIM PATCH for each `Databricks`-classified group and reports the result:
-
-```
-[Databricks] scratch-workspace-admins  ✓ applied
-```
-
-If a PATCH fails (e.g. the target is already a member, or a permissions error) the error is shown per-group and the rest of the actions continue.
 
 ---
 
@@ -139,34 +156,36 @@ from databricks_access_audit import create_client, PrincipalComparer, AccessClon
 
 client = create_client(cloud="azure", client_id="...", client_secret="...", account_id="...")
 
-# Compare
+# See the gap
 comparer = PrincipalComparer(client, cloud_provider="azure")
-diff = comparer.compare("alice@company.com", "bob@company.com")
+diff = comparer.compare("thomas@company.com", "uwe@company.com")
 
+print("Thomas only:")
 for g in diff.only_in_a:
-    print(f"Alice only: {g.group_name}  source={g.source.value}  direct={g.is_direct_in_a}")
+    print(f"  {g.group_name}  source={g.source.value}  direct={g.is_direct_in_a}")
 
-# Clone (dry-run)
+# Build the plan
 cloner = AccessCloner(client, cloud_provider="azure")
 report = cloner.build_report(
-    source="alice@company.com",
-    target="bob@company.com",
+    source="thomas@company.com",
+    target="uwe@company.com",
     scan_uc=True,
-    max_workers=8,
 )
 
-print("IdP actions:", [a.group_name for a in report.idp_actions])
-print("Databricks: ", [a.group_name for a in report.databricks_actions])
+print("IdP actions — add in Entra/Okta:")
+for a in report.idp_actions:
+    print(f"  {a.group_name}")
+
+print("Databricks actions — will apply via SCIM:")
+for a in report.databricks_actions:
+    print(f"  {a.group_name}  workspaces: {a.workspace_accesses}")
 
 # Apply
-target_scim_id = "12345678901234"  # account-level SCIM ID of bob
-cloner.apply(report, target_scim_id)
+cloner.apply(report, target_scim_id="<uwe's account SCIM ID>")
 
 for action in report.databricks_actions:
-    if action.applied:
-        print(f"✓ {action.group_name}")
-    elif action.error:
-        print(f"✗ {action.group_name}: {action.error}")
+    status = "✓" if action.applied else f"✗ {action.error}"
+    print(f"  {action.group_name}: {status}")
 ```
 
 ---
@@ -174,27 +193,13 @@ for action in report.databricks_actions:
 ## CSV output
 
 ```bash
-# Compare diff as CSV
-databricks-access-audit \
-  --compare "alice@company.com" "bob@company.com" \
-  --output csv \
-  --cloud azure > compare.csv
+# The gap as a spreadsheet
+databricks-access-audit --compare "thomas@company.com" "uwe@company.com" \
+  --output csv > compare.csv
 
-# Clone report as CSV
-databricks-access-audit \
-  --clone-from "alice@company.com" \
-  --to "bob@company.com" \
-  --output csv \
-  --cloud azure > clone_plan.csv
+# The provisioning plan (e.g. to attach to an IT ticket)
+databricks-access-audit --clone-from "thomas@company.com" --to "uwe@company.com" \
+  --scan-uc --output csv > provisioning_plan.csv
 ```
 
-Clone report CSV columns: `action_type`, `group_name`, `group_id`, `source`, `path`, `workspace_accesses`, `uc_grants_summary`, `applied`, `error`.
-
----
-
-## Notes and caveats
-
-- **Transitive groups are not cloned.** Only direct memberships from the source are in the report.  If Alice is directly in `team-A` which is nested in `data-engineers`, only `team-A` appears — `data-engineers` access follows transitively once Bob is in `team-A`.
-- **`--apply` is additive.** It only adds the target to groups; it does not remove any existing memberships the target already has.
-- **IdP sync lag.** After adding in Entra/Okta, the Databricks SCIM sync typically runs within minutes but may take up to an hour depending on your IdP's provisioning schedule.
-- **Service-principal cloning.** Both source and target can be users, service principals, or groups.  Cloning to a service principal is useful when provisioning a new automation account that should mirror an existing SP's access.
+The clone report CSV includes `action_type` (what to do), `source` (internal/external), `workspace_accesses` (which workspaces this group grants access to), and an `error` column that captures any SCIM failures if `--apply` is run.

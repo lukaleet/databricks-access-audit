@@ -150,5 +150,7 @@ databricks-access-audit --principal "alice@company.com" \
 ## Next steps
 
 - [Offboarding walkthrough](use-cases/offboarding.md)
+- [Access provisioning — onboarding a new hire](use-cases/access-provisioning.md)
 - [Access review workflow](use-cases/access-review.md)
+- [Incident response](use-cases/incident-response.md)
 - [Full CLI reference](reference/cli.md)
