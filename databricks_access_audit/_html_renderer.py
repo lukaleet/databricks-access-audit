@@ -59,7 +59,6 @@ def build_mermaid(
         edge_lines.append(f"    {src} {arrow} {dst}")
 
     # Principal
-    from databricks_access_audit.models import PrincipalSource
     p_src = "external" if result.principal_source == PrincipalSource.EXTERNAL else "internal"
     node("P", f"👤 {result.principal_name}\n{result.principal_type} · {p_src}", "principal")
 
@@ -68,11 +67,13 @@ def build_mermaid(
 
     ws_by_group: dict[str, list] = {}
     for r in result.workspace_roles:
-        ws_by_group.setdefault("__direct__" if not r.via_group or r.via_group == "(direct)" else r.via_group, []).append(r)
+        _k = "__direct__" if not r.via_group or r.via_group == "(direct)" else r.via_group
+        ws_by_group.setdefault(_k, []).append(r)
 
     perm_by_group: dict[str, list] = {}
     for p in result.permissions:
-        perm_by_group.setdefault("__direct__" if not p.via_group or p.via_group == "(direct)" else p.via_group, []).append(p)
+        _k = "__direct__" if not p.via_group or p.via_group == "(direct)" else p.via_group
+        perm_by_group.setdefault(_k, []).append(p)
 
     grant_groups = (set(ws_by_group) | set(perm_by_group)) - {"__direct__"}
 
@@ -114,7 +115,8 @@ def build_mermaid(
         for (stype, sname), privs in sorted(merged.items()):
             ucid  = sec_nid[(stype, sname)]
             icon  = {"CATALOG": "📦", "SCHEMA": "📂", "TABLE": "📋"}.get(stype, "📄")
-            ucls  = {"CATALOG": "catalog", "SCHEMA": "schema_n", "TABLE": "table_n"}.get(stype, "catalog")
+            _uc_cls = {"CATALOG": "catalog", "SCHEMA": "schema_n", "TABLE": "table_n"}
+            ucls  = _uc_cls.get(stype, "catalog")
             node(ucid, f"{icon} {stype}\n{sname}", ucls)
             lbl   = ", ".join(privs[:2]) + ("…" if len(privs) > 2 else "")
             edge(gid, ucid, label=lbl)
@@ -126,7 +128,7 @@ def build_mermaid(
         node("DIRECT", "🔑 Personal grants\n(no group)", "direct_n")
         edge("P", "DIRECT")
         for r in direct_ws:
-            wid = ws_nid.get(r.workspace_name, f"WSD0")
+            wid = ws_nid.get(r.workspace_name, "WSD0")
             node(wid, f"🏢 {r.workspace_name}\n{r.permission_level}", "workspace")
             edge("DIRECT", wid, label=r.permission_level)
         merged_d: dict[tuple, list[str]] = {}
@@ -136,9 +138,10 @@ def build_mermaid(
                 if priv not in merged_d.setdefault(key, []):
                     merged_d[key].append(priv)
         for (stype, sname), privs in sorted(merged_d.items()):
-            ucid = sec_nid.get((stype, sname), f"UCD0")
+            ucid = sec_nid.get((stype, sname), "UCD0")
             icon = {"CATALOG": "📦", "SCHEMA": "📂", "TABLE": "📋"}.get(stype, "📄")
-            ucls = {"CATALOG": "catalog", "SCHEMA": "schema_n", "TABLE": "table_n"}.get(stype, "catalog")
+            _uc_node_cls = {"CATALOG": "catalog", "SCHEMA": "schema_n", "TABLE": "table_n"}
+            ucls = _uc_node_cls.get(stype, "catalog")
             node(ucid, f"{icon} {stype}\n{sname}", ucls)
             edge("DIRECT", ucid)
 
@@ -150,7 +153,8 @@ def build_mermaid(
     lines += [
         "    classDef principal    fill:#3949ab,color:#fff,stroke:#1a237e,stroke-width:2px",
         "    classDef grp_direct   fill:#2e7d32,color:#fff,stroke:#1b5e20,stroke-width:2px",
-        "    classDef grp_transitive fill:#81c784,color:#1b5e20,stroke:#388e3c,stroke-width:1px,stroke-dasharray:5",
+        "    classDef grp_transitive fill:#81c784,color:#1b5e20,stroke:#388e3c,"
+        "stroke-width:1px,stroke-dasharray:5",
         "    classDef workspace    fill:#b71c1c,color:#fff,stroke:#7f0000,stroke-width:2px",
         "    classDef catalog      fill:#e65100,color:#fff,stroke:#bf360c,stroke-width:2px",
         "    classDef schema_n     fill:#f57c00,color:#fff,stroke:#e65100,stroke-width:1px",
@@ -186,7 +190,8 @@ _STYLE = """
 
     .mermaid { overflow-x: auto; text-align: center; padding: 8px 0; }
 
-    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+             gap: 12px; }
     .stat { background: #e8eaf6; border-radius: 10px; padding: 16px 12px; text-align: center; }
     .stat .n { font-size: 30px; font-weight: 800; color: #3949ab; line-height: 1; }
     .stat .l { font-size: 11px; color: #666; margin-top: 5px; text-transform: uppercase;
@@ -236,7 +241,11 @@ def render_html(
     from databricks_access_audit.models import PrincipalSource
 
     ts  = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    p_src = "external (IdP-synced)" if result.principal_source == PrincipalSource.EXTERNAL else "internal (Databricks-managed)"
+    p_src = (
+        "external (IdP-synced)"
+        if result.principal_source == PrincipalSource.EXTERNAL
+        else "internal (Databricks-managed)"
+    )
 
     diagram = build_mermaid(result, obj_grants)
 
@@ -254,7 +263,8 @@ def render_html(
         stat(n_transit, "transitive groups") +
         stat(n_ws,      "workspaces") +
         stat(n_uc,      "UC grants") +
-        (stat(len(obj_grants), "workspace objects") if show_workspace_objects and obj_grants else "")
+        (stat(len(obj_grants), "workspace objects")
+         if show_workspace_objects and obj_grants else "")
     )
 
     # ── group memberships table ───────────────────────────────────────────────
@@ -263,10 +273,16 @@ def render_html(
             return '<tr><td colspan="4" class="empty">No group memberships found.</td></tr>'
         rows = []
         for g in result.groups:
-            d_tag = f'<span class="tag t-direct">direct</span>' if g.is_direct else \
-                    f'<span class="tag t-transit">transitive</span>'
-            s_tag = f'<span class="tag t-ext">Entra/IdP</span>' if g.source.value == "external" else \
-                    f'<span class="tag t-int">Databricks</span>'
+            d_tag = (
+                '<span class="tag t-direct">direct</span>'
+                if g.is_direct else
+                '<span class="tag t-transit">transitive</span>'
+            )
+            s_tag = (
+                '<span class="tag t-ext">Entra/IdP</span>'
+                if g.source.value == "external" else
+                '<span class="tag t-int">Databricks</span>'
+            )
             path  = " → ".join(_e(s) for s in g.path)
             rows.append(
                 f"<tr><td><strong>{_e(g.group_name)}</strong></td>"
@@ -357,12 +373,14 @@ def render_html(
         if result.uc_only_groups:
             items = ", ".join(f"<strong>{_e(g)}</strong>" for g in result.uc_only_groups)
             parts.append(
-                f"<p><strong>UC-only groups</strong> (no workspace assignment — access via UC grants only):<br>{items}</p>"
+                "<p><strong>UC-only groups</strong> "
+                f"(no workspace assignment — access via UC grants only):<br>{items}</p>"
             )
         if result.dead_end_groups:
             items = ", ".join(f"<strong>{_e(g)}</strong>" for g in result.dead_end_groups)
             parts.append(
-                f"<p style='margin-top:10px'><strong>Unused groups</strong> (no workspace or UC grants):<br>{items}</p>"
+                "<p style='margin-top:10px'><strong>Unused groups</strong>"
+                f" (no workspace or UC grants):<br>{items}</p>"
             )
         extra_groups_html = f"""
   <section>
@@ -422,7 +440,8 @@ def render_html(
   <section>
     <h2>Unity Catalog permissions</h2>
     <table>
-      <tr><th>Type</th><th>Securable</th><th>Privileges</th><th>Via group</th><th>Workspace</th></tr>
+      <tr><th>Type</th><th>Securable</th><th>Privileges</th>
+          <th>Via group</th><th>Workspace</th></tr>
       {_uc_rows()}
     </table>
   </section>

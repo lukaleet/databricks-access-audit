@@ -26,11 +26,13 @@ def render_principal_tree(
 
     ws_by_group: dict[str, list] = {}
     for r in result.workspace_roles:
-        ws_by_group.setdefault("__direct__" if not r.via_group or r.via_group == "(direct)" else r.via_group, []).append(r)
+        _k = "__direct__" if not r.via_group or r.via_group == "(direct)" else r.via_group
+        ws_by_group.setdefault(_k, []).append(r)
 
     perm_by_group: dict[str, list] = {}
     for p in result.permissions:
-        perm_by_group.setdefault("__direct__" if not p.via_group or p.via_group == "(direct)" else p.via_group, []).append(p)
+        _k = "__direct__" if not p.via_group or p.via_group == "(direct)" else p.via_group
+        perm_by_group.setdefault(_k, []).append(p)
 
     grant_groups = (set(ws_by_group) | set(perm_by_group)) - {"__direct__"}
 
@@ -105,17 +107,19 @@ def render_principal_tree(
         print(f"\n  {conn} Workspace objects")
         for g in obj_grants:
             name = g.object_name or g.object_id
-            via  = f"via {g.inherited_from}" if g.inherited_from else "direct"
-            print(f"         {g.object_type:<22} {name:<40} {g.permission_level:<20} [{g.workspace_name}]")
+            print(
+                f"         {g.object_type:<22} {name:<40}"
+                f" {g.permission_level:<20} [{g.workspace_name}]"
+            )
 
     # ── uc-only / unused groups ───────────────────────────────────────────────
     if result.uc_only_groups:
-        print(f"\n  UC-only groups  (UC grants only — no workspace assignment):")
+        print("\n  UC-only groups  (UC grants only — no workspace assignment):")
         for g in result.uc_only_groups:
             print(f"    · {g}")
 
     if result.dead_end_groups:
-        print(f"\n  Unused groups  (no workspace access, no UC grants):")
+        print("\n  Unused groups  (no workspace access, no UC grants):")
         for g in result.dead_end_groups:
             print(f"    · {g}")
 

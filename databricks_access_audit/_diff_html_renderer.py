@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import html as _html
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from databricks_access_audit.models import AuditDiff

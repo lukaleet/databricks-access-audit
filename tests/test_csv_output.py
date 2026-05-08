@@ -254,7 +254,9 @@ def test_principal_csv_workspace_roles_header():
     write_principal_audit_csv(_principal_result(), [], output=buf)
     rows = _csv_rows(buf)
     # blank at [1], then workspace_roles header
-    assert rows[2] == ["workspace_id", "workspace_name", "permission_level", "via_group", "via_path"]
+    assert rows[2] == [
+        "workspace_id", "workspace_name", "permission_level", "via_group", "via_path",
+    ]
 
 
 def test_principal_csv_permissions_header():
@@ -262,7 +264,9 @@ def test_principal_csv_permissions_header():
     write_principal_audit_csv(_principal_result(), [], output=buf)
     rows = _csv_rows(buf)
     # groups_hdr[0], blank[1], roles_hdr[2], blank[3], perms_hdr[4]
-    assert rows[4] == ["securable_type", "securable_name", "privileges", "via_group", "via_path", "workspace"]
+    assert rows[4] == [
+        "securable_type", "securable_name", "privileges", "via_group", "via_path", "workspace",
+    ]
 
 
 def test_principal_csv_permission_row():

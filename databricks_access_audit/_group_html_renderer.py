@@ -7,8 +7,12 @@ from typing import TYPE_CHECKING, Dict, List
 
 if TYPE_CHECKING:
     from databricks_access_audit.models import (
-        CatalogGrant, GroupNode, RedundancyResult,
-        SchemaGrant, TableGrant, WorkspaceObjectGrant,
+        CatalogGrant,
+        GroupNode,
+        RedundancyResult,
+        SchemaGrant,
+        TableGrant,
+        WorkspaceObjectGrant,
     )
 
 
@@ -105,7 +109,8 @@ def build_group_mermaid(
     lines.extend(edge_lines)
     lines += [
         "    classDef group    fill:#2e7d32,color:#fff,stroke:#1b5e20,stroke-width:2px",
-        "    classDef parent   fill:#81c784,color:#1b5e20,stroke:#388e3c,stroke-width:1px,stroke-dasharray:5",
+        "    classDef parent   fill:#81c784,color:#1b5e20,stroke:#388e3c,"
+        "stroke-width:1px,stroke-dasharray:5",
         "    classDef workspace fill:#b71c1c,color:#fff,stroke:#7f0000,stroke-width:2px",
         "    classDef catalog  fill:#e65100,color:#fff,stroke:#bf360c,stroke-width:2px",
     ]
@@ -137,7 +142,8 @@ _STYLE = """
 
     .mermaid { overflow-x: auto; text-align: center; padding: 8px 0; }
 
-    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+             gap: 12px; }
     .stat { background: #e8f5e9; border-radius: 10px; padding: 16px 12px; text-align: center; }
     .stat .n { font-size: 30px; font-weight: 800; color: #2e7d32; line-height: 1; }
     .stat .l { font-size: 11px; color: #666; margin-top: 5px; text-transform: uppercase;
@@ -198,7 +204,6 @@ def render_group_html(
     redundancy: List["RedundancyResult"],
     show_workspace_objects: bool = False,
 ) -> str:
-    from databricks_access_audit.models import GrantSource
 
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     src_label = "IdP-synced (external)" if group_node.source.value == "external" \
@@ -281,15 +286,24 @@ def render_group_html(
         rows = []
         all_grants = (
             [(g.catalog_name, "", "", g.workspace_name, g.privileges, g.grant_source, "CATALOG")
-             for g in catalog_grants] +
-            [(g.catalog_name, g.schema_name, "", g.workspace_name, g.privileges, g.grant_source, "SCHEMA")
-             for g in schema_grants] +
-            [(g.catalog_name, g.schema_name, g.table_name, g.workspace_name, g.privileges, g.grant_source, "TABLE")
-             for g in table_grants]
+             for g in catalog_grants]
+            + [
+                (g.catalog_name, g.schema_name, "", g.workspace_name,
+                 g.privileges, g.grant_source, "SCHEMA")
+                for g in schema_grants
+            ]
+            + [
+                (g.catalog_name, g.schema_name, g.table_name, g.workspace_name,
+                 g.privileges, g.grant_source, "TABLE")
+                for g in table_grants
+            ]
         )
         if not all_grants:
             return '<tr><td colspan="5" class="empty">No Unity Catalog grants found.</td></tr>'
-        for cat, sch, tbl, ws, privs, gs, stype in sorted(all_grants, key=lambda x: (x[6], x[0], x[1], x[2])):
+        def _sort_key(x):
+            return (x[6], x[0], x[1], x[2])
+
+        for cat, sch, tbl, ws, privs, gs, stype in sorted(all_grants, key=_sort_key):
             if stype == "CATALOG":
                 name = cat
                 t_cls = "t-cat"
@@ -316,8 +330,8 @@ def render_group_html(
             return '<tr><td colspan="4" class="empty">No redundant grants found.</td></tr>'
         rows = []
         for r in sorted(interesting, key=lambda x: (x.redundancy_level.value, x.principal)):
-            lvl_tag = f'<span class="tag t-full">Full</span>' if r.redundancy_level.value == "Full" \
-                      else f'<span class="tag t-partial">Partial</span>'
+            lvl_tag = '<span class="tag t-full">Full</span>' if r.redundancy_level.value == "Full" \
+                      else '<span class="tag t-partial">Partial</span>'
             priv_tags = " ".join(f'<span class="tag t-priv">{_e(p)}</span>'
                                  for p in r.redundant_privileges)
             rows.append(
@@ -331,7 +345,10 @@ def render_group_html(
         if not workspace_object_grants:
             return '<tr><td colspan="5" class="empty">No workspace object grants found.</td></tr>'
         rows = []
-        for g in sorted(workspace_object_grants, key=lambda x: (x.object_type, x.object_name or "")):
+        def _obj_key(x):
+            return (x.object_type, x.object_name or "")
+
+        for g in sorted(workspace_object_grants, key=_obj_key):
             via = _e(g.inherited_from) if g.inherited_from else "—"
             rows.append(
                 f"<tr><td>{_e(g.object_type)}</td>"
@@ -349,7 +366,8 @@ def render_group_html(
   <section>
     <h2>Workspace objects</h2>
     <table>
-      <tr><th>Type</th><th>Name</th><th>Permission</th><th>Inherited from</th><th>Workspace</th></tr>
+      <tr><th>Type</th><th>Name</th><th>Permission</th>
+          <th>Inherited from</th><th>Workspace</th></tr>
       {_obj_rows()}
     </table>
   </section>"""
@@ -409,7 +427,8 @@ def render_group_html(
   <section>
     <h2>Unity Catalog grants</h2>
     <table>
-      <tr><th>Level</th><th>Securable</th><th>Privileges</th><th>Grant source</th><th>Workspace</th></tr>
+      <tr><th>Level</th><th>Securable</th><th>Privileges</th>
+          <th>Grant source</th><th>Workspace</th></tr>
       {_grant_rows()}
     </table>
   </section>

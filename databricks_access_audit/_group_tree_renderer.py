@@ -103,7 +103,10 @@ def render_group_tree(
         print(f"\n  {conn} Workspace objects")
         for g in workspace_object_grants:
             name = g.object_name or g.object_id
-            print(f"         {g.object_type:<22} {name:<40} {g.permission_level:<20} [{g.workspace_name}]")
+            print(
+                f"         {g.object_type:<22} {name:<40}"
+                f" {g.permission_level:<20} [{g.workspace_name}]"
+            )
 
     # ── redundancy callout ────────────────────────────────────────────────────
     n_full    = sum(1 for r in redundancy if r.redundancy_level.value == "Full")
@@ -123,7 +126,8 @@ def render_group_tree(
     if has_member:
         parts.append(f"{len(member_grants)} member-direct")
     if has_objects:
-        parts.append(f"{len(workspace_object_grants)} workspace object{'s' if len(workspace_object_grants) != 1 else ''}")
+        n_obj = len(workspace_object_grants)
+        parts.append(f"{n_obj} workspace object{'s' if n_obj != 1 else ''}")
 
     print(f"\n{'─' * 64}")
     print(f"  {' · '.join(parts)}")

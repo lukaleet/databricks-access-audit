@@ -8,11 +8,6 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Tuple
 
-_UUID_RE = re.compile(
-    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-    re.IGNORECASE,
-)
-
 from databricks_access_audit.client import AuditClient, _scim_filter_escape
 from databricks_access_audit.group_resolver import GroupMembershipResolver
 from databricks_access_audit.models import (
@@ -21,6 +16,11 @@ from databricks_access_audit.models import (
     ResourceGrant,
 )
 from databricks_access_audit.workspace import WorkspaceDiscovery
+
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
 
 log = logging.getLogger(__name__)
 
