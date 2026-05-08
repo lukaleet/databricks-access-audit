@@ -246,6 +246,7 @@ databricks-access-audit --principal "alice@company.com" \
 ## Next steps
 
 - [Quick reference — full decision guide](reference/quick-reference.md)
+- [Principal audit — full walkthrough](use-cases/principal-audit.md)
 - [Offboarding walkthrough](use-cases/offboarding.md)
 - [Access provisioning — onboarding a new hire](use-cases/access-provisioning.md)
 - [Resource audit — who has access to this catalog?](use-cases/resource-audit.md)

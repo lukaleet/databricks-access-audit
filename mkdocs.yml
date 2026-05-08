@@ -35,6 +35,7 @@ nav:
   - Getting Started: getting-started.md
   - Capabilities: capabilities.md
   - Use Cases:
+    - Principal Audit: use-cases/principal-audit.md
     - Offboarding: use-cases/offboarding.md
     - Access Provisioning: use-cases/access-provisioning.md
     - Visualizing Access: use-cases/access-map.md
