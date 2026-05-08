@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 import logging
+import re
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Tuple
+
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
 
 from databricks_access_audit.client import AuditClient, _scim_filter_escape
 from databricks_access_audit.group_resolver import GroupMembershipResolver
@@ -72,6 +78,13 @@ class ResourceAuditor:
             return self._principal_type_cache[name]
 
         result: Tuple[str, PrincipalSource] = ("GROUP", PrincipalSource.INTERNAL)
+
+        # UUID-shaped name → service principal applicationId (used in UC grants).
+        # Groups and users never have UUID-format identifiers.
+        if _UUID_RE.match(name):
+            result = ("SERVICE_PRINCIPAL", PrincipalSource.INTERNAL)
+            self._principal_type_cache[name] = result
+            return result
 
         # Email heuristic: try user first
         if "@" in name:
@@ -270,10 +283,13 @@ class ResourceAuditor:
         grants: List[ResourceGrant] = []
         for assignment in resp.get("permission_assignments", []):
             principal = assignment.get("principal", {})
+            # Prefer user_name (email) over display_name — it's unique per
+            # identity and triggers the @ heuristic in _classify_principal.
+            # display_name is shared across B2B guest duplicates.
             principal_name = (
-                principal.get("display_name")
-                or principal.get("user_name")
+                principal.get("user_name")
                 or principal.get("service_principal_name")
+                or principal.get("display_name")
                 or ""
             )
             if not principal_name:
@@ -283,8 +299,11 @@ class ResourceAuditor:
             if not permissions:
                 continue
 
+            # permissions is a list of strings e.g. ["ADMIN"] from the Account API
             privileges = [
-                p.get("permission_level", "") for p in permissions if p.get("permission_level")
+                p if isinstance(p, str) else p.get("permission_level", "")
+                for p in permissions
+                if p
             ]
             if not privileges:
                 continue
@@ -372,7 +391,15 @@ class ResourceAuditor:
                     f"Available workspaces: {available}"
                 )
 
-            result.grants = self._scan_workspace_resource(target, expand_groups)
+            raw = self._scan_workspace_resource(target, expand_groups)
+            seen: set = set()
+            deduped: List[ResourceGrant] = []
+            for g in raw:
+                key = (g.principal_name, g.via_group or "", frozenset(g.privileges))
+                if key not in seen:
+                    seen.add(key)
+                    deduped.append(g)
+            result.grants = deduped
             return result
 
         # UC resource: scan all workspaces in parallel
