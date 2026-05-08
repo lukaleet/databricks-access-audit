@@ -254,7 +254,9 @@ def test_principal_csv_workspace_roles_header():
     write_principal_audit_csv(_principal_result(), [], output=buf)
     rows = _csv_rows(buf)
     # blank at [1], then workspace_roles header
-    assert rows[2] == ["workspace_id", "workspace_name", "permission_level", "via_group"]
+    assert rows[2] == [
+        "workspace_id", "workspace_name", "permission_level", "via_group", "via_path",
+    ]
 
 
 def test_principal_csv_permissions_header():
@@ -262,7 +264,9 @@ def test_principal_csv_permissions_header():
     write_principal_audit_csv(_principal_result(), [], output=buf)
     rows = _csv_rows(buf)
     # groups_hdr[0], blank[1], roles_hdr[2], blank[3], perms_hdr[4]
-    assert rows[4] == ["securable_type", "securable_name", "privileges", "via_group", "workspace"]
+    assert rows[4] == [
+        "securable_type", "securable_name", "privileges", "via_group", "via_path", "workspace",
+    ]
 
 
 def test_principal_csv_permission_row():
@@ -273,7 +277,8 @@ def test_principal_csv_permission_row():
     assert rows[5][0] == "CATALOG"
     assert rows[5][1] == "main"
     assert rows[5][3] == "data-engineers"
-    assert rows[5][4] == "ws1"
+    assert rows[5][4] == ""       # via_path empty on fixture (no path set)
+    assert rows[5][5] == "ws1"
 
 
 def test_principal_csv_no_escalations_section_count():

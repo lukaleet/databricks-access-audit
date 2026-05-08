@@ -515,3 +515,28 @@ def test_principal_snapshot_uc_and_ws_grants_combined():
     types = {g["securable_type"] for g in snap["grants"]}
     assert "CATALOG" in types
     assert "CLUSTER" in types
+
+
+# ---------------------------------------------------------------------------
+# Mode mismatch guard
+# ---------------------------------------------------------------------------
+
+def test_diff_snapshots_raises_on_mode_mismatch():
+    baseline = _snap()  # mode=group
+    current = _principal_snap()  # mode=principal
+    with pytest.raises(ValueError, match="mode"):
+        diff_snapshots(baseline, current)
+
+
+def test_diff_snapshots_same_mode_does_not_raise():
+    baseline = _snap()
+    current = _snap()
+    diff = diff_snapshots(baseline, current)
+    assert not diff.has_changes
+
+
+def test_diff_snapshots_principal_mode_same_does_not_raise():
+    baseline = _principal_snap()
+    current = _principal_snap()
+    diff = diff_snapshots(baseline, current)
+    assert not diff.has_changes

@@ -86,16 +86,20 @@ def write_principal_audit_csv(
 
     # Workspace roles
     w.writerow([])
-    w.writerow(["workspace_id", "workspace_name", "permission_level", "via_group"])
+    w.writerow(["workspace_id", "workspace_name", "permission_level", "via_group", "via_path"])
     for r in result.workspace_roles:
-        w.writerow([r.workspace_id, r.workspace_name, r.permission_level, r.via_group])
+        w.writerow([r.workspace_id, r.workspace_name, r.permission_level, r.via_group,
+                    " → ".join(r.via_path) if r.via_path else ""])
 
     # Permissions table
     w.writerow([])
-    w.writerow(["securable_type", "securable_name", "privileges", "via_group", "workspace"])
+    w.writerow(["securable_type", "securable_name", "privileges", "via_group", "via_path",
+                "workspace"])
     for p in result.permissions:
         w.writerow([p.securable_type, p.securable_name,
-                    "|".join(p.privileges), p.via_group, p.workspace_name])
+                    "|".join(p.privileges), p.via_group,
+                    " → ".join(p.via_path) if p.via_path else "",
+                    p.workspace_name])
 
     if escalation_findings:
         w.writerow([])
@@ -115,6 +119,65 @@ def write_principal_audit_csv(
                         g.workspace_name, g.principal, g.principal_type,
                         g.permission_level, g.grant_source.value,
                         g.inherited_from or ""])
+
+
+def write_compare_csv(result: Any, output: Optional[TextIO] = None) -> None:
+    """Write a CompareResult as CSV."""
+    out = output or sys.stdout
+    w = csv.writer(out)
+
+    w.writerow(["group_id", "group_name", "source",
+                "in_a", "in_b", "is_direct_in_a", "is_direct_in_b",
+                "path_in_a", "path_in_b"])
+    for section in (result.only_in_a, result.only_in_b, result.in_both):
+        for gc in section:
+            w.writerow([
+                gc.group_id, gc.group_name, gc.source.value,
+                gc.in_a, gc.in_b, gc.is_direct_in_a, gc.is_direct_in_b,
+                " → ".join(gc.path_in_a), " → ".join(gc.path_in_b),
+            ])
+
+
+def write_clone_report_csv(report: Any, output: Optional[TextIO] = None) -> None:
+    """Write a CloneReport as CSV."""
+    out = output or sys.stdout
+    w = csv.writer(out)
+
+    w.writerow(["action_type", "group_name", "group_id", "source",
+                "path", "workspace_accesses", "uc_grants_summary",
+                "applied", "error"])
+    for a in report.actions:
+        w.writerow([
+            a.action_type.value, a.group_name, a.group_id, a.source.value,
+            " → ".join(a.path), ", ".join(a.workspace_accesses),
+            a.uc_grants_summary, a.applied, a.error or "",
+        ])
+
+
+def write_resource_audit_csv(result: Any, output: Optional[TextIO] = None) -> None:
+    """Write resource audit results as CSV.
+
+    Columns: resource_type, resource_name, principal_name, principal_type,
+             principal_source, privileges, via_group, workspace_name
+    """
+    out = output or sys.stdout
+    w = csv.writer(out)
+
+    w.writerow([
+        "resource_type", "resource_name", "principal_name", "principal_type",
+        "principal_source", "privileges", "via_group", "workspace_name",
+    ])
+    for g in result.grants:
+        w.writerow([
+            g.resource_type,
+            g.resource_name,
+            g.principal_name,
+            g.principal_type,
+            g.principal_source.value,
+            "|".join(g.privileges),
+            g.via_group or "",
+            g.workspace_name,
+        ])
 
 
 def write_diff_csv(diff: Any, output: Optional[TextIO] = None) -> None:

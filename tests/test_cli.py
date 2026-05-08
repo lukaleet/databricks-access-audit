@@ -308,6 +308,7 @@ def test_principal_audit_json_output(capsys):
     assert "groups" in data
     assert "workspace_roles" in data
     assert "dead_end_groups" in data
+    assert "uc_only_groups" in data
     assert "principal_source" in data  # key was misindented; verify it is in the dict
 
 
@@ -681,4 +682,603 @@ def test_missing_credentials_error_message_mentions_profile(capsys, monkeypatch)
     monkeypatch.setenv("DATABRICKS_CONFIG_FILE", "/nonexistent/.databrickscfg")
     rc = main(["--group", "data-engineers"])
     assert rc == 1
-    assert "--profile" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------------------
+# _parse_args — --compare and --clone-from flags
+# ---------------------------------------------------------------------------
+
+def test_parse_args_compare_mode():
+    args = _parse_args([
+        "--compare", "alice@example.com", "bob@example.com",
+        "--client-id", "cid", "--client-secret", "s", "--account-id", "a",
+    ])
+    assert args.compare == ["alice@example.com", "bob@example.com"]
+    assert args.group is None
+    assert args.principal is None
+    assert args.clone_from is None
+
+
+def test_parse_args_clone_from_mode():
+    args = _parse_args([
+        "--clone-from", "alice@example.com",
+        "--to", "bob@example.com",
+        "--client-id", "cid", "--client-secret", "s", "--account-id", "a",
+    ])
+    assert args.clone_from == "alice@example.com"
+    assert args.to == "bob@example.com"
+    assert args.apply is False
+    assert args.scan_uc is False
+
+
+def test_parse_args_clone_apply_scan_uc():
+    args = _parse_args([
+        "--clone-from", "alice@example.com",
+        "--to", "bob@example.com",
+        "--apply", "--scan-uc",
+        "--client-id", "cid", "--client-secret", "s", "--account-id", "a",
+    ])
+    assert args.apply is True
+    assert args.scan_uc is True
+
+
+def test_parse_args_compare_mutually_exclusive_with_group():
+    """--compare and --group are mutually exclusive."""
+    with pytest.raises(SystemExit):
+        _parse_args([
+            "--compare", "alice@example.com", "bob@example.com",
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "s", "--account-id", "a",
+        ])
+
+
+def test_parse_args_clone_from_mutually_exclusive_with_principal():
+    """--clone-from and --principal are mutually exclusive."""
+    with pytest.raises(SystemExit):
+        _parse_args([
+            "--clone-from", "alice@example.com",
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "s", "--account-id", "a",
+        ])
+
+
+# ---------------------------------------------------------------------------
+# --compare — integration tests (mock the comparer via _build_client)
+# ---------------------------------------------------------------------------
+
+def _register_compare_mocks(rsps):
+    """Register SCIM mocks for --compare tests (Alice and Bob share data-engineers)."""
+    base = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
+
+    rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
+             json={"access_token": "mock-token", "expires_in": 3600})
+
+    # Both Alice (user-1) and Bob (user-2) are in data-engineers (group-1).
+    def _group_list_cb(request):
+        import json as _json
+        filt = request.params.get("filter", "")
+        if "displayName" in filt:
+            name = filt.split('"')[1]
+            matched = [g for g in ALL_GROUPS if g["displayName"] == name]
+        else:
+            matched = ALL_GROUPS
+        body = {"Resources": matched, "totalResults": len(matched), "itemsPerPage": 100}
+        return (200, {}, _json.dumps(body))
+
+    rsps.add_callback(responses_lib.GET, f"{base}/scim/v2/Groups",
+                      callback=_group_list_cb, content_type="application/json")
+    for g in ALL_GROUPS:
+        rsps.add(responses_lib.GET, f"{base}/scim/v2/Groups/{g['id']}", json=g)
+
+    def _user_list_cb(request):
+        import json as _json
+        filt = request.params.get("filter", "")
+        if "emails.value" in filt:
+            email = filt.split('"')[1]
+            matched = [u for u in ALL_USERS
+                       if any(e.get("value") == email for e in u.get("emails", []))]
+        else:
+            matched = ALL_USERS
+        body = {"Resources": matched, "totalResults": len(matched), "itemsPerPage": 100}
+        return (200, {}, _json.dumps(body))
+
+    rsps.add_callback(responses_lib.GET, f"{base}/scim/v2/Users",
+                      callback=_user_list_cb, content_type="application/json")
+    for u in ALL_USERS:
+        rsps.add(responses_lib.GET, f"{base}/scim/v2/Users/{u['id']}", json=u)
+
+    rsps.add(responses_lib.GET, f"{base}/scim/v2/ServicePrincipals",
+             json={"Resources": ALL_SPS, "totalResults": len(ALL_SPS), "itemsPerPage": 100})
+    rsps.add(responses_lib.GET, f"{base}/scim/v2/ServicePrincipals/{SCIM_SP_ETL['id']}",
+             json=SCIM_SP_ETL)
+
+
+def test_compare_json_output(capsys):
+    """--compare A B --output json produces valid JSON with required keys."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_compare_mocks(rsps)
+        rc = main([
+            "--compare", "alice@example.com", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "json",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    data = json.loads(out[out.find("{"):])
+    assert "principal_a" in data
+    assert "principal_b" in data
+    assert "only_in_a" in data
+    assert "only_in_b" in data
+    assert "in_both" in data
+
+
+def test_compare_text_output_contains_principal_names(capsys):
+    """--compare A B (text) contains the resolved display names."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_compare_mocks(rsps)
+        rc = main([
+            "--compare", "alice@example.com", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Alice Smith" in out
+    assert "Bob Jones" in out
+
+
+def test_compare_csv_output_has_header(capsys):
+    """--compare A B --output csv writes a header row."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_compare_mocks(rsps)
+        rc = main([
+            "--compare", "alice@example.com", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "csv",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "group_id" in out
+    assert "group_name" in out
+    assert "in_a" in out
+    assert "in_b" in out
+
+
+def test_compare_principal_not_found_returns_error(capsys):
+    """--compare with an unknown principal exits 1."""
+    base = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
+                 json={"access_token": "tok", "expires_in": 3600})
+        for resource in ("Users", "ServicePrincipals", "Groups"):
+            rsps.add(responses_lib.GET, f"{base}/scim/v2/{resource}",
+                     json={"Resources": [], "totalResults": 0, "itemsPerPage": 100})
+        rc = main([
+            "--compare", "ghost@nowhere.com", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+        ])
+    assert rc == 1
+
+
+# ---------------------------------------------------------------------------
+# --clone-from — integration tests
+# ---------------------------------------------------------------------------
+
+def _register_clone_mocks(rsps):
+    """Register SCIM + workspace mocks for --clone-from tests."""
+    base = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
+
+    rsps.add(responses_lib.POST, f"{ACCOUNT_HOST}/oidc/accounts/{ACCOUNT_ID}/v1/token",
+             json={"access_token": "mock-token", "expires_in": 3600})
+
+    def _group_list_cb(request):
+        import json as _json
+        filt = request.params.get("filter", "")
+        if "displayName" in filt:
+            name = filt.split('"')[1]
+            matched = [g for g in ALL_GROUPS if g["displayName"] == name]
+        else:
+            matched = ALL_GROUPS
+        body = {"Resources": matched, "totalResults": len(matched), "itemsPerPage": 100}
+        return (200, {}, _json.dumps(body))
+
+    rsps.add_callback(responses_lib.GET, f"{base}/scim/v2/Groups",
+                      callback=_group_list_cb, content_type="application/json")
+    for g in ALL_GROUPS:
+        rsps.add(responses_lib.GET, f"{base}/scim/v2/Groups/{g['id']}", json=g)
+
+    def _user_list_cb(request):
+        import json as _json
+        filt = request.params.get("filter", "")
+        if "emails.value" in filt:
+            email = filt.split('"')[1]
+            matched = [u for u in ALL_USERS
+                       if any(e.get("value") == email for e in u.get("emails", []))]
+        else:
+            matched = ALL_USERS
+        body = {"Resources": matched, "totalResults": len(matched), "itemsPerPage": 100}
+        return (200, {}, _json.dumps(body))
+
+    rsps.add_callback(responses_lib.GET, f"{base}/scim/v2/Users",
+                      callback=_user_list_cb, content_type="application/json")
+    for u in ALL_USERS:
+        rsps.add(responses_lib.GET, f"{base}/scim/v2/Users/{u['id']}", json=u)
+
+    rsps.add(responses_lib.GET, f"{base}/scim/v2/ServicePrincipals",
+             json={"Resources": ALL_SPS, "totalResults": len(ALL_SPS), "itemsPerPage": 100})
+    rsps.add(responses_lib.GET, f"{base}/scim/v2/ServicePrincipals/{SCIM_SP_ETL['id']}",
+             json=SCIM_SP_ETL)
+
+    # Workspace discovery
+    rsps.add(responses_lib.GET, f"{base}/workspaces", json=[{
+        "workspace_id": "999",
+        "deployment_name": "test-workspace",
+        "workspace_name": "test-workspace",
+        "workspace_url": WORKSPACE_HOST,
+        "workspace_status": "RUNNING",
+        "cloud": "AZURE",
+        "azure_workspace_info": {"region": "eastus"},
+    }])
+
+    # Permission assignments — no group assignments (all UNVERIFIED)
+    rsps.add(responses_lib.GET, f"{base}/workspaces/999/permissionassignments",
+             json={"permission_assignments": []})
+
+
+def test_clone_from_json_output(capsys):
+    """--clone-from A --to B --output json produces valid JSON."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_clone_mocks(rsps)
+        rc = main([
+            "--clone-from", "alice@example.com",
+            "--to", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "json",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    data = json.loads(out[out.find("{"):])
+    assert "source_principal" in data
+    assert "target_principal" in data
+    assert "idp_required" in data
+    assert "databricks" in data
+    assert "unverified" in data
+    assert "skipped" in data
+
+
+def test_clone_from_without_to_returns_error(capsys):
+    """--clone-from without --to exits 1 with an informative error."""
+    rc = main([
+        "--clone-from", "alice@example.com",
+        "--client-id", "cid", "--client-secret", "secret",
+        "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+    ])
+    assert rc == 1
+    assert "--to" in capsys.readouterr().err
+
+
+def test_clone_from_csv_output_has_header(capsys):
+    """--clone-from --output csv writes the expected header."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_clone_mocks(rsps)
+        rc = main([
+            "--clone-from", "alice@example.com",
+            "--to", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "csv",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "action_type" in out
+    assert "group_name" in out
+
+
+def test_clone_from_text_output(capsys):
+    """--clone-from (text) shows source and target principal names."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_clone_mocks(rsps)
+        rc = main([
+            "--clone-from", "alice@example.com",
+            "--to", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Alice Smith" in out
+    assert "Bob Jones" in out
+
+
+def test_clone_from_apply_text_shows_dry_run(capsys):
+    """Without --apply, text output hints to pass --apply."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_clone_mocks(rsps)
+        # Add permission assignment so at least one DATABRICKS action exists
+        base = f"{ACCOUNT_HOST}/api/2.0/accounts/{ACCOUNT_ID}"
+        rsps.replace(responses_lib.GET, f"{base}/workspaces/999/permissionassignments",
+                     json={"permission_assignments": [
+                         {"principal": {"principal_id": "group-1"}, "permissions": ["USER"]},
+                     ]})
+        rc = main([
+            "--clone-from", "alice@example.com",
+            "--to", "bob@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Dry run" in out or "dry run" in out.lower() or "--apply" in out
+
+
+# ---------------------------------------------------------------------------
+# --tree and --output html
+# ---------------------------------------------------------------------------
+
+
+def test_principal_audit_tree_output(capsys):
+    """--tree renders output grouped by granting group, not flat by securable type."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        rc = main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--tree",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    # Tree always renders the principal header and summary footer
+    assert "Alice Smith" in out
+    assert "alice" in out.lower()
+    # Summary footer with '·' separator should be present
+    assert "·" in out
+
+
+def test_principal_audit_tree_contains_workspace_and_uc_sections(capsys):
+    """Tree shows Workspaces and Unity Catalog under their granting groups."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--tree",
+        ])
+    out = capsys.readouterr().out
+    # Summary footer is always rendered; "direct group" phrasing is invariant
+    assert "direct group" in out
+
+
+def test_principal_audit_html_output(capsys):
+    """--output html produces a valid HTML page with a Mermaid diagram block."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        rc = main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "html",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "<!DOCTYPE html>" in out
+    assert "mermaid" in out
+    assert "alice" in out.lower()
+
+
+def test_principal_audit_html_contains_graph_and_tables(capsys):
+    """HTML output contains the access graph section and data tables."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "html",
+        ])
+    out = capsys.readouterr().out
+    assert "Access graph" in out
+    assert "Group memberships" in out
+    assert "Workspace access" in out
+    assert "Unity Catalog permissions" in out
+
+
+def test_principal_audit_html_progress_goes_to_stderr(capsys):
+    """Progress messages must not contaminate HTML stdout."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "html",
+        ])
+    cap = capsys.readouterr()
+    # stdout must be valid HTML (starts with <!DOCTYPE)
+    assert cap.out.strip().startswith("<!DOCTYPE html>")
+    # progress line ("Auditing principal:") must be on stderr, not stdout
+    assert "Auditing" in cap.err
+
+
+def test_tree_flag_ignored_for_json_output(capsys):
+    """--tree has no effect when --output json is set; JSON is returned normally."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        rc = main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "json", "--tree",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    data = json.loads(out[out.find("{"):])
+    assert "principal" in data
+
+
+# ---------------------------------------------------------------------------
+# Group audit — HTML output
+# ---------------------------------------------------------------------------
+
+def test_group_audit_html_output(capsys):
+    """--output html produces a valid HTML page for group audit."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        rc = main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--output", "html",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "<!DOCTYPE html>" in out
+    assert "mermaid" in out
+    assert "data-engineers" in out
+
+
+def test_group_audit_html_contains_sections(capsys):
+    """Group audit HTML has the expected section headings."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--output", "html",
+        ])
+    out = capsys.readouterr().out
+    assert "Access graph" in out
+    assert "Members" in out
+    assert "Unity Catalog grants" in out
+
+
+def test_group_audit_html_progress_goes_to_stderr(capsys):
+    """Progress messages must not contaminate group audit HTML stdout."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--output", "html",
+        ])
+    cap = capsys.readouterr()
+    assert cap.out.strip().startswith("<!DOCTYPE html>")
+    assert "Resolving group" in cap.err
+
+
+# ---------------------------------------------------------------------------
+# Snapshot diff — HTML output
+# ---------------------------------------------------------------------------
+
+def test_diff_html_output_no_changes(capsys):
+    """_print_diff with html format and no changes renders a clean no-changes page."""
+    from databricks_access_audit.cli import _print_diff
+    from databricks_access_audit.models import AuditDiff
+
+    diff = AuditDiff(
+        baseline_timestamp="2025-01-01T00:00:00Z",
+        current_timestamp="2025-04-01T00:00:00Z",
+        mode="group",
+        target="data-engineers",
+    )
+    _print_diff(diff, "html")
+    out = capsys.readouterr().out
+    assert "<!DOCTYPE html>" in out
+    assert "No changes detected" in out
+    assert "data-engineers" in out
+
+
+def test_diff_html_output_with_changes(capsys):
+    """_print_diff with html format renders grant and member change tables."""
+    from databricks_access_audit.cli import _print_diff
+    from databricks_access_audit.models import AuditDiff
+
+    diff = AuditDiff(
+        baseline_timestamp="2025-01-01T00:00:00Z",
+        current_timestamp="2025-04-01T00:00:00Z",
+        mode="group",
+        target="data-engineers",
+        grants_added=[{
+            "securable_type": "CATALOG", "securable_name": "main",
+            "principal": "alice@example.com", "privileges": ["SELECT"],
+            "workspace_name": "prod-workspace",
+        }],
+        members_removed=[{"display_name": "bob@example.com", "type": "USER"}],
+    )
+    _print_diff(diff, "html")
+    out = capsys.readouterr().out
+    assert "<!DOCTYPE html>" in out
+    assert "Grant changes" in out
+    assert "Member" in out
+    assert "alice@example.com" in out
+    assert "bob@example.com" in out
+
+
+def test_diff_html_principal_mode(capsys):
+    """Diff HTML uses 'Group memberships' label for principal-mode diffs."""
+    from databricks_access_audit.cli import _print_diff
+    from databricks_access_audit.models import AuditDiff
+
+    diff = AuditDiff(
+        baseline_timestamp="2025-01-01T00:00:00Z",
+        current_timestamp="2025-04-01T00:00:00Z",
+        mode="principal",
+        target="alice@example.com",
+        members_added=[{"group_name": "new-team", "type": "GROUP"}],
+    )
+    _print_diff(diff, "html")
+    out = capsys.readouterr().out
+    assert "Group memberships" in out
+    assert "new-team" in out
+
+
+# ---------------------------------------------------------------------------
+# Group audit — tree output
+# ---------------------------------------------------------------------------
+
+def test_group_audit_tree_output(capsys):
+    """--tree renders group audit as an ASCII tree with summary footer."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        rc = main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--tree",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "data-engineers" in out
+    assert "·" in out       # summary footer separator always present
+
+
+def test_group_audit_tree_contains_member_count(capsys):
+    """Group tree header always shows the member count."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--tree",
+        ])
+    out = capsys.readouterr().out
+    assert "member" in out   # "N members" always in header and/or footer

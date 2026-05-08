@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Set
@@ -78,6 +79,10 @@ class CatalogPermissionScanner:
         except Exception as exc:
             log.warning(
                 "Failed to list catalogs for workspace %s: %s", workspace.workspace_name, exc
+            )
+            print(
+                f"WARNING  workspace '{workspace.workspace_name}' UC scan skipped: {exc}",
+                file=sys.stderr,
             )
             return []
 
@@ -218,5 +223,9 @@ class CatalogPermissionScanner:
                     all_grants.extend(fut.result())
                 except Exception as exc:
                     log.warning("Skipping workspace %s due to error: %s", ws.workspace_name, exc)
+                    print(
+                        f"WARNING  workspace '{ws.workspace_name}' skipped: {exc}",
+                        file=sys.stderr,
+                    )
 
         return all_grants

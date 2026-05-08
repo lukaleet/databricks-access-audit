@@ -7,6 +7,7 @@ can they reach, and what Unity Catalog permissions flow through each group?"
 from __future__ import annotations
 
 import logging
+import sys
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Set, Tuple
@@ -35,7 +36,7 @@ class PrincipalAuditor:
     2. Checks **workspace permission assignments** for each group.
     3. Scans **Unity Catalog grants** (catalog / schema / table) that flow
        through those groups.
-    4. Flags **dead-end groups** — memberships that contribute no workspace
+    4. Flags **workspace-unassigned groups** — memberships that contribute no workspace
        access through any path in the group hierarchy.
     """
 
@@ -174,18 +175,20 @@ class PrincipalAuditor:
         group_ids: Set[str],
         id_to_name: Dict[str, str],
         max_workers: int = 8,
+        group_id_to_path: Optional[Dict[str, List[str]]] = None,
     ) -> List[WorkspaceRole]:
         """Check each workspace for permission assignments matching the
         principal or any of their groups.
 
         Each workspace is queried in parallel via ``ThreadPoolExecutor``.
-        ``id_to_name`` and ``relevant_ids`` are read-only during parallel
-        execution so no locking is required.
+        ``id_to_name``, ``relevant_ids``, and ``group_id_to_path`` are
+        read-only during parallel execution so no locking is required.
         """
         if not workspaces:
             return []
 
         relevant_ids = group_ids | {principal_id}
+        _paths = group_id_to_path or {}
 
         def _check_one(ws: WorkspaceInfo) -> List[WorkspaceRole]:
             result: List[WorkspaceRole] = []
@@ -200,17 +203,23 @@ class PrincipalAuditor:
                         continue
                     for perm in pa.get("permissions", []):
                         via = id_to_name.get(pid, pid)
+                        is_direct = pid == principal_id
                         result.append(WorkspaceRole(
                             workspace_id=ws.workspace_id,
                             workspace_name=ws.workspace_name,
                             workspace_url=ws.workspace_url,
                             permission_level=perm,
-                            via_group=via if pid != principal_id else "(direct)",
+                            via_group=via if not is_direct else "(direct)",
                             via_group_id=pid,
+                            via_path=_paths.get(pid, []) if not is_direct else [],
                         ))
             except Exception as exc:
                 log.warning(
                     "Failed to get assignments for workspace %s: %s", ws.workspace_name, exc
+                )
+                print(
+                    f"WARNING  workspace '{ws.workspace_name}' assignments skipped: {exc}",
+                    file=sys.stderr,
                 )
             return result
 
@@ -233,15 +242,22 @@ class PrincipalAuditor:
         relevant_lower: Set[str],
         scan_schemas: bool,
         scan_tables: bool,
+        group_name_to_path: Optional[Dict[str, List[str]]] = None,
     ) -> List[EffectivePermission]:
         """Scan UC grants for a single workspace role.
 
         All arguments are read-only; ``scanned_catalogs`` is local so this
         method is safe to run concurrently with other workspace scans.
         """
+        _paths = group_name_to_path or {}
+
         def _matches(p: str) -> bool:
             clean = p.replace("`", "").strip()
             return p in relevant or clean in relevant or clean.lower() in relevant_lower
+
+        def _path_for(p: str) -> List[str]:
+            clean = p.replace("`", "").strip()
+            return _paths.get(p) or _paths.get(clean) or _paths.get(clean.lower()) or []
 
         perms: List[EffectivePermission] = []
         # Catalog names within one workspace are unique, so a plain set suffices.
@@ -277,6 +293,7 @@ class PrincipalAuditor:
                         privileges=privs, via_group=principal,
                         workspace_name=role.workspace_name,
                         workspace_url=role.workspace_url,
+                        via_path=_path_for(principal),
                     ))
 
             if not (scan_schemas or scan_tables):
@@ -313,6 +330,7 @@ class PrincipalAuditor:
                             privileges=privs, via_group=principal,
                             workspace_name=role.workspace_name,
                             workspace_url=role.workspace_url,
+                            via_path=_path_for(principal),
                         ))
 
                 if not scan_tables:
@@ -349,6 +367,7 @@ class PrincipalAuditor:
                                 privileges=privs, via_group=principal,
                                 workspace_name=role.workspace_name,
                                 workspace_url=role.workspace_url,
+                                via_path=_path_for(principal),
                             ))
 
         return perms
@@ -362,6 +381,7 @@ class PrincipalAuditor:
         scan_tables: bool = False,
         max_workers: int = 8,
         principal_aliases: Optional[Set[str]] = None,
+        group_name_to_path: Optional[Dict[str, List[str]]] = None,
     ) -> List[EffectivePermission]:
         """For each workspace the principal can access, scan UC grants
         and return only those held by the principal or their groups.
@@ -400,6 +420,7 @@ class PrincipalAuditor:
                 pool.submit(
                     self._scan_one_workspace,
                     role, relevant, relevant_lower, scan_schemas, scan_tables,
+                    group_name_to_path,
                 ): role
                 for role in unique_roles
             }
@@ -522,15 +543,25 @@ class PrincipalAuditor:
         group_names = {m.group_name for m in memberships}
         log.info("Found %d group membership(s)", len(memberships))
 
+        # Path maps built once from the BFS result — O(1) lookup at every
+        # workspace and UC grant match site; zero additional API calls.
+        group_id_to_path: Dict[str, List[str]] = {m.group_id: m.path for m in memberships}
+        group_name_to_path: Dict[str, List[str]] = {m.group_name: m.path for m in memberships}
+
         # 3. Discover workspaces
         workspaces = self.ws_discovery.discover(explicit_workspace_urls)
 
         # 4. Workspace assignments
-        ws_roles = self.get_workspace_assignments(workspaces, pid, group_ids, id_to_name,
-                                                  max_workers=max_workers)
+        ws_roles = self.get_workspace_assignments(
+            workspaces, pid, group_ids, id_to_name,
+            max_workers=max_workers,
+            group_id_to_path=group_id_to_path,
+        )
         log.info("Found %d workspace role(s)", len(ws_roles))
 
-        # 5. Dead-end groups — groups that provide no workspace access through any path.
+        # 5. Groups with no workspace assignment — provide no workspace access through any path.
+        # Note: these may still hold UC grants (catalog/schema/table level) without being
+        # assigned to a workspace — a valid UC-only access pattern.
         #
         # A group G is NOT a dead end when:
         #   a) G itself is directly assigned to a workspace, OR
@@ -571,6 +602,7 @@ class PrincipalAuditor:
             scan_tables=scan_tables,
             max_workers=max_workers,
             principal_aliases=aliases,
+            group_name_to_path=group_name_to_path,
         )
         log.info("Found %d UC permission(s)", len(perms))
 
@@ -617,6 +649,12 @@ class PrincipalAuditor:
                 )
             log.info("Found %d workspace object grant(s)", len(ws_obj_grants))
 
+        # Split workspace-unassigned groups into two buckets now that UC perms are known.
+        # A group that appears as via_group in any UC permission is intentionally UC-only.
+        groups_providing_uc = {p.via_group for p in perms}
+        truly_dead = [g for g in dead_ends if g not in groups_providing_uc]
+        uc_only = [g for g in dead_ends if g in groups_providing_uc]
+
         return PrincipalAuditResult(
             principal_type=ptype,
             principal_id=pid,
@@ -625,6 +663,7 @@ class PrincipalAuditor:
             groups=memberships,
             workspace_roles=ws_roles,
             permissions=perms,
-            dead_end_groups=dead_ends,
+            dead_end_groups=truly_dead,
+            uc_only_groups=uc_only,
             workspace_object_grants=ws_obj_grants,
         )

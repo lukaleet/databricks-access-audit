@@ -537,13 +537,16 @@ class TestAuditOrchestrator:
             auditor.audit("nonexistent@nowhere.com")
 
     @responses.activate
-    def test_dead_end_groups_detected(self, mock_client):
-        """Groups with no workspace permission assignment are dead ends."""
+    def test_workspace_unassigned_groups_split_into_uc_only_and_dead_end(self, mock_client):
+        """Groups with no workspace assignment are split by whether they hold UC grants.
+
+        MAIN_CATALOG_GRANTS has grants for data-engineers and all-data-team, so those
+        land in uc_only_groups.  org-all has no UC grants at all → dead_end_groups.
+        """
         _add_scim_endpoints(responses)
         _add_workspace_endpoints(responses)
 
-        # Workspace assignments only match user-1 directly, NOT group-1
-        # Override the permission assignments to exclude group-1
+        # Override permission assignments: only user-1 directly, no groups
         responses.replace(
             responses.GET,
             f"{BASE}/workspaces/ws-001/permissionassignments",
@@ -566,13 +569,15 @@ class TestAuditOrchestrator:
 
         result = auditor.audit("alice@example.com")
 
-        # When only the principal directly has workspace access (no group assignments),
-        # every group membership is a dead end because no group in any path has workspace
-        # access — including data-engineers, all-data-team, and org-all.
-        assert len(result.dead_end_groups) >= 1
-        assert "data-engineers" in result.dead_end_groups
-        assert "all-data-team" in result.dead_end_groups
+        # data-engineers and all-data-team have UC grants → uc_only_groups
+        assert "data-engineers" in result.uc_only_groups
+        assert "all-data-team" in result.uc_only_groups
+        assert "data-engineers" not in result.dead_end_groups
+        assert "all-data-team" not in result.dead_end_groups
+
+        # org-all has no UC grants and no workspace access → dead_end_groups
         assert "org-all" in result.dead_end_groups
+        assert "org-all" not in result.uc_only_groups
 
     @responses.activate
     def test_dead_ends_excludes_transitive_ancestors_of_workspace_groups(self, mock_client):
@@ -601,10 +606,12 @@ class TestAuditOrchestrator:
 
         result = auditor.audit("alice@example.com")
 
-        # data-engineers is directly workspace-assigned → not a dead end
+        # data-engineers is directly workspace-assigned → not in either list
         assert "data-engineers" not in result.dead_end_groups
+        assert "data-engineers" not in result.uc_only_groups
         # all-data-team and org-all are ancestors of data-engineers → not dead ends
         assert "all-data-team" not in result.dead_end_groups
+        assert "org-all" not in result.dead_end_groups
         assert "org-all" not in result.dead_end_groups
 
 

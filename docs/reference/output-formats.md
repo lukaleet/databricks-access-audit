@@ -64,12 +64,25 @@ databricks-access-audit --group "data-engineers" --output json | jq '.catalog_gr
     {"name": "data-engineers", "direct": true, "path": ["alice", "data-engineers"], "source": "external"}
   ],
   "workspace_roles": [
-    {"workspace": "prod-workspace", "permission": "USER", "via_group": "data-engineers"}
+    {
+      "workspace": "prod-workspace",
+      "permission": "USER",
+      "via_group": "data-engineers",
+      "via_path": ["alice@company.com", "team-A", "data-engineers"]
+    }
   ],
   "permissions": [
-    {"type": "CATALOG", "name": "main", "privileges": ["USE_CATALOG", "SELECT"], "via_group": "data-engineers", "workspace": "prod-workspace"}
+    {
+      "type": "CATALOG",
+      "name": "main",
+      "privileges": ["USE_CATALOG", "SELECT"],
+      "via_group": "data-engineers",
+      "via_path": ["alice@company.com", "team-A", "data-engineers"],
+      "workspace": "prod-workspace"
+    }
   ],
-  "dead_end_groups": [],
+  "dead_end_groups": [],    // no workspace assignment AND no UC grants — truly unused
+  "uc_only_groups": [],     // no workspace assignment but have UC grants — intentional pattern
   "principal_source": "external",
   "escalation_findings": [...],
   "workspace_object_permissions": [...]
@@ -103,6 +116,23 @@ databricks-access-audit --group "data-engineers" --output csv > audit.csv
 | `object_type` | Workspace object type (when `--scan-workspace-objects`) |
 | `object_name` | Object name |
 | `permission_level` | `CAN_VIEW`, `CAN_RUN`, `CAN_MANAGE`, etc. |
+
+**Principal audit CSV columns (permissions and workspace roles sections):**
+
+| Column | Description |
+|---|---|
+| `group_id` | Group ID |
+| `group_name` | Group display name |
+| `is_direct` | `True` if the principal is a direct member |
+| `path` | Full membership chain, arrow-separated |
+| `workspace_id` | Workspace ID (workspace roles section) |
+| `workspace_name` | Workspace display name |
+| `permission_level` | `USER`, `ADMIN`, `SERVICE_PRINCIPAL`, etc. |
+| `via_group` | Immediate group that holds the workspace/UC grant |
+| `via_path` | Full inheritance chain (e.g. `alice → team-A → data-engineers`) |
+| `securable_type` | `CATALOG`, `SCHEMA`, or `TABLE` |
+| `securable_name` | Securable name |
+| `privileges` | Pipe-separated privilege list |
 
 **Diff CSV columns:**
 
@@ -148,6 +178,40 @@ Snapshots are plain JSON, readable without this tool, safe to commit to version 
     ],
     "service_principals": []
   }
+}
+```
+
+Principal audit snapshots include workspace roles and UC grants with `via_path`:
+
+```json
+{
+  "version": "1",
+  "mode": "principal",
+  "target": "alice@company.com",
+  "timestamp": "2025-04-01T12:34:56+00:00",
+  "grants": [
+    {
+      "securable_type": "CATALOG",
+      "securable_name": "main",
+      "privileges": ["SELECT", "USE_CATALOG"],
+      "via_group": "data-engineers",
+      "via_path": ["alice@company.com", "team-A", "data-engineers"],
+      "workspace_name": "prod-workspace"
+    }
+  ],
+  "workspace_roles": [
+    {
+      "workspace_id": "123456",
+      "workspace_name": "prod-workspace",
+      "permission_level": "USER",
+      "via_group": "data-engineers",
+      "via_path": ["alice@company.com", "team-A", "data-engineers"]
+    }
+  ],
+  "groups": [
+    {"group_id": "g1", "group_name": "team-A", "is_direct": true, "path": ["alice@company.com", "team-A"]},
+    {"group_id": "g2", "group_name": "data-engineers", "is_direct": false, "path": ["alice@company.com", "team-A", "data-engineers"]}
+  ]
 }
 ```
 

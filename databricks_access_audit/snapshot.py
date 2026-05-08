@@ -129,6 +129,7 @@ def build_principal_snapshot(result: Any) -> Dict:
             "securable_name": p.securable_name,
             "privileges": sorted(p.privileges),
             "via_group": p.via_group,
+            "via_path": p.via_path,
             "workspace_name": p.workspace_name,
         }
         for p in result.permissions
@@ -158,6 +159,7 @@ def build_principal_snapshot(result: Any) -> Dict:
                 "workspace_name": r.workspace_name,
                 "permission_level": r.permission_level,
                 "via_group": r.via_group,
+                "via_path": r.via_path,
             }
             for r in result.workspace_roles
         ],
@@ -224,7 +226,15 @@ def diff_snapshots(baseline: Dict, current: Dict) -> AuditDiff:
     Members are compared by identity key (id + type) so display-name changes
     are not flagged as churn.
     """
+    baseline_mode = baseline.get("mode", "group")
     mode = current.get("mode", "group")
+
+    if baseline_mode != mode:
+        raise ValueError(
+            f"Cannot diff snapshots of different modes: "
+            f"baseline is '{baseline_mode}', current is '{mode}'. "
+            f"Re-run the same command that created the baseline snapshot."
+        )
 
     # Grants
     b_grants = {_fingerprint(g): g for g in baseline.get("grants", [])}

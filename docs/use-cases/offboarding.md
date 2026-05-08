@@ -1,62 +1,104 @@
 # Offboarding
 
-When someone leaves the organisation, you need to know exactly what they have access to before deprovisioning their account. Databricks spreads this across multiple workspaces with no native cross-workspace view.
+It's Thursday afternoon. Sarah's last day is tomorrow. Your IT ticket says "deprovision access." You open the Databricks Account Console — and realise you have six workspaces, no cross-workspace view, and no idea how many groups she's in.
 
-## The workflow
+You start clicking. Workspace one: she's in four groups. Workspace two: three groups, maybe some overlap. You open `INFORMATION_SCHEMA.GRANTS` — that's one metastore. She might have direct grants in others. By the time you've pieced it together across everything, it's 6pm. You still don't know if she has personal catalog grants that will survive the deprovisioning.
 
-**Step 1 — pull their full access picture**
+This is what offboarding looks like without the tool.
+
+---
+
+## Pull the full picture in one command
 
 ```bash
-databricks-access-audit --principal "alice@company.com" \
+databricks-access-audit --principal "sarah@company.com" \
   --scan-workspace-objects \
   --scan-schemas \
-  --output csv > alice_offboarding_$(date +%F).csv
+  --output csv > sarah_offboarding_$(date +%F).csv
 ```
 
-This produces a CSV with:
+In under two minutes you have a single CSV with everything:
 
-- All Unity Catalog grants (catalog, schema, table level)
-- All workspace object ACLs — jobs, clusters, dashboards, pipelines, SQL warehouses, and 8 more types
-- The group memberships that give access (direct vs transitive)
-- The workspace where each grant lives
+- Every Unity Catalog grant she holds — catalog, schema, and table level — across every workspace
+- Every workspace object ACL: jobs she can manage, clusters she can attach to, dashboards, pipelines, SQL warehouses, and 8 more types
+- The exact group chain that gives her each permission (`via data-engineers → all-data-team → ...`)
+- Which memberships are IdP-synced vs Databricks-managed
+- Which grants are personal (survive deprovisioning) vs group-inherited (removed when she's deprovisioned)
 
-**Step 2 — check for escalation risks**
+---
 
-Before you deprovision, flag anything that could be misused:
+## Check for escalation risks before you sign off
+
+Before anyone countersigns the offboarding, check whether she had privileges that could have been misused:
 
 ```bash
-databricks-access-audit --principal "alice@company.com" \
+databricks-access-audit --principal "sarah@company.com" \
   --escalation-check \
   --output json | jq '.escalation_findings'
 ```
 
-`ALL_PRIVILEGES` or `MANAGE` grants on a catalog or schema mean Alice could modify permissions. Worth noting in the offboarding record.
+`ALL_PRIVILEGES` on a catalog means she could have granted access to anyone. `MANAGE` means she could modify permissions on that securable. Worth noting in the offboarding record — especially if access was unexpectedly broad.
 
-**Step 3 — hand the CSV to the access owner**
+---
 
-The CSV is readable without this tool. Share it with the team lead or security team for sign-off before removing the account.
+## The thing that catches everyone out
 
-**Step 4 — deprovision via your IdP**
+Removing a user from your IdP removes them from IdP-synced groups. It does **not** revoke Unity Catalog grants made directly to that user.
 
-Removing the user from your IdP (Azure Entra ID, Okta, etc.) propagates through SCIM to Databricks automatically — assuming SCIM sync is configured. The Databricks account and workspace accounts are deprovisioned, and UC grants made directly to the user are effectively orphaned (they remain in the grant table but resolve to nothing).
+After deprovisioning, those rows still exist in the UC grant table. They resolve to nothing while the account is deprovisioned — but if the account is ever reinstated (contractor returning, rehire), the grants come back.
 
-!!! warning "Direct grants stay in the catalog"
-    Databricks does not automatically revoke UC grants when a user is deprovisioned. Run a group audit on any groups the user belonged to after offboarding and check for `MEMBER_DIRECT` grants that now point to a non-existent principal.
+The CSV output tells you exactly which grants are `Member Direct` (personal). Deal with those explicitly:
 
-## Handling Azure AD B2B guests
+```sql
+-- Generated from --revoke-script on any group she belonged to,
+-- or constructed manually from the CSV output:
+REVOKE SELECT ON CATALOG main FROM `sarah@company.com`;
+REVOKE USE_CATALOG ON CATALOG analytics FROM `sarah@company.com`;
+```
 
-Azure AD B2B guest users have two workspace identities — the account email and a guest UPN (`alice_company.com#EXT#@tenant.onmicrosoft.com`). Workspace object ACLs are stored under the guest UPN.
+---
 
-The tool resolves both automatically using the SCIM `externalId`, so the CSV will include grants under both identities. No extra flags needed.
+## Azure AD B2B guest users
+
+If Sarah is an Azure AD B2B guest, she has two workspace identities: her account email and a guest UPN (`sarah_company.com#EXT#@tenant.onmicrosoft.com`). Workspace object ACLs are stored under the guest UPN. The Databricks UI shows you one; this tool resolves both automatically using the SCIM `externalId`, so nothing is missed.
 
 See [Azure AD B2B Guests](../how-it-works/azure-b2b-guests.md) for the full explanation.
 
+---
+
 ## Service principal offboarding
 
-Same command, pass the SP display name or application ID:
+Same command. Pass the SP display name or application ID:
 
 ```bash
 databricks-access-audit --principal "etl-pipeline-sp" \
   --scan-workspace-objects \
   --output csv > etl_sp_offboarding_$(date +%F).csv
 ```
+
+For SPs, pay particular attention to jobs and pipelines with `CAN_MANAGE` or `IS_OWNER` — those workflows may need a new run-as identity before you deprovision the SP.
+
+---
+
+## Verify removal is complete
+
+After the account is deprovisioned, confirm the principal no longer appears anywhere:
+
+```bash
+# Run --resource on every catalog they had access to — confirm they're gone
+databricks-access-audit --resource "main" | grep "sarah@company.com"
+databricks-access-audit --resource "analytics" | grep "sarah@company.com"
+```
+
+If the principal still appears — as a direct grant, or as a member of a group that wasn't updated — the `--resource` output shows exactly where and via which path. This is faster than re-running the full principal audit and easier to attach to the offboarding ticket as evidence.
+
+---
+
+## Offboarding checklist
+
+- [ ] Full access export saved as CSV (attach to the offboarding ticket)
+- [ ] Escalation findings reviewed (`--escalation-check`)
+- [ ] `Member Direct` grants revoked from UC (`REVOKE` SQL)
+- [ ] Jobs / pipelines with personal ownership transferred to a group or service principal
+- [ ] User removed from IdP (propagates through SCIM to Databricks automatically)
+- [ ] Post-deprovisioning verification: `--resource` on affected catalogs confirms the name is gone

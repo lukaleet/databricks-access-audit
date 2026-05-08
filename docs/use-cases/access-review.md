@@ -1,10 +1,14 @@
 # Access Review
 
-Periodic access reviews are a requirement for SOC 2, ISO 27001, and most enterprise security policies. The typical ask: *"Show me who has access to what, and prove it hasn't changed since last quarter."*
+Every quarter, your CISO wants evidence that access to production data is controlled, appropriate, and hasn't silently drifted. The auditor's ask is always some version of: *"Show me who has access to the production catalog, and show me what changed since last quarter."*
 
-## Export permissions for review
+In a multi-workspace Databricks account, this question has no native answer. You can query `INFORMATION_SCHEMA.GRANTS` in each workspace — but that's one metastore at a time, it doesn't resolve nested group memberships, and it gives you a point-in-time snapshot with nothing to compare against. You can click through the Account Console — one workspace, one group, one user at a time. By the time you've covered 12 workspaces and 47 groups, the quarter is nearly over.
 
-### Group audit — who's in the group and what can they access?
+---
+
+## Export the current state
+
+### What does data-engineers access right now?
 
 ```bash
 databricks-access-audit --group "data-engineers" \
@@ -12,13 +16,9 @@ databricks-access-audit --group "data-engineers" \
   --output csv > data_engineers_$(date +%F).csv
 ```
 
-The CSV contains:
+The CSV covers every workspace in the account, includes group membership (with IdP sync status), and classifies every grant as `Direct`, `Upstream`, or `Member Direct` — so reviewers can immediately see what the group holds versus what individuals have bypassed the group to obtain personally.
 
-- All catalog, schema, and table grants for the group (direct, upstream, member-direct)
-- Redundancy analysis — members whose personal grants duplicate what the group already provides
-- IdP sync status — which members are provisioned through the IdP vs created manually in Databricks
-
-### Principal audit — everything a specific user can reach
+### What can a specific person access?
 
 ```bash
 databricks-access-audit --principal "alice@company.com" \
@@ -27,70 +27,86 @@ databricks-access-audit --principal "alice@company.com" \
   --output csv > alice_$(date +%F).csv
 ```
 
-## Save a snapshot and compare next quarter
+---
 
-**Save the current state:**
+## The quarterly diff — proving nothing drifted
+
+The snapshot workflow turns point-in-time exports into a compliance audit trail.
+
+**Save the baseline at the start of the review period:**
 
 ```bash
 databricks-access-audit --group "data-engineers" \
   --save-snapshot snapshots/data-engineers_$(date +%F).json
 ```
 
-**Three months later — compare:**
+**At review time, compare:**
 
 ```bash
 databricks-access-audit --group "data-engineers" \
-  --baseline snapshots/data-engineers_2025-01-01.json
+  --baseline snapshots/data-engineers_2025-01-01.json \
+  --output csv > drift_Q1_to_Q2.csv
 ```
 
-Output when changes are found:
+If nothing changed, the output is three words: `No changes detected.` That's your evidence.
+
+If something changed, the diff is explicit — every new grant, every removed grant, every membership change, timestamped and exportable:
 
 ```
-============================================================
-  Diff: data-engineers (group)
-  Baseline:  2025-01-01T00:00:00+00:00
-  Current:   2025-04-01T12:34:56+00:00
-============================================================
-
   Grants added (1):
     + [CATALOG] main - bob@example.com (USE_CATALOG|SELECT)
 
-  Grants removed (1):
-    - [CATALOG] staging - carol@example.com (MODIFY)
-
   Members added (1):
-    + Bob Jones (User)
-============================================================
+    + Bob Jones (User, external)
 ```
 
-When nothing has changed:
-
-```
-  No changes detected.
-```
-
-**Export the diff as CSV** for import into a spreadsheet or SIEM:
+**Save and compare in one pass** — compare against the old baseline, save a new one for next quarter:
 
 ```bash
 databricks-access-audit --group "data-engineers" \
-  --baseline snapshots/data-engineers_2025-01-01.json \
-  --output csv > diff_$(date +%F).csv
+  --baseline snapshots/data-engineers_2025-Q1.json \
+  --save-snapshot snapshots/data-engineers_2025-Q2.json \
+  --output csv > drift_Q1_to_Q2.csv
 ```
 
-## Combine save and compare in one run
+---
+
+## Cover multiple groups
+
+Most access reviews cover more than one group. Wrap the command in a loop:
 
 ```bash
-databricks-access-audit --group "data-engineers" \
-  --baseline snapshots/data-engineers_2025-01-01.json \
-  --save-snapshot snapshots/data-engineers_$(date +%F).json \
-  --output csv
+for group in data-engineers bi-consumers pii-readers platform-admins; do
+  databricks-access-audit --group "$group" \
+    --baseline "snapshots/${group}_latest.json" \
+    --save-snapshot "snapshots/${group}_$(date +%F).json" \
+    --output csv >> full_review_$(date +%F).csv
+done
 ```
 
-This compares against the baseline, prints the diff, and saves a new snapshot for next quarter — all in one command.
+One combined CSV, one pass, every group covered.
 
-## Flag stale grants
+---
 
-Members with catalog grants but no recorded activity in 90 days:
+## Flag problems during the review
+
+A good access review doesn't just confirm that memberships match expectations — it actively looks for things that shouldn't be there.
+
+**Redundant personal grants** (members with direct access that duplicates what the group already provides):
+
+```bash
+databricks-access-audit --group "data-engineers" --revoke-script
+```
+
+The `--revoke-script` flag adds copy-paste REVOKE SQL to the output. If you find redundancy during the review, you can clean it up in the same session.
+
+**Escalation risks** (`ALL_PRIVILEGES`, `MANAGE`):
+
+```bash
+databricks-access-audit --principal "alice@company.com" --escalation-check
+```
+
+**Stale grants** (members with catalog access but no recorded activity):
 
 ```bash
 databricks-access-audit --group "data-engineers" \
@@ -98,15 +114,60 @@ databricks-access-audit --group "data-engineers" \
   --sql-warehouse-id "abc123def456"
 ```
 
-!!! note
-    Stale detection queries `system.access.audit`. System tables must be enabled and the audit SP must have `SELECT` on `system.access.audit`.
+**Workspace-local groups** (groups that exist only in workspace SCIM, bypassing account-level management):
+
+```bash
+databricks-access-audit --group "data-engineers" --check-local-groups
+```
+
+---
+
+## Automate the review cycle
+
+Schedule quarterly snapshots in CI so the review happens even if no one remembers to kick it off manually:
+
+```yaml
+- name: Quarterly Databricks access review
+  run: |
+    databricks-access-audit --group "data-engineers" \
+      --baseline snapshots/data-engineers_latest.json \
+      --save-snapshot snapshots/data-engineers_$(date +%F).json \
+      --output csv > drift_report_$(date +%F).csv
+  env:
+    DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+    DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    DATABRICKS_ACCOUNT_ID: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+```
+
+A zero-diff run produces a clean compliance record. A non-empty diff triggers an alert and review. Either way, there's evidence.
+
+---
+
+## Verify catalog access from the resource side
+
+The group and principal audits answer "what can this identity access?" For access reviews, you sometimes need the inverse: "who can access this catalog, right now, as a complete list?"
+
+```bash
+# Every identity with access to main.pii — direct grants and group members
+databricks-access-audit --resource "main.pii" --output csv > pii_access_$(date +%F).csv
+
+# Groups only — fast overview of the access shape before expanding members
+databricks-access-audit --resource "main.pii" --no-expand-groups
+
+# HTML report for sign-off by a manager or auditor
+databricks-access-audit --resource "main.pii" --output html > pii_access_$(date +%F).html
+```
+
+This is especially useful when you don't know which groups have access to a catalog — `--resource` discovers them all, then expands each to its members. The CSV output maps directly to an access review spreadsheet row-by-row.
+
+---
 
 ## Reviewer checklist
 
-A good access review covers:
-
-- [ ] All current members are still expected to be in the group
-- [ ] No `MEMBER_DIRECT` grants duplicate what the group already provides (`--revoke-script` generates cleanup SQL)
+- [ ] Current membership matches expected team composition
+- [ ] No `Member Direct` grants duplicating what the group already provides (`--revoke-script`)
 - [ ] No unexpected `ALL_PRIVILEGES` or `MANAGE` grants (`--escalation-check`)
 - [ ] No members with no recorded activity for N days (`--stale-days`)
-- [ ] No workspace-local groups that should have been migrated to account SCIM (`--check-local-groups`)
+- [ ] No workspace-local groups that should be migrated to account SCIM (`--check-local-groups`)
+- [ ] Diff from last quarter reviewed and any changes explained
+- [ ] Catalog-level access confirmed with `--resource` — every name on the list is expected
