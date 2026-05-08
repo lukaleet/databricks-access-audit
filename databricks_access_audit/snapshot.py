@@ -226,7 +226,15 @@ def diff_snapshots(baseline: Dict, current: Dict) -> AuditDiff:
     Members are compared by identity key (id + type) so display-name changes
     are not flagged as churn.
     """
+    baseline_mode = baseline.get("mode", "group")
     mode = current.get("mode", "group")
+
+    if baseline_mode != mode:
+        raise ValueError(
+            f"Cannot diff snapshots of different modes: "
+            f"baseline is '{baseline_mode}', current is '{mode}'. "
+            f"Re-run the same command that created the baseline snapshot."
+        )
 
     # Grants
     b_grants = {_fingerprint(g): g for g in baseline.get("grants", [])}

@@ -12,7 +12,7 @@ Quick start::
     node = resolver.resolve_group("data-engineers")
 """
 
-__version__ = "0.18.3"
+__version__ = "0.19.0"
 
 from databricks_access_audit._classification import build_member_lookups, classify_grant
 from databricks_access_audit.access_cloner import AccessCloner
@@ -27,6 +27,7 @@ from databricks_access_audit.csv_output import (
     write_compare_csv,
     write_group_audit_csv,
     write_principal_audit_csv,
+    write_resource_audit_csv,
 )
 from databricks_access_audit.elevate import PermissionElevator
 from databricks_access_audit.escalation import ESCALATION_PRIVILEGES, detect_escalations
@@ -56,6 +57,9 @@ from databricks_access_audit.models import (
     PrincipalSource,
     RedundancyLevel,
     RedundancyResult,
+    # Resource audit models
+    ResourceAuditResult,
+    ResourceGrant,
     SchemaGrant,
     StaleFinding,
     TableGrant,
@@ -66,6 +70,7 @@ from databricks_access_audit.models import (
 from databricks_access_audit.principal_auditor import PrincipalAuditor
 from databricks_access_audit.principal_comparer import PrincipalComparer
 from databricks_access_audit.redundancy import RedundancyDetector
+from databricks_access_audit.resource_auditor import ResourceAuditor, detect_resource_type
 from databricks_access_audit.revoke import RevokeScriptGenerator
 from databricks_access_audit.schema_scanner import SchemaPermissionScanner
 from databricks_access_audit.snapshot import (
@@ -110,6 +115,8 @@ __all__ = [
     "RevokeScriptGenerator",
     "PrincipalAuditor",
     "PrincipalComparer",
+    "ResourceAuditor",
+    "detect_resource_type",
     "AccessCloner",
     "PermissionElevator",
     "detect_escalations",
@@ -136,6 +143,9 @@ __all__ = [
     "StaleFinding",
     "LocalGroupFinding",
     "AuditDiff",
+    # Resource audit models
+    "ResourceGrant",
+    "ResourceAuditResult",
     # Compare / clone models
     "GroupComparison",
     "CompareResult",
@@ -147,6 +157,7 @@ __all__ = [
     "write_principal_audit_csv",
     "write_compare_csv",
     "write_clone_report_csv",
+    "write_resource_audit_csv",
     "build_group_snapshot",
     "build_principal_snapshot",
     "save_snapshot",

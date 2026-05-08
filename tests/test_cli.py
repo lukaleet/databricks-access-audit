@@ -1013,3 +1013,272 @@ def test_clone_from_apply_text_shows_dry_run(capsys):
     assert rc == 0
     out = capsys.readouterr().out
     assert "Dry run" in out or "dry run" in out.lower() or "--apply" in out
+
+
+# ---------------------------------------------------------------------------
+# --tree and --output html
+# ---------------------------------------------------------------------------
+
+
+def test_principal_audit_tree_output(capsys):
+    """--tree renders output grouped by granting group, not flat by securable type."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        rc = main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--tree",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    # Tree always renders the principal header and summary footer
+    assert "Alice Smith" in out
+    assert "alice" in out.lower()
+    # Summary footer with '·' separator should be present
+    assert "·" in out
+
+
+def test_principal_audit_tree_contains_workspace_and_uc_sections(capsys):
+    """Tree shows Workspaces and Unity Catalog under their granting groups."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--tree",
+        ])
+    out = capsys.readouterr().out
+    # Summary footer is always rendered; "direct group" phrasing is invariant
+    assert "direct group" in out
+
+
+def test_principal_audit_html_output(capsys):
+    """--output html produces a valid HTML page with a Mermaid diagram block."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        rc = main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "html",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "<!DOCTYPE html>" in out
+    assert "mermaid" in out
+    assert "alice" in out.lower()
+
+
+def test_principal_audit_html_contains_graph_and_tables(capsys):
+    """HTML output contains the access graph section and data tables."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "html",
+        ])
+    out = capsys.readouterr().out
+    assert "Access graph" in out
+    assert "Group memberships" in out
+    assert "Workspace access" in out
+    assert "Unity Catalog permissions" in out
+
+
+def test_principal_audit_html_progress_goes_to_stderr(capsys):
+    """Progress messages must not contaminate HTML stdout."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "html",
+        ])
+    cap = capsys.readouterr()
+    # stdout must be valid HTML (starts with <!DOCTYPE)
+    assert cap.out.strip().startswith("<!DOCTYPE html>")
+    # progress line ("Auditing principal:") must be on stderr, not stdout
+    assert "Auditing" in cap.err
+
+
+def test_tree_flag_ignored_for_json_output(capsys):
+    """--tree has no effect when --output json is set; JSON is returned normally."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        _register_permission_assignments(rsps)
+        rc = main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--output", "json", "--tree",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    data = json.loads(out[out.find("{"):])
+    assert "principal" in data
+
+
+# ---------------------------------------------------------------------------
+# Group audit — HTML output
+# ---------------------------------------------------------------------------
+
+def test_group_audit_html_output(capsys):
+    """--output html produces a valid HTML page for group audit."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        rc = main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--output", "html",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "<!DOCTYPE html>" in out
+    assert "mermaid" in out
+    assert "data-engineers" in out
+
+
+def test_group_audit_html_contains_sections(capsys):
+    """Group audit HTML has the expected section headings."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--output", "html",
+        ])
+    out = capsys.readouterr().out
+    assert "Access graph" in out
+    assert "Members" in out
+    assert "Unity Catalog grants" in out
+
+
+def test_group_audit_html_progress_goes_to_stderr(capsys):
+    """Progress messages must not contaminate group audit HTML stdout."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--output", "html",
+        ])
+    cap = capsys.readouterr()
+    assert cap.out.strip().startswith("<!DOCTYPE html>")
+    assert "Resolving group" in cap.err
+
+
+# ---------------------------------------------------------------------------
+# Snapshot diff — HTML output
+# ---------------------------------------------------------------------------
+
+def test_diff_html_output_no_changes(capsys):
+    """_print_diff with html format and no changes renders a clean no-changes page."""
+    from databricks_access_audit.cli import _print_diff
+    from databricks_access_audit.models import AuditDiff
+
+    diff = AuditDiff(
+        baseline_timestamp="2025-01-01T00:00:00Z",
+        current_timestamp="2025-04-01T00:00:00Z",
+        mode="group",
+        target="data-engineers",
+    )
+    _print_diff(diff, "html")
+    out = capsys.readouterr().out
+    assert "<!DOCTYPE html>" in out
+    assert "No changes detected" in out
+    assert "data-engineers" in out
+
+
+def test_diff_html_output_with_changes(capsys):
+    """_print_diff with html format renders grant and member change tables."""
+    from databricks_access_audit.cli import _print_diff
+    from databricks_access_audit.models import AuditDiff
+
+    diff = AuditDiff(
+        baseline_timestamp="2025-01-01T00:00:00Z",
+        current_timestamp="2025-04-01T00:00:00Z",
+        mode="group",
+        target="data-engineers",
+        grants_added=[{
+            "securable_type": "CATALOG", "securable_name": "main",
+            "principal": "alice@example.com", "privileges": ["SELECT"],
+            "workspace_name": "prod-workspace",
+        }],
+        members_removed=[{"display_name": "bob@example.com", "type": "USER"}],
+    )
+    _print_diff(diff, "html")
+    out = capsys.readouterr().out
+    assert "<!DOCTYPE html>" in out
+    assert "Grant changes" in out
+    assert "Member" in out
+    assert "alice@example.com" in out
+    assert "bob@example.com" in out
+
+
+def test_diff_html_principal_mode(capsys):
+    """Diff HTML uses 'Group memberships' label for principal-mode diffs."""
+    from databricks_access_audit.cli import _print_diff
+    from databricks_access_audit.models import AuditDiff
+
+    diff = AuditDiff(
+        baseline_timestamp="2025-01-01T00:00:00Z",
+        current_timestamp="2025-04-01T00:00:00Z",
+        mode="principal",
+        target="alice@example.com",
+        members_added=[{"group_name": "new-team", "type": "GROUP"}],
+    )
+    _print_diff(diff, "html")
+    out = capsys.readouterr().out
+    assert "Group memberships" in out
+    assert "new-team" in out
+
+
+# ---------------------------------------------------------------------------
+# Group audit — tree output
+# ---------------------------------------------------------------------------
+
+def test_group_audit_tree_output(capsys):
+    """--tree renders group audit as an ASCII tree with summary footer."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        rc = main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--tree",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "data-engineers" in out
+    assert "·" in out       # summary footer separator always present
+
+
+def test_group_audit_tree_contains_member_count(capsys):
+    """Group tree header always shows the member count."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--tree",
+        ])
+    out = capsys.readouterr().out
+    assert "member" in out   # "N members" always in header and/or footer

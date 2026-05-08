@@ -237,6 +237,69 @@ if diff.has_changes:
 
 ---
 
+## Resource audit
+
+### `ResourceAuditor`
+
+Discovers every identity that has access to a given Unity Catalog resource or workspace — the resource-first inverse of `PrincipalAuditor`.
+
+```python
+from databricks_access_audit import ResourceAuditor
+
+auditor = ResourceAuditor(client, account_id="...", cloud="azure")
+result = auditor.audit(
+    "main",                        # catalog, schema, table, or workspace name
+    resource_type=None,            # auto-detect, or pass "catalog"/"schema"/"table"/"workspace"
+    expand_groups=True,            # expand group grants to individual members (default True)
+    explicit_workspace_urls="",    # comma-separated URLs; empty = auto-discover all workspaces
+    max_workers=8,
+)
+# Returns ResourceAuditResult
+```
+
+`result` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `resource_type` | `str` | `"CATALOG"`, `"SCHEMA"`, `"TABLE"`, or `"WORKSPACE"` |
+| `resource_name` | `str` | Normalised resource name |
+| `grants` | `List[ResourceGrant]` | All access grants found, deduplicated across workspaces |
+
+Each `ResourceGrant`:
+
+| Field | Type | Description |
+|---|---|---|
+| `principal_name` | `str` | User email, group display name, or SP name |
+| `principal_type` | `str` | `"USER"`, `"GROUP"`, `"SERVICE_PRINCIPAL"` |
+| `principal_source` | `PrincipalSource` | `EXTERNAL` (IdP-synced) or `INTERNAL` (Databricks-managed) |
+| `privileges` | `List[str]` | e.g. `["USE_CATALOG", "SELECT"]` |
+| `via_group` | `Optional[str]` | Group name if inherited; `None` for direct grants |
+| `workspace_name` | `str` | Workspace the grant was discovered in |
+
+Resource type is auto-detected from the name format:
+
+| Name format | Detected as |
+|---|---|
+| `main` (0 dots) | `CATALOG` |
+| `main.analytics` (1 dot) | `SCHEMA` |
+| `main.analytics.orders` (2+ dots) | `TABLE` |
+| `https://...` or name containing `"databricks"` | `WORKSPACE` |
+
+Pass `resource_type="workspace"` explicitly when the workspace name doesn't contain `"databricks"` — otherwise the name is queried as a UC catalog and returns empty results.
+
+#### `detect_resource_type(name)`
+
+```python
+from databricks_access_audit import detect_resource_type
+
+detect_resource_type("main")                                  # → "catalog"
+detect_resource_type("main.analytics")                        # → "schema"
+detect_resource_type("main.analytics.orders")                 # → "table"
+detect_resource_type("https://adb-123.azuredatabricks.net")   # → "workspace"
+```
+
+---
+
 ## Principal comparison
 
 ### `PrincipalComparer`
@@ -331,10 +394,11 @@ from databricks_access_audit import (
     write_group_audit_csv, write_principal_audit_csv,
     write_compare_csv, write_clone_report_csv,
 )
-from databricks_access_audit.csv_output import write_diff_csv
+from databricks_access_audit.csv_output import write_diff_csv, write_resource_audit_csv
 
 write_group_audit_csv(catalog_grants, schema_grants, table_grants, redundancy)
 write_principal_audit_csv(result, escalation_findings)
+write_resource_audit_csv(resource_result)   # 8 columns: resource_type, resource_name, principal_name, principal_type, principal_source, privileges, via_group, workspace_name
 write_diff_csv(diff)
 write_compare_csv(compare_result)
 write_clone_report_csv(clone_report)
@@ -378,6 +442,8 @@ All models are in `databricks_access_audit.models` and re-exported from the pack
 | `EscalationFinding` | `privilege`, `securable_type`, `securable_name`, `via_group`, `is_transitive` |
 | `StaleFinding` | `principal`, `catalog_name`, `privileges`, `last_access`, `stale_days` |
 | `LocalGroupFinding` | `group_name`, `workspace_name`, `member_count` |
+| `ResourceGrant` | `resource_type`, `resource_name`, `principal_name`, `principal_type`, `principal_source`, `privileges`, `via_group`, `workspace_name` |
+| `ResourceAuditResult` | `resource_type`, `resource_name`, `grants` |
 | `AuditDiff` | `grants_added`, `grants_removed`, `members_added`, `members_removed`, `has_changes` |
 | `GroupComparison` | `group_id`, `group_name`, `external_id`, `in_a`, `in_b`, `is_direct_in_a`, `is_direct_in_b`, `path_in_a`, `path_in_b`, `source` |
 | `CompareResult` | `principal_a`, `principal_b`, `display_name_a`, `display_name_b`, `only_in_a`, `only_in_b`, `in_both` |

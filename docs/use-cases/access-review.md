@@ -143,6 +143,25 @@ A zero-diff run produces a clean compliance record. A non-empty diff triggers an
 
 ---
 
+## Verify catalog access from the resource side
+
+The group and principal audits answer "what can this identity access?" For access reviews, you sometimes need the inverse: "who can access this catalog, right now, as a complete list?"
+
+```bash
+# Every identity with access to main.pii — direct grants and group members
+databricks-access-audit --resource "main.pii" --output csv > pii_access_$(date +%F).csv
+
+# Groups only — fast overview of the access shape before expanding members
+databricks-access-audit --resource "main.pii" --no-expand-groups
+
+# HTML report for sign-off by a manager or auditor
+databricks-access-audit --resource "main.pii" --output html > pii_access_$(date +%F).html
+```
+
+This is especially useful when you don't know which groups have access to a catalog — `--resource` discovers them all, then expands each to its members. The CSV output maps directly to an access review spreadsheet row-by-row.
+
+---
+
 ## Reviewer checklist
 
 - [ ] Current membership matches expected team composition
@@ -151,3 +170,4 @@ A zero-diff run produces a clean compliance record. A non-empty diff triggers an
 - [ ] No members with no recorded activity for N days (`--stale-days`)
 - [ ] No workspace-local groups that should be migrated to account SCIM (`--check-local-groups`)
 - [ ] Diff from last quarter reviewed and any changes explained
+- [ ] Catalog-level access confirmed with `--resource` — every name on the list is expected

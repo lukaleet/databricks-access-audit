@@ -67,6 +67,15 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         metavar="SOURCE",
         help="Build a provisioning report to replicate SOURCE's group access",
     )
+    target.add_argument(
+        "--resource",
+        metavar="NAME",
+        help=(
+            "Show who has access to a resource: catalog, schema (cat.schema), "
+            "table (cat.schema.tbl), or workspace (by name or URL). "
+            "Type is auto-detected from the name format."
+        ),
+    )
 
     p.add_argument("--workspace-urls", default="",
                    help="Comma-separated workspace URLs (omit to scan all)")
@@ -76,8 +85,12 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     p.add_argument("--scan-tables", action="store_true", help="Scan table/view-level grants")
 
     # Output
-    p.add_argument("--output", choices=["json", "text", "csv"], default="text",
-                   help="Output format (default: text)")
+    p.add_argument("--output", choices=["json", "text", "csv", "html"], default="text",
+                   help="Output format (default: text). 'html' generates a self-contained "
+                        "Mermaid access-graph page (principal audit only).")
+    p.add_argument("--tree", action="store_true",
+                   help="Render --principal text output as a tree grouped by granting group "
+                        "instead of by securable type. Ignored for --output json/csv/html.")
     p.add_argument("--revoke-script", action="store_true",
                    help="Print REVOKE SQL for redundant grants (group audit only)")
 
@@ -210,6 +223,22 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
             "mlflow_experiments, registered_models, serving_endpoints, apps.  "
             "Default: all 13 types."
         ),
+    )
+
+    p.add_argument(
+        "--resource-type",
+        choices=["catalog", "schema", "table", "workspace"],
+        default=None,
+        help=(
+            "Override auto-detected resource type for --resource. "
+            "Use when the name is ambiguous (e.g. a workspace whose name "
+            "doesn't contain 'databricks')."
+        ),
+    )
+    p.add_argument(
+        "--no-expand-groups",
+        action="store_true",
+        help="For --resource: show only direct grants without expanding group members.",
     )
 
     p.add_argument(
@@ -370,6 +399,11 @@ def _run_local_group_check(
 
 def _print_diff(diff: Any, output_format: str) -> None:
     """Print an AuditDiff in the requested format."""
+    if output_format == "html":
+        from databricks_access_audit._diff_html_renderer import render_diff_html
+        print(render_diff_html(diff))
+        return
+
     if output_format == "csv":
         from databricks_access_audit.csv_output import write_diff_csv
         write_diff_csv(diff)
@@ -439,8 +473,8 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
 
     client = _build_client(args)
     _log = (
-        (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr}))
-        if args.output == "json" else print
+        print if args.output == "text"
+        else (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr}))
     )
     ws_disc = WorkspaceDiscovery(client, cloud_provider=args.cloud)
     auditor = PrincipalAuditor(client, workspace_discovery=ws_disc, cloud_provider=args.cloud)
@@ -493,8 +527,24 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
         )
         baseline = load_snapshot(args.baseline)
         current_snap = build_principal_snapshot(result)
-        diff = diff_snapshots(baseline, current_snap)
+        try:
+            diff = diff_snapshots(baseline, current_snap)
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
         _print_diff(diff, args.output)
+        return 0
+
+    obj_grants = result.workspace_object_grants if args.scan_workspace_objects else []
+
+    if args.output == "html":
+        from databricks_access_audit._html_renderer import render_html
+        print(render_html(
+            result,
+            obj_grants,
+            show_escalations=args.escalation_check,
+            show_workspace_objects=args.scan_workspace_objects,
+        ))
         return 0
 
     if args.output == "csv":
@@ -551,6 +601,14 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
                 "member_count": f.member_count,
             } for f in local_findings]
         print(json.dumps(out, indent=2))
+    elif getattr(args, "tree", False):
+        from databricks_access_audit._tree_renderer import render_principal_tree
+        render_principal_tree(
+            result,
+            obj_grants,
+            show_escalations=args.escalation_check,
+            show_workspace_objects=args.scan_workspace_objects,
+        )
     else:
         p_src = result.principal_source.value
         ext_groups = sum(1 for g in result.groups if g.external_id)
@@ -611,7 +669,6 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
                 print("    No escalation risks found.")
 
         if args.scan_workspace_objects:
-            obj_grants = result.workspace_object_grants
             print(f"\n  Workspace object permissions ({len(obj_grants)}):")
             if obj_grants:
                 for g in obj_grants:
@@ -878,8 +935,8 @@ def _run_group_audit(args: argparse.Namespace) -> int:
 
     client = _build_client(args)
     _log = (
-        (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr}))
-        if args.output == "json" else print
+        print if args.output == "text"
+        else (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr}))
     )
 
     resolver = GroupMembershipResolver(client)
@@ -1029,14 +1086,36 @@ def _run_group_audit(args: argparse.Namespace) -> int:
             args.group, members, catalog_grants, schema_grants, table_grants,
             workspace_object_grants or None,
         )
-        diff = diff_snapshots(baseline, current_snap)
+        try:
+            diff = diff_snapshots(baseline, current_snap)
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
         _print_diff(diff, args.output)
         return 0
 
     ext_users = sum(1 for u in members["users"] if u.external_id)
     ext_sps = sum(1 for sp in members["service_principals"] if sp.external_id)
 
-    if args.output == "csv":
+    if args.output == "html":
+        from databricks_access_audit._group_html_renderer import render_group_html
+        print(render_group_html(
+            args.group, group_node, members,
+            catalog_grants, schema_grants, table_grants,
+            workspace_object_grants or [],
+            redundancy,
+            show_workspace_objects=args.scan_workspace_objects,
+        ))
+    elif getattr(args, "tree", False):
+        from databricks_access_audit._group_tree_renderer import render_group_tree
+        render_group_tree(
+            args.group, group_node, members,
+            catalog_grants, schema_grants, table_grants,
+            workspace_object_grants or [],
+            redundancy,
+            show_workspace_objects=args.scan_workspace_objects,
+        )
+    elif args.output == "csv":
         from databricks_access_audit.csv_output import write_group_audit_csv
         write_group_audit_csv(catalog_grants, schema_grants, table_grants, redundancy,
                               workspace_object_grants or None)
@@ -1145,6 +1224,101 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_resource_audit(args: argparse.Namespace, client: Any) -> int:
+    """Run the resource-centric audit."""
+    from databricks_access_audit.resource_auditor import ResourceAuditor
+
+    _log = (
+        print if args.output == "text"
+        else (lambda *a, **kw: print(*a, **{**kw, "file": sys.stderr}))
+    )
+
+    auditor = ResourceAuditor(client, args.account_id, args.cloud or "azure")
+    _log(f"Auditing resource: {args.resource} ...")
+
+    try:
+        result = auditor.audit(
+            args.resource,
+            resource_type=getattr(args, "resource_type", None),
+            expand_groups=not args.no_expand_groups,
+            explicit_workspace_urls=args.workspace_urls,
+            max_workers=args.workers,
+        )
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    _log(f"  Found {len(result.grants)} grant(s)")
+
+    if args.output == "html":
+        from databricks_access_audit._resource_html_renderer import render_resource_html
+        print(render_resource_html(result))
+        return 0
+
+    if args.output == "csv":
+        from databricks_access_audit.csv_output import write_resource_audit_csv
+        write_resource_audit_csv(result)
+        return 0
+
+    if args.output == "json":
+        import json
+        from datetime import datetime, timezone
+        out: Dict[str, Any] = {
+            "resource_type": result.resource_type,
+            "resource_name": result.resource_name,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "grants": [
+                {
+                    "principal_name": g.principal_name,
+                    "principal_type": g.principal_type,
+                    "principal_source": g.principal_source.value,
+                    "privileges": g.privileges,
+                    "via_group": g.via_group,
+                    "workspace_name": g.workspace_name,
+                }
+                for g in result.grants
+            ],
+        }
+        print(json.dumps(out, indent=2))
+        return 0
+
+    # Text output
+    direct_grants = [g for g in result.grants if g.via_group is None]
+    via_grants = [g for g in result.grants if g.via_group is not None]
+
+    print(f"\n{'='*60}")
+    print(f"  Resource audit: {result.resource_name} ({result.resource_type})")
+    print(f"{'='*60}")
+
+    if direct_grants:
+        print(f"\n  Direct grants ({len(direct_grants)}):")
+        for g in direct_grants:
+            src_tag = f"  [{g.principal_source.value}]" if g.principal_type == "GROUP" else ""
+            privs = ", ".join(g.privileges)
+            print(f"    {g.principal_type:<20} {g.principal_name:<40}{src_tag}  {privs}")
+    else:
+        print("\n  No direct grants found.")
+
+    if via_grants:
+        # Group by via_group
+        by_group: Dict[str, List] = {}
+        for g in via_grants:
+            key = g.via_group or ""
+            by_group.setdefault(key, []).append(g)
+
+        print(f"\n  Via group ({len(via_grants)} individuals):")
+        for group_name, members in sorted(by_group.items()):
+            print(f"    {group_name} ({len(members)} member(s)):")
+            for m in members[:10]:
+                privs = ", ".join(m.privileges)
+                print(f"      {m.principal_type:<7} {m.principal_name:<40}  {privs}")
+            if len(members) > 10:
+                print(f"      ... {len(members) - 10} more (use --output json for full list)")
+
+    print(f"{'='*60}")
+    return 0
+
+
 def main(argv: List[str] | None = None) -> int:
     args = _parse_args(argv)
     _resolve_credentials(args)
@@ -1165,4 +1339,7 @@ def main(argv: List[str] | None = None) -> int:
         return _run_clone(args)
     if args.principal:
         return _run_principal_audit(args)
+    if args.resource:
+        client = _build_client(args)
+        return _run_resource_audit(args, client)
     return _run_group_audit(args)

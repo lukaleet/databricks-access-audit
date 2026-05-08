@@ -45,6 +45,7 @@ generate REVOKE SQL for workspace object grants.  Use the Databricks
 from __future__ import annotations
 
 import logging
+import sys
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -486,6 +487,10 @@ class WorkspaceObjectScanner:
                         "Skipping workspace %s during object scan: %s",
                         ws.workspace_name, exc,
                     )
+                    print(
+                        f"WARNING  workspace '{ws.workspace_name}' object scan skipped: {exc}",
+                        file=sys.stderr,
+                    )
         return all_grants
 
     # ------------------------------------------------------------------
@@ -612,5 +617,9 @@ class WorkspaceObjectScanner:
                     log.warning(
                         "Principal object type '%s' scan error on %s: %s",
                         key, workspace.workspace_name, exc,
+                    )
+                    print(
+                        f"WARNING  '{key}' scan skipped on '{workspace.workspace_name}': {exc}",
+                        file=sys.stderr,
                     )
         return grants

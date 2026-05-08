@@ -5,6 +5,70 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.19.0] - 2026-05-07
+
+### Added
+- **Resource audit (`--resource`)** — new audit mode that inverts the principal/group perspective: given a Unity Catalog resource (catalog, schema, or table) or a workspace, discover every identity that has access to it. Auto-detects resource type from the name format: 0 dots = catalog, 1 dot = schema, 2+ dots = table, `https://` or "databricks" in the name = workspace.
+- **`--no-expand-groups`** — for `--resource` mode, show only the direct grants on the resource without expanding group members to individual users and service principals. Default is to expand groups.
+- **`ResourceAuditor`** (`resource_auditor.py`) — parallel workspace scanner, SCIM-based principal classification with cache, group membership expansion via `GroupMembershipResolver`, deduplication by `(principal_name, via_group, frozenset(privileges))`.
+- **`ResourceGrant` / `ResourceAuditResult`** models in `models.py`.
+- **`_resource_html_renderer.py`** — self-contained HTML page with teal gradient header, stat cards, Mermaid LR flowchart (resource → direct principals, group nodes → member nodes with dashed edges), direct grants table, and via-group grants table.
+- **`write_resource_audit_csv()`** in `csv_output.py` — CSV with 8 columns: `resource_type`, `resource_name`, `principal_name`, `principal_type`, `principal_source`, `privileges`, `via_group`, `workspace_name`.
+- `detect_resource_type()` module-level utility function exported from `resource_auditor.py`.
+
+### Tests
+- 567 tests (up from 527 before this release cycle): 37 new tests covering `detect_resource_type`, `_classify_principal` (email / group / SP / default / cache), `_scan_uc_resource` (catalog, 404 silence, group expansion, no-expand), `_scan_workspace_resource` (basic, expand), `audit()` catalog/workspace modes (result type, dedup, not-found error), model field checks, HTML renderer (resource name, Mermaid, no-grants, HTML escaping, via-group section), CSV column header/data/via-group, and full CLI integration (text/csv/json/html output, workspace-not-found → exit 1, mutual-exclusion with `--group`).
+
+---
+
+## [0.18.7] - 2026-05-07
+
+### Fixed
+- **Principal `--tree` and `--output html`**: direct workspace assignments (`ADMIN` set explicitly on the principal, not via a group) were rendering as a fake `via  (direct)` group section instead of the "Direct" block.  Root cause: `principal_auditor.py` sets `via_group="(direct)"` on direct `WorkspaceRole` objects; the renderers bucketed by `r.via_group or "__direct__"` but `"(direct)"` is truthy so it never reached the `__direct__` sentinel.  Fixed in both `_tree_renderer.py` and `_html_renderer.py` to treat `via_group == "(direct)"` identically to `None`.
+- **Group `--tree`**: Unity Catalog rows were showing the group/principal name in the workspace column instead of the workspace name.  Root cause: `_print_uc` used `*_, ws` to unpack the grant tuple, grabbing `principal` (last element) instead of `workspace_name` (second-to-last).  Fixed with explicit unpacking.
+
+---
+
+## [0.18.6] - 2026-05-07
+
+### Added
+- **Group audit `--tree`** — ASCII tree view for `--group` mode, organised by grant source rather than securable type.  Upstream (parent-group-inherited) grants are shown per parent group; direct grants the group holds itself form their own branch; member-direct personal grants appear in a compact summary with redundancy warnings.  Workspace objects included when `--scan-workspace-objects` is set.  Redundancy callout line printed before the footer when full or partial overlaps are found.
+
+### Tests
+- 527 tests (up from 525): 2 new tests for group audit `--tree` output structure and member-count presence.
+
+---
+
+## [0.18.5] - 2026-05-07
+
+### Added
+- **Group audit `--output html`** — self-contained HTML page for `--group` mode.  Green-themed header with IdP vs Databricks classification, member counts, and timestamp.  Mermaid LR flowchart showing the group's access footprint: parent groups (dashed edges), workspaces, and UC catalogs.  Summary stats grid highlights redundant grant count in amber when non-zero.  Redundancy findings are surfaced in a prominent banner and dedicated table before the full grant list.  Combined Unity Catalog grants table (catalog + schema + table) with grant-source tags.  Progress messages routed to stderr.
+- **Snapshot diff `--output html`** — self-contained HTML diff page for `--baseline` mode.  Works for both group and principal audits.  Slate-themed header with a baseline → current timeline.  Summary cards show +/− counts for grants and members in green/red.  Color-coded rows: green background for additions, red for removals.  Renders a clean "No changes detected" state when there are no differences — suitable for committing to a repo as a compliance artifact.  `--output html` now supported in `_print_diff` which is shared by both audit modes.
+
+### Fixed
+- `_log` in `_run_group_audit` now routes progress messages to stderr for all non-`text` output modes (was only routing for json).
+
+### Tests
+- 525 tests (up from 519): 6 new tests covering group audit HTML output structure, section headings, progress-to-stderr isolation, diff HTML no-changes state, diff HTML with additions and removals, and diff HTML principal-mode member label.
+
+---
+
+## [0.18.4] - 2026-05-06
+
+### Added
+- **`--output html`** — self-contained HTML access map for principal audit.  Embeds a Mermaid LR flowchart (principal → groups → workspaces + UC securables) with solid edges for direct group memberships and dashed edges for transitive ones.  Includes a summary stats grid and four data tables (group memberships, workspace access, UC permissions, workspace objects).  No server required — one file, renders in any browser.  Progress messages are routed to stderr so the HTML on stdout is clean.
+- **`--tree`** — ASCII tree view for principal audit, reorganising output by granting entity rather than securable type.  Each section shows "via <group>" with the workspace roles and UC grants beneath it; direct grants and workspace objects have their own nodes; escalation findings appear when `--escalation-check` is set.
+- **Visualizing Access use-case page** — `docs/use-cases/access-map.md` covering when to use `--tree` vs `--output html` vs CSV, how to compose with `--scan-workspace-objects` and `--escalation-check`, and the "show this to a manager" scenario.
+- **CLI reference updated** — `docs/reference/cli.md` now documents `--output html` and `--tree` with examples.
+
+### Fixed
+- Progress messages (`Auditing principal: …`) were leaking onto stdout in `--output html` mode.  `_log` in `_run_principal_audit` now routes to stderr for all non-text output modes (json, csv, html).
+
+### Tests
+- 519 tests (up from 513): 6 new tests in `tests/test_cli.py` covering `--tree` output structure, `--output html` content, HTML progress-to-stderr isolation, and `--tree` with `--output json`.
+
+---
+
 ## [0.18.3] - 2026-05-05
 
 ### Added

@@ -99,6 +99,9 @@ PrincipalAuditor.audit()
 
 When `ws_roles` is empty (principal accesses a workspace through an implicit built-in group like "account users"), the workspace object scan falls back to scanning all discovered workspaces.
 
+!!! note "Workspace roles show explicit assignments only"
+    The `/permissionassignments` API only returns **explicit** workspace role grants — ADMIN assignments made directly on the workspace. A user who reaches a workspace solely through the implicit built-in "account users" group will show **0 workspace roles** in the output, even though they can log in. This is a Databricks platform constraint, not a tool limitation. Their UC grants are still found via the separate catalog scan path.
+
 ---
 
 ## Parallelism

@@ -80,6 +80,20 @@ For SPs, pay particular attention to jobs and pipelines with `CAN_MANAGE` or `IS
 
 ---
 
+## Verify removal is complete
+
+After the account is deprovisioned, confirm the principal no longer appears anywhere:
+
+```bash
+# Run --resource on every catalog they had access to — confirm they're gone
+databricks-access-audit --resource "main" | grep "sarah@company.com"
+databricks-access-audit --resource "analytics" | grep "sarah@company.com"
+```
+
+If the principal still appears — as a direct grant, or as a member of a group that wasn't updated — the `--resource` output shows exactly where and via which path. This is faster than re-running the full principal audit and easier to attach to the offboarding ticket as evidence.
+
+---
+
 ## Offboarding checklist
 
 - [ ] Full access export saved as CSV (attach to the offboarding ticket)
@@ -87,3 +101,4 @@ For SPs, pay particular attention to jobs and pipelines with `CAN_MANAGE` or `IS
 - [ ] `Member Direct` grants revoked from UC (`REVOKE` SQL)
 - [ ] Jobs / pipelines with personal ownership transferred to a group or service principal
 - [ ] User removed from IdP (propagates through SCIM to Databricks automatically)
+- [ ] Post-deprovisioning verification: `--resource` on affected catalogs confirms the name is gone

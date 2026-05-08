@@ -37,21 +37,28 @@ nav:
   - Use Cases:
     - Offboarding: use-cases/offboarding.md
     - Access Provisioning: use-cases/access-provisioning.md
+    - Visualizing Access: use-cases/access-map.md
     - Access Review: use-cases/access-review.md
     - Permission Hygiene: use-cases/permission-hygiene.md
     - Stale Access Detection: use-cases/stale-access.md
     - Incident Response: use-cases/incident-response.md
     - Compliance Snapshots: use-cases/compliance.md
+    - Resource Audit: use-cases/resource-audit.md
   - Reference:
+    - Quick Reference: reference/quick-reference.md
     - CLI Flags: reference/cli.md
     - Python API: reference/python-api.md
     - Output Formats: reference/output-formats.md
+  - Troubleshooting: troubleshooting.md
+  - Changelog: changelog.md
   - How It Works:
     - Architecture: how-it-works/architecture.md
     - Grant Classification: how-it-works/grant-classification.md
     - Azure AD B2B Guests: how-it-works/azure-b2b-guests.md
 
 markdown_extensions:
+  - pymdownx.snippets:
+      base_path: ["."]
   - admonition
   - pymdownx.details
   - pymdownx.superfences

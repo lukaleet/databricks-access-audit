@@ -3,10 +3,10 @@
 ## Synopsis
 
 ```bash
-databricks-access-audit (--group NAME | --principal NAME | --compare A B | --clone-from NAME) [OPTIONS]
+databricks-access-audit (--group NAME | --principal NAME | --compare A B | --clone-from NAME | --resource NAME) [OPTIONS]
 ```
 
-`--group`, `--principal`, `--compare`, and `--clone-from` are mutually exclusive and one is required.
+`--group`, `--principal`, `--compare`, `--clone-from`, and `--resource` are mutually exclusive and one is required.
 
 ---
 
@@ -89,6 +89,47 @@ Each of the source's **direct** group memberships is classified as:
 | `Unverified` | Group is Databricks-managed but no workspace assignment detected — use `--scan-uc` to resolve |
 | `Skipped` | Verified dead-end — no workspace or UC grants (requires `--scan-uc`) |
 
+### `--resource NAME`
+
+Discover who has access to a resource — the inverse of `--principal`.  
+Resource type is auto-detected:
+
+| Name format | Detected type |
+|---|---|
+| `main` (0 dots) | Catalog |
+| `main.analytics` (1 dot) | Schema |
+| `main.analytics.orders` (2+ dots) | Table |
+| `https://...` or name containing "databricks" | Workspace |
+
+```bash
+databricks-access-audit --resource "main"                        # catalog
+databricks-access-audit --resource "main.analytics"             # schema
+databricks-access-audit --resource "main.analytics.orders"      # table
+databricks-access-audit --resource "prod-databricks-workspace"  # workspace
+```
+
+Scans all discovered workspaces in parallel and deduplicates by `(principal, via_group, privileges)`. Works with all `--output` formats.
+
+### `--resource-type {catalog,schema,table,workspace}`
+
+Override auto-detected resource type for `--resource`. Use when the name is ambiguous — for example, a workspace whose name doesn't contain "databricks":
+
+```bash
+databricks-access-audit --resource "prod-workspace" --resource-type workspace
+```
+
+### `--no-expand-groups`
+
+For `--resource` mode: show only the direct grants on the resource. Default is to expand each GROUP principal to its individual members (users and service principals).
+
+```bash
+# Group-only view
+databricks-access-audit --resource "main" --no-expand-groups
+
+# Full individual-member view (default)
+databricks-access-audit --resource "main"
+```
+
 ### `--to TARGET`
 
 Target principal for `--clone-from`. Accepts the same identifier formats as `--principal`.
@@ -159,13 +200,40 @@ Comma-separated workspace URLs. When omitted the tool discovers all workspaces i
 
 ## Output
 
-### `--output {text,json,csv}`
+### `--output {text,json,csv,html}`
 
 Output format. Default: `text`.
 
 - `text` — human-readable console output
 - `json` — machine-readable JSON (logs go to stderr)
 - `csv` — one row per grant, written to stdout (pipe to a file)
+- `html` — self-contained HTML page with a Mermaid access graph and data tables (logs go to stderr). Supported by `--principal`, `--group`, `--resource`, and `--baseline` (diff page).
+
+```bash
+# Principal access map
+databricks-access-audit --principal "alice@company.com" --output html > alice.html
+
+# Group access map
+databricks-access-audit --group "data-engineers" --output html > data-engineers.html
+
+# Resource access map — who can reach catalog main?
+databricks-access-audit --resource "main" --output html > main_catalog.html
+
+# Compliance diff page (baseline → current)
+databricks-access-audit --group "data-engineers" --baseline snapshots/Q1.json --output html > q1-q2-diff.html
+```
+
+### `--tree`
+
+Render audit output as an ASCII tree grouped by grant source rather than securable type. Supported by both `--principal` and `--group`.
+
+- **Principal audit** — organises by granting group: "what does alice get *via* data-engineers?"
+- **Group audit** — organises by grant source: direct grants the group holds, upstream grants inherited from parent groups, member-direct personal grants with redundancy callout.
+
+```bash
+databricks-access-audit --principal "alice@company.com" --tree
+databricks-access-audit --group "data-engineers" --tree
+```
 
 ### `--revoke-script`
 
@@ -231,7 +299,10 @@ Number of parallel threads for workspace, schema, and table scanning. Default: `
 
 ### `--no-sdk`
 
-Force the raw HTTP client even when `databricks-sdk` is installed.
+Force the raw HTTP client even when `databricks-sdk` is installed. Use this when:
+
+- You're authenticating via a PAT token in `~/.databrickscfg` and the SDK's auth chain isn't picking it up.
+- You want explicit control over retry behaviour via `--max-retries` / `--retry-*` flags (SDK manages its own retries independently).
 
 ### `--max-retries N`
 

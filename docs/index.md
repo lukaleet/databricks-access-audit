@@ -8,12 +8,13 @@ The Account Console shows you one workspace at a time. `INFORMATION_SCHEMA` show
 
 ---
 
-## Four modes
+## Five modes
 
 | Mode | Entry point | Question it answers |
 |---|---|---|
 | **Principal audit** | `--principal "alice@company.com"` | What can this user / SP / group access — every workspace, every catalog, every object? |
 | **Group audit** | `--group "data-engineers"` | What does this group access? Who in it has personal grants that duplicate what the group already provides? |
+| **Resource audit** | `--resource "main"` | Who has access to this catalog / schema / table / workspace? |
 | **Compare** | `--compare "alice@company.com" "bob@company.com"` | Which groups does Alice have that Bob doesn't? Which are shared? |
 | **Access provisioning** | `--clone-from "alice@company.com" --to "bob@company.com"` | Exactly what do I need to do — in Databricks and in my IdP — to give Bob the same access as Alice? |
 
@@ -41,10 +42,16 @@ The Account Console shows you one workspace at a time. `INFORMATION_SCHEMA` show
 | **Onboarding** — replicate one person's access to a new hire | `--clone-from` / `--compare` | `--scan-uc --apply` |
 | **Offboarding** — pull everything before deprovisioning | `--principal` | `--scan-workspace-objects --escalation-check --output csv` |
 | **Access review** — export permissions, prove nothing drifted | either | `--output csv --baseline last_quarter.json` |
+| **Visualize for a manager** — diagram of who can reach what and how | `--principal` / `--group` | `--output html` |
+| **Terminal summary** — access path view for a ticket or Slack message | `--principal` / `--group` | `--tree` |
 | **Incident response** — map blast radius of a compromised credential | `--principal` | `--escalation-check --scan-workspace-objects --output json` |
 | **Permission hygiene** — find redundant grants, generate REVOKE SQL | `--group` | `--revoke-script` |
 | **Stale access** — flag grants with no recorded activity | `--group` | `--stale-days 90 --sql-warehouse-id ...` |
-| **Compliance snapshot** — prove permissions haven't changed since last quarter | either | `--save-snapshot` / `--baseline` |
+| **Resource access review** — who can read from this catalog? | Resource audit | `--no-expand-groups --output csv` |
+| **Visual access map** — who can reach this catalog, as a diagram for a manager or auditor | Resource audit | `--output html` |
+| **Compliance snapshot** — prove permissions haven't changed since last quarter | either | `--save-snapshot` / `--baseline --output html` |
+
+Not sure which flag to add? → [Quick reference](reference/quick-reference.md)
 
 ---
 

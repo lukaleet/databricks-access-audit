@@ -433,3 +433,28 @@ class CloneReport:
     @property
     def skipped(self) -> List[CloneAction]:
         return [a for a in self.actions if a.action_type == CloneActionType.SKIPPED]
+
+
+# ---------------------------------------------------------------------------
+# Resource audit models (resource-centric: 'who has access to X?')
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ResourceGrant:
+    """One identity's direct or inherited access to a specific resource."""
+    resource_type: str       # "CATALOG", "SCHEMA", "TABLE", "WORKSPACE"
+    resource_name: str
+    principal_name: str
+    principal_type: str      # "USER", "SERVICE_PRINCIPAL", "GROUP"
+    principal_source: PrincipalSource
+    privileges: List[str]
+    via_group: Optional[str]  # None = direct grant; group name = inherited
+    workspace_name: str
+
+
+@dataclass
+class ResourceAuditResult:
+    """Complete result of a resource-centric audit."""
+    resource_type: str
+    resource_name: str
+    grants: List[ResourceGrant] = field(default_factory=list)

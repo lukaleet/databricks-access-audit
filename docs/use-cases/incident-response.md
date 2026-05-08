@@ -104,6 +104,22 @@ Focus on `action_name` values like `createPermissions`, `updatePermissions`, `de
 
 ---
 
+## Enumerate who else has access to the affected resource
+
+If the investigation centres on a specific catalog or schema, flip the question: instead of asking what the identity can reach, ask who else can reach the same resource.
+
+```bash
+# Every identity with access to the catalog in question
+databricks-access-audit --resource "main" --output csv > main_all_access.csv
+
+# Visual diagram — who connects to this catalog and through which groups
+databricks-access-audit --resource "main" --output html > main_access_map.html
+```
+
+This tells you whether the exposure is isolated to one identity or shared across a broader set of principals — and surfaces any other direct grants that may warrant review.
+
+---
+
 ## After containment — verify scope with a clean audit
 
 Once the credential is rotated and access revoked, run the audit one more time against the same identity to confirm the blast radius has been fully closed:

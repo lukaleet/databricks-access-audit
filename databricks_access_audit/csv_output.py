@@ -154,6 +154,32 @@ def write_clone_report_csv(report: Any, output: Optional[TextIO] = None) -> None
         ])
 
 
+def write_resource_audit_csv(result: Any, output: Optional[TextIO] = None) -> None:
+    """Write resource audit results as CSV.
+
+    Columns: resource_type, resource_name, principal_name, principal_type,
+             principal_source, privileges, via_group, workspace_name
+    """
+    out = output or sys.stdout
+    w = csv.writer(out)
+
+    w.writerow([
+        "resource_type", "resource_name", "principal_name", "principal_type",
+        "principal_source", "privileges", "via_group", "workspace_name",
+    ])
+    for g in result.grants:
+        w.writerow([
+            g.resource_type,
+            g.resource_name,
+            g.principal_name,
+            g.principal_type,
+            g.principal_source.value,
+            "|".join(g.privileges),
+            g.via_group or "",
+            g.workspace_name,
+        ])
+
+
 def write_diff_csv(diff: Any, output: Optional[TextIO] = None) -> None:
     """Write an AuditDiff as CSV."""
     out = output or sys.stdout

@@ -11,27 +11,15 @@ The Account Console shows you one workspace at a time. `INFORMATION_SCHEMA` show
 
 `databricks-access-audit` answers cross-workspace access questions in one command, across every workspace in your account at once.
 
-## Four modes
+## Five modes
 
-| Mode | Entry point | Question it answers |
+| Mode | Command | Question it answers |
 |---|---|---|
 | **Principal audit** | `--principal "alice@company.com"` | What can this user / SP / group access across every workspace? |
-| **Group audit** | `--group "data-engineers"` | What does this group access? Who in it has redundant personal grants? |
-| **Compare** | `--compare "alice@company.com" "bob@company.com"` | Which groups does Alice have that Bob doesn't, and vice versa? |
+| **Group audit** | `--group "data-engineers"` | What does this group access? Who has redundant personal grants? |
+| **Resource audit** | `--resource "main"` | Who has access to this catalog / schema / table / workspace? |
+| **Compare** | `--compare "alice@company.com" "bob@company.com"` | Which groups does Alice have that Bob doesn't? |
 | **Access provisioning** | `--clone-from "alice@company.com" --to "bob@company.com"` | How do I give Bob the same access as Alice? |
-
-## What it does
-
-- **Multi-workspace scanning** — auto-discovers every workspace in your account, scans them in parallel
-- **Recursive group resolution** — traces nested group membership chains with full hierarchy and path
-- **Permission inheritance tracking** — classifies every grant as `Direct`, `Upstream`, or `Member Direct`
-- **Schema and table drill-down** — optionally scans schema and table-level UC grants
-- **Redundancy and overlap analysis** — compares personal grants against group coverage, generates REVOKE SQL
-- **Workspace object ACLs** — jobs, clusters, pipelines, SQL warehouses, dashboards and 8 more types
-- **Escalation detection** — flags `ALL_PRIVILEGES` and `MANAGE` grants across the principal's access chain
-- **Access provisioning** — compare group memberships between two principals; clone access with IdP vs Databricks group classification and optional SCIM apply
-- **Compliance snapshots** — save a run to JSON, diff against a previous snapshot, export changes as CSV
-- **Resilient API calls** — automatic retry with exponential backoff on 429 / 5xx responses
 
 ## Install
 
@@ -39,56 +27,12 @@ The Account Console shows you one workspace at a time. `INFORMATION_SCHEMA` show
 pip install "databricks-access-audit[sdk]"
 ```
 
-Requires Python 3.9+. The `[sdk]` extra adds `databricks-sdk` for automatic auth and retries.
-
-## Credentials
-
-Add a section to `~/.databrickscfg` and run without any flags — cloud is auto-detected from the host:
-
-```ini
-[DEFAULT]
-host          = https://accounts.azuredatabricks.net
-account_id    = xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-client_id     = xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-client_secret = your-sp-secret
-```
-
-Or use environment variables (`DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET`, `DATABRICKS_ACCOUNT_ID`) or explicit `--client-id` / `--client-secret` / `--account-id` flags. Named profiles work too: `--profile prod`.
-
-## Quick start
+Add credentials to `~/.databrickscfg` and run:
 
 ```bash
-# What can alice access across all workspaces?
 databricks-access-audit --principal "alice@company.com"
-
-# Full picture — workspace objects, escalation risks, export to CSV
-databricks-access-audit --principal "alice@company.com" \
-  --scan-workspace-objects \
-  --escalation-check \
-  --output csv > alice_$(date +%F).csv
-
-# What does data-engineers access? Who has redundant personal grants?
-databricks-access-audit --group "data-engineers"
-
-# Deep scan with schema grants + REVOKE SQL for cleanup
-databricks-access-audit --group "data-engineers" \
-  --scan-schemas \
-  --revoke-script
-
-# Compare against last quarter's snapshot
-databricks-access-audit --group "data-engineers" \
-  --baseline snapshots/data-engineers_2025-01-01.json \
-  --save-snapshot snapshots/data-engineers_$(date +%F).json \
-  --output csv
-
-# Onboarding: give Bob the same access as Alice
-# Step 1 — see the gap
-databricks-access-audit --compare "alice@company.com" "bob@company.com"
-
-# Step 2 — plan + apply Databricks-managed groups; IdP groups listed separately
-databricks-access-audit --clone-from "alice@company.com" --to "bob@company.com" \
-  --scan-uc \
-  --apply
+databricks-access-audit --group "data-engineers" --revoke-script
+databricks-access-audit --resource "main" --output html > main_access.html
 ```
 
 ## Documentation
@@ -96,16 +40,16 @@ databricks-access-audit --clone-from "alice@company.com" --to "bob@company.com" 
 **[https://lukaleet.github.io/databricks-access-audit](https://lukaleet.github.io/databricks-access-audit)**
 
 - [Getting Started](https://lukaleet.github.io/databricks-access-audit/getting-started/) — install, credentials, first audit
-- [Capabilities](https://lukaleet.github.io/databricks-access-audit/capabilities/) — how each feature works with examples
-- [Use Cases](https://lukaleet.github.io/databricks-access-audit/use-cases/offboarding/) — offboarding, access provisioning, access review, incident response, compliance
+- [Capabilities](https://lukaleet.github.io/databricks-access-audit/capabilities/) — how each feature works
+- [Use Cases](https://lukaleet.github.io/databricks-access-audit/use-cases/offboarding/) — offboarding, onboarding, access review, incident response, compliance
 - [CLI Reference](https://lukaleet.github.io/databricks-access-audit/reference/cli/) — every flag documented
-- [Python API](https://lukaleet.github.io/databricks-access-audit/reference/python-api/) — use as a library
+- [Troubleshooting](https://lukaleet.github.io/databricks-access-audit/troubleshooting/) — common issues and fixes
 
 ## Development
 
 ```bash
 pip install -e ".[sdk,dev]"
-pytest          # 513 tests, no real Databricks connection required
+pytest          # 570 tests, no real Databricks connection required
 ruff check .
 ```
 

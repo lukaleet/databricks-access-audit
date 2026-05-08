@@ -7,6 +7,7 @@ can they reach, and what Unity Catalog permissions flow through each group?"
 from __future__ import annotations
 
 import logging
+import sys
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Set, Tuple
@@ -215,6 +216,10 @@ class PrincipalAuditor:
             except Exception as exc:
                 log.warning(
                     "Failed to get assignments for workspace %s: %s", ws.workspace_name, exc
+                )
+                print(
+                    f"WARNING  workspace '{ws.workspace_name}' assignments skipped: {exc}",
+                    file=sys.stderr,
                 )
             return result
 

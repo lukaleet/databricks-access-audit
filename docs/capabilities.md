@@ -2,6 +2,8 @@
 
 ## Multi-workspace scanning
 
+**Use this when:** you need to know whether an identity can access *any* workspace in your account — not just the one you're looking at right now. The Databricks UI forces you to check workspaces one at a time; this command covers all of them in a single run.
+
 The Databricks UI shows you one workspace at a time. INFORMATION_SCHEMA shows you one metastore at a time. Neither has a cross-workspace view.
 
 This tool discovers all workspaces in your account automatically via the Account API and scans them in parallel — one command covers your entire Databricks estate.
@@ -34,6 +36,8 @@ With `--workers N` (default: 8) all workspace scans run in parallel — scanning
 
 ## Recursive group resolution
 
+**Use this when:** someone has access you can't explain from their visible memberships, or you need to know exactly which group to modify to revoke access without breaking something else downstream.
+
 Databricks groups nest. A user in `data-engineers` might inherit access through `data-engineers → all-data-team → platform-users`. The Databricks UI doesn't trace this — it shows you direct memberships, not the full chain.
 
 This tool traces every level of nesting and shows the exact path:
@@ -56,6 +60,8 @@ For group audit, all users and SPs are bulk pre-fetched upfront — no N+1 SCIM 
 
 ## Permission inheritance tracking
 
+**Use this when:** you're planning a cleanup and need to know which grants are safe to revoke versus which ones are load-bearing. Not all grants with the same privileges are equal — a personal grant can survive group changes entirely.
+
 Not all grants are equal. A grant held by the group itself is different from a grant a parent group holds, which is different from a grant a member holds personally. This distinction determines what you can safely revoke and what the actual access vector is.
 
 ```bash
@@ -75,6 +81,8 @@ A member's `Member Direct` grant on `main` while `data-engineers` also has a gra
 ---
 
 ## IdP vs Databricks group classification
+
+**Use this when:** you're about to modify group memberships and need to know which ones Databricks can apply directly and which ones require going to your identity provider first. Attempting a SCIM PATCH on an IdP-synced group returns 403 — knowing this upfront saves the round trip.
 
 When you need to provision or modify group memberships, the critical question is: does Databricks own this group, or does your identity provider?
 
@@ -97,6 +105,8 @@ The `--clone-from` and `--compare` modes surface this distinction on every group
 ---
 
 ## Schema and table drill-down
+
+**Use this when:** catalog-level grants don't tell the full story. Someone might have `USE_CATALOG` on `main` but `SELECT` on a sensitive schema inside it — that only appears at the schema or table level. Use this during deep access reviews or incident response when you need to know the exact data boundary.
 
 Catalog-level grants are the default scan depth. The Databricks UI often shows only catalog-level grants — but schema and table grants can be far more granular and are frequently set independently.
 
@@ -129,6 +139,8 @@ The last row — `main.raw.ingest` via `all-data-team` — is inherited from a p
 
 ## Workspace object ACLs
 
+**Use this when:** you're offboarding someone and need to know if they own any jobs, clusters, or dashboards that will break when their account is deleted — or when you need the full picture of what a principal can reach beyond just data.
+
 Unity Catalog covers data access. Workspace objects — jobs, clusters, dashboards, pipelines — have their own ACL system that UC doesn't see. The tool scans both.
 
 ```bash
@@ -157,6 +169,8 @@ databricks-access-audit --principal "alice@company.com" \
 
 ## Redundancy and overlap analysis
 
+**Use this when:** you removed someone from a group and they still have access — or you're trying to understand why. Personal grants survive all group changes silently. This surfaces exactly who has them and whether they're safe to revoke.
+
 Members sometimes hold personal catalog grants that the group already covers — grants set before the group had them, one-off access that was never revoked, or people who changed teams but kept old permissions. These grants are invisible in the UI, survive group membership changes, and accumulate silently.
 
 The redundancy detector compares every `Member Direct` grant against the group's effective privileges and classifies the overlap:
@@ -177,6 +191,8 @@ Generates copy-paste REVOKE SQL for all redundant grants. The group grant is unt
 
 ## Escalation detection
 
+**Use this when:** you want to understand the full weight of a grant. `ALL_PRIVILEGES` and `MANAGE` aren't just data access — they're the ability to grant access to others. An identity with these privileges on a production catalog can extend that access to anyone. That's a different category than `SELECT`.
+
 `ALL_PRIVILEGES` and `MANAGE` aren't just access — they're the ability to grant access to others. An identity with `ALL_PRIVILEGES` on a production catalog can extend that access to anyone. That's a different category of risk.
 
 ```bash
@@ -189,14 +205,17 @@ Escalation findings include the specific privilege, the securable it covers, and
 
 ## Compliance snapshots and diff
 
+**Use this when:** your auditor asks whether access has changed since last quarter and you need a timestamped, reproducible answer — or when you want to track permission drift over time and catch unexpected changes before they become incidents.
+
 Databricks has no built-in permission changelog. The snapshot and diff workflow creates one.
 
 ```bash
 # Save
 databricks-access-audit --group "data-engineers" --save-snapshot snapshots/Q1.json
 
-# Diff (next quarter)
+# Diff (next quarter) — text, CSV, or a shareable HTML page
 databricks-access-audit --group "data-engineers" --baseline snapshots/Q1.json
+databricks-access-audit --group "data-engineers" --baseline snapshots/Q1.json --output html > q1-q2-diff.html
 ```
 
 Snapshots are plain JSON — versioned, human-readable without the tool, safe to commit to version control. Diffs are deterministic: any privilege change appears as an explicit removal + addition pair. Nothing is silently updated.
@@ -205,7 +224,29 @@ See [Compliance Snapshots](use-cases/compliance.md) for the full audit workflow.
 
 ---
 
+## Access visualization
+
+**Use this when:** you need to explain access to someone who doesn't live in a terminal — a manager, a new team member, or an auditor who wants to see the full picture without reading a CSV. Also useful when you're tracing an unexpected access path and want to see all the group chains at once.
+
+```bash
+# HTML access map — Mermaid diagram + tables, opens in any browser
+databricks-access-audit --principal "alice@company.com" --output html > alice.html
+databricks-access-audit --group "data-engineers" --output html > data-engineers.html
+
+# ASCII tree — same structure in the terminal, grouped by access path
+databricks-access-audit --principal "alice@company.com" --tree
+databricks-access-audit --group "data-engineers" --tree
+```
+
+The HTML output is self-contained — one file, no server required. The tree output is useful for CI logs, Slack messages, and incident tickets.
+
+See [Visualizing Access](use-cases/access-map.md) for examples and when to use each format.
+
+---
+
 ## Resilient API calls
+
+**Use this when:** you're scanning a large account (many workspaces or deep catalogs) and hitting rate limits — or running scans in an automated pipeline where transient failures shouldn't cause silent data loss.
 
 Rate limits and transient errors are inevitable at scale. The raw HTTP client handles them automatically:
 
@@ -224,3 +265,52 @@ databricks-access-audit --group "data-engineers" \
   --max-retries 8 \
   --retry-max-delay 120
 ```
+
+---
+
+## Resource-centric access view
+
+**Use this when:** you start from a resource — a catalog, schema, table, or workspace — and need to know exactly who can reach it. The `--principal` and `--group` modes answer "what can this identity access?"; `--resource` answers the inverse: "who can access this thing?" Use it for access reviews, scope analysis, and compliance attestation.
+
+All other audit modes are identity-first. `--resource` is the only resource-first mode.
+
+```bash
+# Who has access to the main catalog?
+databricks-access-audit --resource "main"
+
+# Who has access to the main.analytics schema?
+databricks-access-audit --resource "main.analytics"
+
+# Who has access to a specific table?
+databricks-access-audit --resource "main.analytics.orders"
+
+# Who has a workspace role?
+databricks-access-audit --resource "https://adb-123.azuredatabricks.net"
+databricks-access-audit --resource "prod-workspace" --resource-type workspace
+
+# Group-level view only (skip member expansion)
+databricks-access-audit --resource "main" --no-expand-groups
+
+# Visual diagram for a manager or auditor
+databricks-access-audit --resource "main" --output html > main_access.html
+
+# Export for a quarterly access review
+databricks-access-audit --resource "main.pii" --output csv > pii_access.csv
+```
+
+Resource type is auto-detected from the name format:
+
+| Name format | Detected as |
+|---|---|
+| `main` (0 dots) | Catalog |
+| `main.analytics` (1 dot) | Schema |
+| `main.analytics.orders` (2+ dots) | Table |
+| `https://...` or name containing `databricks` | Workspace |
+
+When the workspace name doesn't contain "databricks" (e.g. `prod-ws`), add `--resource-type workspace` to override auto-detection. Without it the tool would query UC for a catalog named `prod-ws` and silently return empty results.
+
+**Group expansion:** by default, each group principal is expanded to its individual members so the output shows the actual humans who have access, not just abstract group names. Pass `--no-expand-groups` for a group-level summary. The default is more useful for incident response and offboarding verification; `--no-expand-groups` is faster for a quick overview of the access shape.
+
+**Multi-workspace deduplication:** for UC resources (catalog/schema/table), the scan runs in parallel across all workspaces. When multiple workspaces share the same metastore, the same grant appears from each workspace — the tool deduplicates by `(principal, via_group, privileges)` so each grant appears exactly once.
+
+See [Resource Audit](use-cases/resource-audit.md) for the full workflow with example output and HTML diagrams.
