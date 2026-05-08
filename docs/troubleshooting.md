@@ -16,6 +16,19 @@ Their Unity Catalog permissions are still discovered correctly via the catalog s
 
 ---
 
+## `--resource "main.analytics"` is missing people I expected to see
+
+`--resource` on a schema or table returns only **direct grants** on that securable — the same set `SHOW GRANTS ON SCHEMA main.analytics` returns in SQL. It does not include principals who have access via a catalog-level grant.
+
+In Unity Catalog, `USE_CATALOG + SELECT` at the catalog level is sufficient to read any table in any schema without a schema-level grant. Those principals appear in `--resource "main"` (the catalog audit), not in `--resource "main.analytics"`.
+
+To get the complete picture of who can read data in a schema:
+
+1. Run `--resource "main"` — see who has catalog-level access (the broader set)
+2. Run `--resource "main.analytics"` — see who has additional schema-specific grants on top of that
+
+---
+
 ## `--resource "prod-workspace"` returns empty results
 
 The tool auto-detects workspace names that contain `"databricks"` or start with `"https://"`. A name like `prod-workspace` has neither — so without `--resource-type workspace`, it queries Unity Catalog for a catalog named `prod-workspace` and silently returns nothing when no such catalog exists.

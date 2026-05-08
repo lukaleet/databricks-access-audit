@@ -313,4 +313,6 @@ When the workspace name doesn't contain "databricks" (e.g. `prod-ws`), add `--re
 
 **Multi-workspace deduplication:** for UC resources (catalog/schema/table), the scan runs in parallel across all workspaces. When multiple workspaces share the same metastore, the same grant appears from each workspace — the tool deduplicates by `(principal, via_group, privileges)` so each grant appears exactly once.
 
+**Schema and table audits show direct grants only:** `--resource "main.analytics"` returns the same set as `SHOW GRANTS ON SCHEMA main.analytics` — principals with an explicit grant on that schema. Principals who reach the schema via a catalog-level grant (e.g. `USE_CATALOG + SELECT` on `main`) are not included. To see the full access picture, run `--resource "main"` for catalog-level access and `--resource "main.analytics"` for schema-specific additions on top of that.
+
 See [Resource Audit](use-cases/resource-audit.md) for the full workflow with example output and HTML diagrams.

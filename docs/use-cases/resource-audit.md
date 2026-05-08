@@ -60,6 +60,11 @@ databricks-access-audit --resource "main.analytics"
 
 The resource type is auto-detected from the dot-count in the name. One dot = schema.
 
+!!! warning "Schema and table audits show direct grants only"
+    This returns everyone with an **explicit grant on `main.analytics`** — the same set `SHOW GRANTS ON SCHEMA main.analytics` returns in SQL. It does **not** include principals who can reach the schema's data via a catalog-level grant (e.g. `USE_CATALOG + SELECT` on `main` is sufficient to read any table in any schema without a schema-level grant).
+
+    To get the full picture of who can read data in a schema, run `--resource "main"` first to see who has catalog-level access, then `--resource "main.analytics"` for schema-specific additions on top of that.
+
 ---
 
 ## Who has workspace roles on prod-workspace?
