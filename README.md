@@ -45,6 +45,12 @@ databricks-access-audit --resource "main" --output html > main_access.html
 - [CLI Reference](https://lukaleet.github.io/databricks-access-audit/reference/cli/) — every flag documented
 - [Troubleshooting](https://lukaleet.github.io/databricks-access-audit/troubleshooting/) — common issues and fixes
 
+## Tested environments
+
+Developed and live-tested against Azure Databricks with Unity Catalog. AWS and GCP code paths exist but haven't been confirmed against real accounts yet.
+
+If you run this on AWS, GCP, a large multi-workspace account, or with Okta/AWS SSO as your IdP — [open an issue](https://github.com/lukaleet/databricks-access-audit/issues) and let us know what works and what doesn't. Every environment report improves the tool.
+
 ## Development
 
 ```bash

@@ -4,6 +4,39 @@ Common issues and how to fix them.
 
 ---
 
+## Tested environments and known gaps
+
+The tool has been developed and live-tested against a single **Azure** Databricks account with Unity Catalog enabled. The following have been confirmed working against real data:
+
+- Principal audit, group audit, resource audit, compare, clone
+- Nested group resolution (3+ levels deep)
+- Azure AD B2B guest UPN resolution
+- UC catalog, schema, and table grant scanning
+- Workspace object ACLs (jobs, clusters, SQL warehouses, dashboards)
+- Snapshot save, load, and diff
+- Text, CSV, JSON, and HTML output
+
+**Not yet confirmed in live environments:**
+
+| Area | Status |
+|---|---|
+| AWS deployments | Code path exists, not live-tested |
+| GCP deployments | Code path exists, not live-tested |
+| Accounts with 50+ workspaces | Parallel scan should work; not confirmed at scale |
+| Okta or AWS SSO as IdP | `externalId` logic is IdP-agnostic; not confirmed live |
+| Mixed IdP setups (Entra + Okta in same account) | Unknown |
+| Legacy table ACLs (pre-UC) | Not in scope — UC only |
+| `--apply` / `--auto-elevate` write operations | Unit-tested, not confirmed live |
+| `--stale-days` on large `system.access.audit` tables | Query tested live; large-table performance unknown |
+
+If you're running the tool in one of these environments and something looks wrong — or works perfectly — **please open an issue**. Every report directly improves coverage.
+
+**[Open an issue →](https://github.com/lukaleet/databricks-access-audit/issues)**
+
+Useful things to include: cloud provider (Azure/AWS/GCP), whether Unity Catalog is enabled, approximate number of workspaces and groups, and the command + output (redact any real principal names or catalog names).
+
+---
+
 ## "0 workspace roles" — did my principal audit miss something?
 
 No. This is expected Databricks behaviour.
