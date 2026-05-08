@@ -10,31 +10,31 @@
       
       
       
-        <link rel="canonical" href="https://lukaleet.github.io/databricks-access-audit/how-it-works/grant-classification/">
+        <link rel="canonical" href="https://lukaleet.github.io/databricks-access-audit/troubleshooting/">
       
       
-        <link rel="prev" href="../architecture/">
+        <link rel="prev" href="../reference/output-formats/">
       
       
-        <link rel="next" href="../azure-b2b-guests/">
+        <link rel="next" href="../changelog/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Grant Classification - databricks-access-audit</title>
+        <title>Troubleshooting - databricks-access-audit</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -53,7 +53,7 @@
       
     
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#grant-classification" class="md-skip">
+        <a href="#troubleshooting" class="md-skip">
           Skip to content
         </a>
       
@@ -92,7 +92,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="databricks-access-audit" class="md-header__button md-logo" aria-label="databricks-access-audit" data-md-component="logo">
+    <a href=".." title="databricks-access-audit" class="md-header__button md-logo" aria-label="databricks-access-audit" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Grant Classification
+              Troubleshooting
             
           </span>
         </div>
@@ -225,7 +225,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
+      <a href=".." class="md-tabs__link">
         
   
   
@@ -244,7 +244,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../getting-started/" class="md-tabs__link">
+      <a href="../getting-started/" class="md-tabs__link">
         
   
   
@@ -263,7 +263,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../capabilities/" class="md-tabs__link">
+      <a href="../capabilities/" class="md-tabs__link">
         
   
   
@@ -284,7 +284,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../use-cases/principal-audit/" class="md-tabs__link">
+        <a href="../use-cases/principal-audit/" class="md-tabs__link">
           
   
   
@@ -304,7 +304,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../reference/quick-reference/" class="md-tabs__link">
+        <a href="../reference/quick-reference/" class="md-tabs__link">
           
   
   
@@ -320,9 +320,11 @@
   
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../../troubleshooting/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
   
@@ -341,7 +343,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../changelog/" class="md-tabs__link">
+      <a href="../changelog/" class="md-tabs__link">
         
   
   
@@ -358,13 +360,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../architecture/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../how-it-works/architecture/" class="md-tabs__link">
           
   
   
@@ -398,7 +398,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="databricks-access-audit" class="md-nav__button md-logo" aria-label="databricks-access-audit" data-md-component="logo">
+    <a href=".." title="databricks-access-audit" class="md-nav__button md-logo" aria-label="databricks-access-audit" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -428,7 +428,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -455,7 +455,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         
   
   
@@ -482,7 +482,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../capabilities/" class="md-nav__link">
+      <a href="../capabilities/" class="md-nav__link">
         
   
   
@@ -561,7 +561,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../use-cases/principal-audit/" class="md-nav__link">
+      <a href="../use-cases/principal-audit/" class="md-nav__link">
         
   
   
@@ -589,7 +589,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../use-cases/offboarding/" class="md-nav__link">
+      <a href="../use-cases/offboarding/" class="md-nav__link">
         
   
   
@@ -617,7 +617,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../use-cases/access-provisioning/" class="md-nav__link">
+      <a href="../use-cases/access-provisioning/" class="md-nav__link">
         
   
   
@@ -645,7 +645,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../use-cases/access-map/" class="md-nav__link">
+      <a href="../use-cases/access-map/" class="md-nav__link">
         
   
   
@@ -673,7 +673,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../use-cases/access-review/" class="md-nav__link">
+      <a href="../use-cases/access-review/" class="md-nav__link">
         
   
   
@@ -701,7 +701,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../use-cases/permission-hygiene/" class="md-nav__link">
+      <a href="../use-cases/permission-hygiene/" class="md-nav__link">
         
   
   
@@ -729,7 +729,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../use-cases/stale-access/" class="md-nav__link">
+      <a href="../use-cases/stale-access/" class="md-nav__link">
         
   
   
@@ -757,7 +757,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../use-cases/incident-response/" class="md-nav__link">
+      <a href="../use-cases/incident-response/" class="md-nav__link">
         
   
   
@@ -785,7 +785,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../use-cases/compliance/" class="md-nav__link">
+      <a href="../use-cases/compliance/" class="md-nav__link">
         
   
   
@@ -813,7 +813,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../use-cases/resource-audit/" class="md-nav__link">
+      <a href="../use-cases/resource-audit/" class="md-nav__link">
         
   
   
@@ -900,7 +900,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/quick-reference/" class="md-nav__link">
+      <a href="../reference/quick-reference/" class="md-nav__link">
         
   
   
@@ -928,7 +928,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/cli/" class="md-nav__link">
+      <a href="../reference/cli/" class="md-nav__link">
         
   
   
@@ -956,7 +956,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/python-api/" class="md-nav__link">
+      <a href="../reference/python-api/" class="md-nav__link">
         
   
   
@@ -984,7 +984,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/output-formats/" class="md-nav__link">
+      <a href="../reference/output-formats/" class="md-nav__link">
         
   
   
@@ -1016,145 +1016,6 @@
       
   
   
-  
-  
-    <li class="md-nav__item">
-      <a href="../../troubleshooting/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Troubleshooting
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../changelog/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Changelog
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-    
-  
-  
-  
-    
-    
-    
-    
-      
-        
-        
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
-        
-          
-          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    How It Works
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_8">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    How It Works
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../architecture/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
     
   
   
@@ -1174,7 +1035,7 @@
   <span class="md-ellipsis">
     
   
-    Grant Classification
+    Troubleshooting
   
 
     
@@ -1192,7 +1053,7 @@
   <span class="md-ellipsis">
     
   
-    Grant Classification
+    Troubleshooting
   
 
     
@@ -1218,60 +1079,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#grant-sources" class="md-nav__link">
+  <a href="#tested-environments-and-known-gaps" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Grant sources
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Grant sources">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#direct" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DIRECT
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#upstream" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        UPSTREAM
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#member_direct" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        MEMBER_DIRECT
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#classification-logic" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Classification logic
+        Tested environments and known gaps
       
     </span>
   </a>
@@ -1279,10 +1090,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#redundancy-detection" class="md-nav__link">
+  <a href="#0-workspace-roles-did-my-principal-audit-miss-something" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Redundancy detection
+        "0 workspace roles" — did my principal audit miss something?
       
     </span>
   </a>
@@ -1290,10 +1101,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#revoke-sql-generation" class="md-nav__link">
+  <a href="#-resource-mainanalytics-is-missing-people-i-expected-to-see" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Revoke SQL generation
+        --resource "main.analytics" is missing people I expected to see
       
     </span>
   </a>
@@ -1301,10 +1112,65 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#escalation-privileges" class="md-nav__link">
+  <a href="#-resource-prod-workspace-returns-empty-results" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Escalation privileges
+        --resource "prod-workspace" returns empty results
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auth-error-on-first-run-401-403-oauth-m2m-rejected" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auth error on first run — 401 / 403 / "oauth-m2m rejected"
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#403-on-group-modifications-apply-or-clone-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        403 on group modifications (--apply or --clone-from)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#snapshot-diff-fails-with-cannot-diff-snapshots-of-different-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snapshot diff fails with "Cannot diff snapshots of different modes"
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#catalog-scan-returns-no-grants-but-i-know-grants-exist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Catalog scan returns no grants but I know grants exist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-is-slow-on-large-accounts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance is slow on large accounts
       
     </span>
   </a>
@@ -1318,6 +1184,112 @@
     </li>
   
 
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How It Works
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How It Works
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1327,7 +1299,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../azure-b2b-guests/" class="md-nav__link">
+      <a href="../how-it-works/grant-classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Grant Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/azure-b2b-guests/" class="md-nav__link">
         
   
   
@@ -1382,60 +1382,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#grant-sources" class="md-nav__link">
+  <a href="#tested-environments-and-known-gaps" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Grant sources
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Grant sources">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#direct" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DIRECT
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#upstream" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        UPSTREAM
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#member_direct" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        MEMBER_DIRECT
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#classification-logic" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Classification logic
+        Tested environments and known gaps
       
     </span>
   </a>
@@ -1443,10 +1393,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#redundancy-detection" class="md-nav__link">
+  <a href="#0-workspace-roles-did-my-principal-audit-miss-something" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Redundancy detection
+        "0 workspace roles" — did my principal audit miss something?
       
     </span>
   </a>
@@ -1454,10 +1404,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#revoke-sql-generation" class="md-nav__link">
+  <a href="#-resource-mainanalytics-is-missing-people-i-expected-to-see" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Revoke SQL generation
+        --resource "main.analytics" is missing people I expected to see
       
     </span>
   </a>
@@ -1465,10 +1415,65 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#escalation-privileges" class="md-nav__link">
+  <a href="#-resource-prod-workspace-returns-empty-results" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Escalation privileges
+        --resource "prod-workspace" returns empty results
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auth-error-on-first-run-401-403-oauth-m2m-rejected" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auth error on first run — 401 / 403 / "oauth-m2m rejected"
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#403-on-group-modifications-apply-or-clone-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        403 on group modifications (--apply or --clone-from)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#snapshot-diff-fails-with-cannot-diff-snapshots-of-different-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snapshot diff fails with "Cannot diff snapshots of different modes"
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#catalog-scan-returns-no-grants-but-i-know-grants-exist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Catalog scan returns no grants but I know grants exist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-is-slow-on-large-accounts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance is slow on large accounts
       
     </span>
   </a>
@@ -1495,96 +1500,147 @@
   
 
 
-<h1 id="grant-classification">Grant Classification<a class="headerlink" href="#grant-classification" title="Permanent link">&para;</a></h1>
-<p>Every Unity Catalog grant found during an audit is classified as one of three sources. The classification determines whether a grant is expected, inherited, or redundant.</p>
+<h1 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h1>
+<p>Common issues and how to fix them.</p>
 <hr />
-<h2 id="grant-sources">Grant sources<a class="headerlink" href="#grant-sources" title="Permanent link">&para;</a></h2>
-<h3 id="direct"><code>DIRECT</code><a class="headerlink" href="#direct" title="Permanent link">&para;</a></h3>
-<p>The group being audited holds this grant directly. The group name matches the <code>principal</code> field in the UC grant.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>data-engineers  → USE_CATALOG on main   [DIRECT]
-</code></pre></div>
-<h3 id="upstream"><code>UPSTREAM</code><a class="headerlink" href="#upstream" title="Permanent link">&para;</a></h3>
-<p>A parent group of the target group holds the grant. The target group inherits the permission through nested group membership.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>all-data-team (parent of data-engineers) → SELECT on main   [UPSTREAM]
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>                                           ↳ data-engineers inherits this
-</code></pre></div>
-<h3 id="member_direct"><code>MEMBER_DIRECT</code><a class="headerlink" href="#member_direct" title="Permanent link">&para;</a></h3>
-<p>A user or service principal who is a <em>member</em> of the target group holds this grant personally — not via the group. This is a personal grant that bypasses the group.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>bob@company.com (member of data-engineers) → MODIFY on staging   [MEMBER_DIRECT]
-</code></pre></div>
-<p><code>MEMBER_DIRECT</code> grants are the primary signal for redundancy analysis and cleanup recommendations.</p>
-<hr />
-<h2 id="classification-logic">Classification logic<a class="headerlink" href="#classification-logic" title="Permanent link">&para;</a></h2>
-<p><code>classify_grant()</code> in <code>_classification.py</code> is the shared function used by all scanners. It receives:</p>
+<h2 id="tested-environments-and-known-gaps">Tested environments and known gaps<a class="headerlink" href="#tested-environments-and-known-gaps" title="Permanent link">&para;</a></h2>
+<p>The tool has been developed and live-tested against a single <strong>Azure</strong> Databricks account with Unity Catalog enabled. The following have been confirmed working against real data:</p>
 <ul>
-<li>The grant's principal (who holds it)</li>
-<li>The group name being audited</li>
-<li>Pre-built lookup sets: group members, upstream groups, and the target group itself</li>
+<li>Principal audit, group audit, resource audit, compare, clone</li>
+<li>Nested group resolution (3+ levels deep)</li>
+<li>Azure AD B2B guest UPN resolution</li>
+<li>UC catalog, schema, and table grant scanning</li>
+<li>Workspace object ACLs (jobs, clusters, SQL warehouses, dashboards)</li>
+<li>Snapshot save, load, and diff</li>
+<li>Text, CSV, JSON, and HTML output</li>
 </ul>
-<p>It returns a <code>(GrantSource, inherited_from, member_of_target)</code> tuple.</p>
-<p><code>build_member_lookups()</code> pre-computes these sets from the <code>GroupNode</code> tree to avoid redundant iteration during the scan.</p>
-<hr />
-<h2 id="redundancy-detection">Redundancy detection<a class="headerlink" href="#redundancy-detection" title="Permanent link">&para;</a></h2>
-<p><code>RedundancyDetector</code> compares each <code>MEMBER_DIRECT</code> grant against the privileges the group already provides:</p>
+<p><strong>Not yet confirmed in live environments:</strong></p>
 <table>
 <thead>
 <tr>
-<th>Scenario</th>
-<th><code>RedundancyLevel</code></th>
-<th>Recommendation</th>
+<th>Area</th>
+<th>Status</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Personal grant duplicates all group privileges</td>
-<td><code>FULL</code></td>
-<td>Safe to revoke entirely</td>
+<td>AWS deployments</td>
+<td>Code path exists, not live-tested</td>
 </tr>
 <tr>
-<td>Personal grant has some privileges covered by the group</td>
-<td><code>PARTIAL</code></td>
-<td>Revoke only the overlapping privileges</td>
+<td>GCP deployments</td>
+<td>Code path exists, not live-tested</td>
 </tr>
 <tr>
-<td>Personal grant provides privileges the group doesn't</td>
-<td><code>NONE</code></td>
-<td>No action; may be intentional</td>
+<td>Accounts with 50+ workspaces</td>
+<td>Parallel scan should work; not confirmed at scale</td>
+</tr>
+<tr>
+<td>Okta or AWS SSO as IdP</td>
+<td><code>externalId</code> logic is IdP-agnostic; not confirmed live</td>
+</tr>
+<tr>
+<td>Mixed IdP setups (Entra + Okta in same account)</td>
+<td>Unknown</td>
+</tr>
+<tr>
+<td>Legacy table ACLs (pre-UC)</td>
+<td>Not in scope — UC only</td>
+</tr>
+<tr>
+<td><code>--apply</code> / <code>--auto-elevate</code> write operations</td>
+<td>Unit-tested, not confirmed live</td>
+</tr>
+<tr>
+<td><code>--stale-days</code> on large <code>system.access.audit</code> tables</td>
+<td>Query tested live; large-table performance unknown</td>
 </tr>
 </tbody>
 </table>
-<p><code>ALL_PRIVILEGES</code> is expanded to its component privileges before comparison, so a group with <code>ALL_PRIVILEGES</code> on a catalog correctly flags members with explicit <code>SELECT</code> or <code>MODIFY</code> as fully redundant.</p>
+<p>If you're running the tool in one of these environments and something looks wrong — or works perfectly — <strong>please open an issue</strong>. Every report directly improves coverage.</p>
+<p><strong><a href="https://github.com/lukaleet/databricks-access-audit/issues">Open an issue →</a></strong></p>
+<p>Useful things to include: cloud provider (Azure/AWS/GCP), whether Unity Catalog is enabled, approximate number of workspaces and groups, and the command + output (redact any real principal names or catalog names).</p>
 <hr />
-<h2 id="revoke-sql-generation">Revoke SQL generation<a class="headerlink" href="#revoke-sql-generation" title="Permanent link">&para;</a></h2>
-<p><code>RevokeScriptGenerator.generate()</code> produces copy-paste REVOKE SQL from <code>RedundancyResult</code> objects:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">-- Full redundancy: bob@company.com on main</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">REVOKE</span><span class="w"> </span><span class="n">USE_CATALOG</span><span class="p">,</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">CATALOG</span><span class="w"> </span><span class="n">main</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="o">`</span><span class="n">bob</span><span class="o">@</span><span class="n">company</span><span class="p">.</span><span class="n">com</span><span class="o">`</span><span class="p">;</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1">-- Partial redundancy: only the covered privileges</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="k">REVOKE</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">CATALOG</span><span class="w"> </span><span class="n">staging</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="o">`</span><span class="n">carol</span><span class="o">@</span><span class="n">company</span><span class="p">.</span><span class="n">com</span><span class="o">`</span><span class="p">;</span>
+<h2 id="0-workspace-roles-did-my-principal-audit-miss-something">"0 workspace roles" — did my principal audit miss something?<a class="headerlink" href="#0-workspace-roles-did-my-principal-audit-miss-something" title="Permanent link">&para;</a></h2>
+<p>No. This is expected Databricks behaviour.</p>
+<p>The <code>permissionassignments</code> API only returns <strong>explicit</strong> workspace role grants — typically <code>ADMIN</code> assignments made directly on the principal. It does not return access granted through the implicit built-in "account users" group. Most users reach workspaces through that built-in group and will show <code>0 workspace roles</code> here.</p>
+<p>Their Unity Catalog permissions are still discovered correctly via the catalog scan, because those are stored in the metastore, not in workspace role assignments.</p>
+<p><strong>If you expected an explicit <code>ADMIN</code> grant and it isn't showing:</strong> confirm the grant exists via the Account Console → workspace → Permissions. If it does exist, try <code>--no-sdk</code> to rule out SDK auth caching the wrong identity.</p>
+<hr />
+<h2 id="-resource-mainanalytics-is-missing-people-i-expected-to-see"><code>--resource "main.analytics"</code> is missing people I expected to see<a class="headerlink" href="#-resource-mainanalytics-is-missing-people-i-expected-to-see" title="Permanent link">&para;</a></h2>
+<p><code>--resource</code> on a schema or table returns only <strong>direct grants</strong> on that securable — the same set <code>SHOW GRANTS ON SCHEMA main.analytics</code> returns in SQL. It does not include principals who have access via a catalog-level grant.</p>
+<p>In Unity Catalog, <code>USE_CATALOG + SELECT</code> at the catalog level is sufficient to read any table in any schema without a schema-level grant. Those principals appear in <code>--resource "main"</code> (the catalog audit), not in <code>--resource "main.analytics"</code>.</p>
+<p>To get the complete picture of who can read data in a schema:</p>
+<ol>
+<li>Run <code>--resource "main"</code> — see who has catalog-level access (the broader set)</li>
+<li>Run <code>--resource "main.analytics"</code> — see who has additional schema-specific grants on top of that</li>
+</ol>
+<hr />
+<h2 id="-resource-prod-workspace-returns-empty-results"><code>--resource "prod-workspace"</code> returns empty results<a class="headerlink" href="#-resource-prod-workspace-returns-empty-results" title="Permanent link">&para;</a></h2>
+<p>The tool auto-detects workspace names that contain <code>"databricks"</code> or start with <code>"https://"</code>. A name like <code>prod-workspace</code> has neither — so without <code>--resource-type workspace</code>, it queries Unity Catalog for a catalog named <code>prod-workspace</code> and silently returns nothing when no such catalog exists.</p>
+<p><strong>Fix:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>databricks-access-audit<span class="w"> </span>--resource<span class="w"> </span><span class="s2">&quot;prod-workspace&quot;</span><span class="w"> </span>--resource-type<span class="w"> </span>workspace
 </code></pre></div>
-<p>The SQL targets the <strong>user or SP directly</strong> — it does not touch the group grant.</p>
+<p>Or use the workspace URL directly — it's always auto-detected:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>databricks-access-audit<span class="w"> </span>--resource<span class="w"> </span><span class="s2">&quot;https://adb-1234.azuredatabricks.net&quot;</span>
+</code></pre></div>
 <hr />
-<h2 id="escalation-privileges">Escalation privileges<a class="headerlink" href="#escalation-privileges" title="Permanent link">&para;</a></h2>
-<p><code>detect_escalations()</code> in <code>escalation.py</code> flags two specific privilege types as high-risk:</p>
-<table>
-<thead>
-<tr>
-<th>Privilege</th>
-<th>Risk</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>ALL_PRIVILEGES</code></td>
-<td>Identity can read everything, grant access to anyone, and modify schema/table definitions</td>
-</tr>
-<tr>
-<td><code>MANAGE</code></td>
-<td>Identity can grant or revoke access on the securable to any other principal</td>
-</tr>
-</tbody>
-</table>
-<p>Both are flagged regardless of whether the grant is direct or transitive through group membership.</p>
+<h2 id="auth-error-on-first-run-401-403-oauth-m2m-rejected">Auth error on first run — 401 / 403 / "oauth-m2m rejected"<a class="headerlink" href="#auth-error-on-first-run-401-403-oauth-m2m-rejected" title="Permanent link">&para;</a></h2>
+<p><strong>Step 1 — check the host in your <code>~/.databrickscfg</code>.</strong></p>
+<p>For Azure: <code>host = https://accounts.azuredatabricks.net</code><br />
+For AWS: <code>host = https://accounts.cloud.databricks.com</code><br />
+For GCP: <code>host = https://accounts.gcp.databricks.com</code></p>
+<p>The <code>cloud</code> is auto-detected from the host. If you're passing <code>--cloud</code> explicitly, make sure it matches.</p>
+<p><strong>Step 2 — verify the SP has Account Admin.</strong></p>
+<p>The audit SP must have the Account Admin role in your Databricks account. Workspace Admin alone is not enough for cross-workspace scanning.</p>
+<p><strong>Step 3 — SDK auth is caching stale credentials.</strong></p>
+<p>If you store a PAT token in <code>~/.databrickscfg</code> alongside OAuth credentials, the SDK may pick up the wrong one. Add <code>--no-sdk</code> to force the raw HTTP client, which reads your profile directly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span>--no-sdk
+</code></pre></div>
+<hr />
+<h2 id="403-on-group-modifications-apply-or-clone-from">403 on group modifications (<code>--apply</code> or <code>--clone-from</code>)<a class="headerlink" href="#403-on-group-modifications-apply-or-clone-from" title="Permanent link">&para;</a></h2>
+<p>You're trying to SCIM PATCH a group that is IdP-synced. Groups created in Entra ID, Okta, or AWS SSO have a SCIM <code>externalId</code> field set. Databricks mirrors their membership — it cannot write to it. Any SCIM PATCH against these groups returns <code>403 Forbidden</code>.</p>
+<p>The tool classifies groups before applying and skips IdP-synced ones automatically. The output tells you which groups need to be modified in your IdP:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>  Actions required in your identity provider (2):
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    ! data-engineers     [external — add in Entra/Okta]
+</code></pre></div>
+<hr />
+<h2 id="snapshot-diff-fails-with-cannot-diff-snapshots-of-different-modes">Snapshot diff fails with "Cannot diff snapshots of different modes"<a class="headerlink" href="#snapshot-diff-fails-with-cannot-diff-snapshots-of-different-modes" title="Permanent link">&para;</a></h2>
+<p>You're comparing a group snapshot against a principal snapshot (or vice versa). Snapshots are mode-specific — a group run produces a group snapshot, a principal run produces a principal snapshot. They can't be diffed against each other.</p>
+<p>Re-run the same command that produced the baseline snapshot to generate the current snapshot, then diff:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># If the baseline was created with --group, use --group for the current run too</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--baseline<span class="w"> </span>snapshots/baseline.json<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>--save-snapshot<span class="w"> </span>snapshots/current.json
+</code></pre></div>
+<hr />
+<h2 id="catalog-scan-returns-no-grants-but-i-know-grants-exist">Catalog scan returns no grants but I know grants exist<a class="headerlink" href="#catalog-scan-returns-no-grants-but-i-know-grants-exist" title="Permanent link">&para;</a></h2>
+<p>Two common causes:</p>
+<p><strong>1. The SP lacks <code>MANAGE</code> on the catalog.</strong><br />
+The audit SP needs Metastore Admin or <code>MANAGE</code> on each catalog to read its grants via <code>SHOW GRANTS</code>. Without it, the catalog scan returns empty results with no error. Grant <code>MANAGE</code> on the catalog, or use <code>--auto-elevate</code> to temporarily add the SP as a Workspace Admin.</p>
+<p><strong>2. The workspace and metastore are not linked.</strong><br />
+If a workspace doesn't have a metastore attached, the catalog scan for that workspace returns nothing. This is normal — the tool moves on to the next workspace.</p>
+<hr />
+<h2 id="performance-is-slow-on-large-accounts">Performance is slow on large accounts<a class="headerlink" href="#performance-is-slow-on-large-accounts" title="Permanent link">&para;</a></h2>
+<p><strong>Increase worker parallelism:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--scan-tables<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--workers<span class="w"> </span><span class="m">16</span>
+</code></pre></div>
+<p>Default is 8 workers. Each workspace scan runs in a separate thread — adding workers reduces wall-clock time proportionally up to the API rate limit.</p>
+<p><strong>Scope the scan:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Target specific workspaces instead of auto-discovering all</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>--workspace-urls<span class="w"> </span><span class="s2">&quot;https://adb-111.azuredatabricks.net,https://adb-222.azuredatabricks.net&quot;</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># Scan schemas but skip tables on the first pass</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--scan-schemas
+</code></pre></div>
+<p><strong>Tune retry behaviour</strong> if you're hitting rate limits:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>--max-retries<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>--retry-max-delay<span class="w"> </span><span class="m">120</span>
+</code></pre></div>
 
 
 
@@ -1667,10 +1723,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.instant", "search.highlight", "search.suggest", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.instant", "search.highlight", "search.suggest", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

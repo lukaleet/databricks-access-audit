@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://lukaleet.github.io/databricks-access-audit/use-cases/incident-response/">
       
       
-        <link rel="prev" href="../access-review/">
+        <link rel="prev" href="../stale-access/">
       
       
         <link rel="next" href="../compliance/">
@@ -286,7 +286,7 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../offboarding/" class="md-tabs__link">
+        <a href="../principal-audit/" class="md-tabs__link">
           
   
   
@@ -306,7 +306,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../reference/cli/" class="md-tabs__link">
+        <a href="../../reference/quick-reference/" class="md-tabs__link">
           
   
   
@@ -315,6 +315,44 @@
         </a>
       </li>
     
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../troubleshooting/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Troubleshooting
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
   
 
       
@@ -528,6 +566,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../principal-audit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Principal Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../offboarding/" class="md-nav__link">
         
   
@@ -556,6 +622,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../access-provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Access Provisioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../access-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualizing Access
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../access-review/" class="md-nav__link">
         
   
@@ -564,6 +686,62 @@
     
   
     Access Review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../permission-hygiene/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Permission Hygiene
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stale-access/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stale Access Detection
   
 
     
@@ -644,10 +822,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#map-blast-radius-immediately" class="md-nav__link">
+  <a href="#map-blast-radius-in-one-command" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Map blast radius immediately
+        Map blast radius in one command
       
     </span>
   </a>
@@ -655,32 +833,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#key-things-to-look-for" class="md-nav__link">
+  <a href="#the-questions-that-matter-in-the-first-30-minutes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Key things to look for
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#contain-the-incident" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Contain the incident
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#audit-log-cross-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Audit log cross-reference
+        The questions that matter in the first 30 minutes
       
     </span>
   </a>
@@ -692,6 +848,50 @@
     <span class="md-ellipsis">
       
         Service principal compromise
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#containment-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Containment steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-reference-with-the-audit-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-reference with the audit log
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enumerate-who-else-has-access-to-the-affected-resource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enumerate who else has access to the affected resource
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#after-containment-verify-scope-with-a-clean-audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        After containment — verify scope with a clean audit
       
     </span>
   </a>
@@ -722,6 +922,34 @@
     
   
     Compliance Snapshots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resource-audit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resource Audit
   
 
     
@@ -793,6 +1021,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/quick-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -891,6 +1147,60 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
     
@@ -905,10 +1215,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
             
   
   
@@ -926,8 +1236,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1055,10 +1365,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#map-blast-radius-immediately" class="md-nav__link">
+  <a href="#map-blast-radius-in-one-command" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Map blast radius immediately
+        Map blast radius in one command
       
     </span>
   </a>
@@ -1066,32 +1376,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#key-things-to-look-for" class="md-nav__link">
+  <a href="#the-questions-that-matter-in-the-first-30-minutes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Key things to look for
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#contain-the-incident" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Contain the incident
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#audit-log-cross-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Audit log cross-reference
+        The questions that matter in the first 30 minutes
       
     </span>
   </a>
@@ -1103,6 +1391,50 @@
     <span class="md-ellipsis">
       
         Service principal compromise
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#containment-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Containment steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-reference-with-the-audit-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-reference with the audit log
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enumerate-who-else-has-access-to-the-affected-resource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enumerate who else has access to the affected resource
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#after-containment-verify-scope-with-a-clean-audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        After containment — verify scope with a clean audit
       
     </span>
   </a>
@@ -1130,68 +1462,92 @@
 
 
 <h1 id="incident-response">Incident Response<a class="headerlink" href="#incident-response" title="Permanent link">&para;</a></h1>
-<p>A credential is compromised. A service principal behaves unexpectedly. An insider threat is suspected. You need to know the blast radius in minutes, not hours.</p>
-<h2 id="map-blast-radius-immediately">Map blast radius immediately<a class="headerlink" href="#map-blast-radius-immediately" title="Permanent link">&para;</a></h2>
+<p>A service principal started making unusual API calls. A credential was found in a public repository. An employee is under investigation. Whatever triggered the alert — you need to know the blast radius immediately. Not tomorrow. Now.</p>
+<p>The problem: Databricks spreads access across workspaces, groups, and object-level ACLs with no single place to look. By the time you've clicked through the Account Console, run INFORMATION_SCHEMA queries across multiple metastores, and pieced together which jobs and clusters this identity can reach, an hour has passed. In incident response, an hour is a long time.</p>
+<hr />
+<h2 id="map-blast-radius-in-one-command">Map blast radius in one command<a class="headerlink" href="#map-blast-radius-in-one-command" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;compromised@company.com&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span>--scan-workspace-objects<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>--escalation-check<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>--output<span class="w"> </span>json<span class="w"> </span>&gt;<span class="w"> </span>blast_radius_<span class="k">$(</span>date<span class="w"> </span>+%F_%H%M<span class="k">)</span>.json
 </code></pre></div>
-<p>This gives you in one pass:</p>
+<p>In a single pass this gives you:</p>
 <ul>
-<li>Every workspace the identity can reach and at what permission level</li>
-<li>All Unity Catalog grants (catalog → schema → table) with the granting group chain</li>
-<li>All workspace object ACLs — jobs they can run or manage, clusters they can attach to, dashboards, pipelines</li>
-<li>Any <code>ALL_PRIVILEGES</code> or <code>MANAGE</code> grants that represent escalation paths</li>
+<li><strong>Every workspace</strong> the identity can reach, at what permission level, and through which group chain</li>
+<li><strong>All Unity Catalog grants</strong> — catalog, schema, and table level — with the exact path (<code>via data-engineers → all-data-team → ...</code>)</li>
+<li><strong>All workspace object ACLs</strong> — jobs they can trigger or modify, clusters they can attach to, dashboards, pipelines, SQL warehouses, serving endpoints</li>
+<li><strong>Escalation risks</strong> — any <code>ALL_PRIVILEGES</code> or <code>MANAGE</code> grants that let this identity modify permissions or grant access to others</li>
 </ul>
-<h2 id="key-things-to-look-for">Key things to look for<a class="headerlink" href="#key-things-to-look-for" title="Permanent link">&para;</a></h2>
-<p><strong>Workspace Admin access</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;compromised@company.com&quot;</span><span class="w"> </span>--output<span class="w"> </span>json<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.workspace_roles[] | select(.permission_level == &quot;ADMIN&quot;)&#39;</span>
+<p>The JSON output goes to stdout, progress to stderr — pipe it, store it, attach it to the incident ticket.</p>
+<hr />
+<h2 id="the-questions-that-matter-in-the-first-30-minutes">The questions that matter in the first 30 minutes<a class="headerlink" href="#the-questions-that-matter-in-the-first-30-minutes" title="Permanent link">&para;</a></h2>
+<p><strong>Does it have Workspace Admin anywhere?</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cat<span class="w"> </span>blast_radius.json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.workspace_roles[] | select(.permission_level == &quot;ADMIN&quot;)&#39;</span>
 </code></pre></div>
-<p>A compromised identity with Workspace Admin can read secrets, modify cluster configs, and access all data in that workspace.</p>
-<p><strong>Escalation risks</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;compromised@company.com&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>--escalation-check<span class="w"> </span>--output<span class="w"> </span>json<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.escalation_findings&#39;</span>
+<p>Workspace Admin means it can read secrets, modify cluster configs, impersonate other users, and access all data in that workspace. This determines the severity tier immediately.</p>
+<p><strong>Does it have escalation privileges — can it grant access to others?</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cat<span class="w"> </span>blast_radius.json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.escalation_findings&#39;</span>
 </code></pre></div>
-<p><code>ALL_PRIVILEGES</code> on a catalog means the identity can grant access to anyone. <code>MANAGE</code> means it can modify grants on that securable.</p>
-<p><strong>Jobs and pipelines</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;compromised@company.com&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>--scan-workspace-objects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>--workspace-object-types<span class="w"> </span>jobs,pipelines<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span>--output<span class="w"> </span>json<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.workspace_object_permissions[] | select(.permission_level | test(&quot;MANAGE|OWN&quot;))&#39;</span>
+<p><code>ALL_PRIVILEGES</code> on a catalog means the identity can <code>GRANT</code> to any principal. <code>MANAGE</code> means it can modify grants on that securable. If either appears, the incident scope extends beyond what the identity itself accessed — assume any grant in that catalog could have been modified.</p>
+<p><strong>What jobs and pipelines can it run or modify?</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cat<span class="w"> </span>blast_radius.json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="s1">  .workspace_object_permissions[]</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="s1">  | select(.permission_level | test(&quot;MANAGE|OWN|RUN&quot;))</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="s1">  | {object_type, object_name: (.object_name // .object_id), permission_level, workspace_name}</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="s1">&#39;</span>
 </code></pre></div>
-<p>Jobs and pipelines can exfiltrate data, run arbitrary code, or write to external locations.</p>
-<h2 id="contain-the-incident">Contain the incident<a class="headerlink" href="#contain-the-incident" title="Permanent link">&para;</a></h2>
-<p>Once you know what the identity can reach:</p>
-<ol>
-<li><strong>Revoke workspace roles</strong> — remove the SP or user from workspaces via the Account Console or API</li>
-<li><strong>Rotate the credential</strong> — invalidate the compromised client secret or PAT</li>
-<li><strong>Revoke UC grants</strong> — for any direct grants, use the REVOKE SQL from <code>--revoke-script</code> (group audit) or construct manually</li>
-<li><strong>Audit job run history</strong> — check <code>system.access.audit</code> for recent activity under the compromised identity</li>
-</ol>
-<h2 id="audit-log-cross-reference">Audit log cross-reference<a class="headerlink" href="#audit-log-cross-reference" title="Permanent link">&para;</a></h2>
-<p>If you know the approximate time of compromise, check what the identity actually did:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">SELECT</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="n">event_time</span><span class="p">,</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="n">action_name</span><span class="p">,</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="n">request_params</span><span class="p">,</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="n">response</span><span class="p">.</span><span class="n">status_code</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="k">FROM</span><span class="w"> </span><span class="k">system</span><span class="p">.</span><span class="k">access</span><span class="p">.</span><span class="n">audit</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="k">WHERE</span><span class="w"> </span><span class="k">COALESCE</span><span class="p">(</span><span class="n">user_identity</span><span class="p">.</span><span class="n">email</span><span class="p">,</span><span class="w"> </span><span class="n">user_identity</span><span class="p">.</span><span class="n">subject_name</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;compromised@company.com&#39;</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">event_time</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="s1">&#39;2025-01-15T00:00:00Z&#39;</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">event_time</span><span class="w"> </span><span class="k">DESC</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="k">LIMIT</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span>
-</code></pre></div>
+<p>Jobs and pipelines can exfiltrate data, write to external locations, or run arbitrary code. Any job this identity owns or can manage is part of the blast radius — and may have already been tampered with.</p>
+<hr />
 <h2 id="service-principal-compromise">Service principal compromise<a class="headerlink" href="#service-principal-compromise" title="Permanent link">&para;</a></h2>
-<p>For a compromised SP, also check which jobs and workflows use it as a run-as identity — those may need to be reviewed or paused even after the credential is rotated.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;etl-pipeline-sp&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--scan-workspace-objects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--workspace-object-types<span class="w"> </span>jobs,pipelines<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;<span class="w"> </span>sp_jobs_<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.csv
+<p>For a compromised SP, the <code>run-as</code> identity of jobs is critical:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;etl-sp-name&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>--scan-workspace-objects<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--workspace-object-types<span class="w"> </span>jobs,pipelines<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;<span class="w"> </span>sp_owned_jobs_<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.csv
 </code></pre></div>
+<p>If the SP is the <code>run-as</code> identity for production pipelines, those pipelines may need to be paused even after the credential is rotated — a new secret doesn't help if the existing job definition was already modified to exfiltrate data on the next run.</p>
+<hr />
+<h2 id="containment-steps">Containment steps<a class="headerlink" href="#containment-steps" title="Permanent link">&para;</a></h2>
+<p>Once you have the blast radius map:</p>
+<ol>
+<li><strong>Rotate the credential</strong> — invalidate the compromised client secret or PAT immediately</li>
+<li><strong>Revoke workspace access</strong> — remove the identity from workspaces via the Account Console or API</li>
+<li><strong>Revoke UC grants</strong> — for direct grants, use REVOKE SQL; for group-inherited access, remove from the relevant group</li>
+<li><strong>Pause affected jobs and pipelines</strong> — anything this identity owns or can modify should be reviewed before the next run</li>
+<li><strong>Cross-reference the audit log</strong> — see exactly what it did (below)</li>
+</ol>
+<hr />
+<h2 id="cross-reference-with-the-audit-log">Cross-reference with the audit log<a class="headerlink" href="#cross-reference-with-the-audit-log" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">SELECT</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="n">event_time</span><span class="p">,</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="n">action_name</span><span class="p">,</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="n">request_params</span><span class="p">,</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="n">response</span><span class="p">.</span><span class="n">status_code</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="k">FROM</span><span class="w"> </span><span class="k">system</span><span class="p">.</span><span class="k">access</span><span class="p">.</span><span class="n">audit</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="k">WHERE</span><span class="w"> </span><span class="k">COALESCE</span><span class="p">(</span><span class="n">user_identity</span><span class="p">.</span><span class="n">email</span><span class="p">,</span><span class="w"> </span><span class="n">user_identity</span><span class="p">.</span><span class="n">subject_name</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;compromised@company.com&#39;</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">event_time</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="s1">&#39;2025-01-15T00:00:00Z&#39;</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">event_time</span><span class="w"> </span><span class="k">DESC</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="k">LIMIT</span><span class="w"> </span><span class="mi">200</span><span class="p">;</span>
+</code></pre></div>
+<p>Focus on <code>action_name</code> values like <code>createPermissions</code>, <code>updatePermissions</code>, <code>deletePermissions</code>, <code>create</code>, <code>delete</code>, <code>runCommand</code>. These are the actions with lasting side effects — data modifications, permission changes, code execution.</p>
+<hr />
+<h2 id="enumerate-who-else-has-access-to-the-affected-resource">Enumerate who else has access to the affected resource<a class="headerlink" href="#enumerate-who-else-has-access-to-the-affected-resource" title="Permanent link">&para;</a></h2>
+<p>If the investigation centres on a specific catalog or schema, flip the question: instead of asking what the identity can reach, ask who else can reach the same resource.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Every identity with access to the catalog in question</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>databricks-access-audit<span class="w"> </span>--resource<span class="w"> </span><span class="s2">&quot;main&quot;</span><span class="w"> </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;<span class="w"> </span>main_all_access.csv
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Visual diagram — who connects to this catalog and through which groups</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>databricks-access-audit<span class="w"> </span>--resource<span class="w"> </span><span class="s2">&quot;main&quot;</span><span class="w"> </span>--output<span class="w"> </span>html<span class="w"> </span>&gt;<span class="w"> </span>main_access_map.html
+</code></pre></div>
+<p>This tells you whether the exposure is isolated to one identity or shared across a broader set of principals — and surfaces any other direct grants that may warrant review.</p>
+<hr />
+<h2 id="after-containment-verify-scope-with-a-clean-audit">After containment — verify scope with a clean audit<a class="headerlink" href="#after-containment-verify-scope-with-a-clean-audit" title="Permanent link">&para;</a></h2>
+<p>Once the credential is rotated and access revoked, run the audit one more time against the same identity to confirm the blast radius has been fully closed:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;compromised@company.com&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>--scan-workspace-objects<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>--escalation-check
+</code></pre></div>
+<p>The output should show no workspace access, no UC permissions, no object grants. If anything remains, you missed a revocation step.</p>
 
 
 

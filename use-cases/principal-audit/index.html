@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://lukaleet.github.io/databricks-access-audit/use-cases/access-review/">
+        <link rel="canonical" href="https://lukaleet.github.io/databricks-access-audit/use-cases/principal-audit/">
       
       
-        <link rel="prev" href="../access-map/">
+        <link rel="prev" href="../../capabilities/">
       
       
-        <link rel="next" href="../permission-hygiene/">
+        <link rel="next" href="../offboarding/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Access Review - databricks-access-audit</title>
+        <title>Principal Audit - databricks-access-audit</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#access-review" class="md-skip">
+        <a href="#principal-audit" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Access Review
+              Principal Audit
             
           </span>
         </div>
@@ -286,7 +286,7 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../principal-audit/" class="md-tabs__link">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -563,10 +563,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../principal-audit/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Principal Audit
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -582,6 +609,147 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-basic-audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The basic audit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-the-path-matters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When the path matters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#go-deeper-schemas-and-workspace-objects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Go deeper — schemas and workspace objects
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#check-for-elevated-privileges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Check for elevated privileges
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#export-to-csv-for-a-baseline-or-access-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export to CSV for a baseline or access review
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visualize-for-a-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visualize for a manager
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#service-principals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Service principals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audit-a-group-as-a-principal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit a group as a principal
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -675,37 +843,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Access Review
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../access-review/" class="md-nav__link">
         
   
   
@@ -721,131 +862,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#export-the-current-state" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Export the current state
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Export the current state">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#what-does-data-engineers-access-right-now" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What does data-engineers access right now?
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#what-can-a-specific-person-access" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What can a specific person access?
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-quarterly-diff-proving-nothing-drifted" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The quarterly diff — proving nothing drifted
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cover-multiple-groups" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cover multiple groups
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#flag-problems-during-the-review" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Flag problems during the review
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#automate-the-review-cycle" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Automate the review cycle
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verify-catalog-access-from-the-resource-side" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verify catalog access from the resource side
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#reviewer-checklist" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reviewer checklist
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1393,49 +1409,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#export-the-current-state" class="md-nav__link">
+  <a href="#the-basic-audit" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Export the current state
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Export the current state">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#what-does-data-engineers-access-right-now" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What does data-engineers access right now?
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#what-can-a-specific-person-access" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What can a specific person access?
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-quarterly-diff-proving-nothing-drifted" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The quarterly diff — proving nothing drifted
+        The basic audit
       
     </span>
   </a>
@@ -1443,10 +1420,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#cover-multiple-groups" class="md-nav__link">
+  <a href="#when-the-path-matters" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Cover multiple groups
+        When the path matters
       
     </span>
   </a>
@@ -1454,10 +1431,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#flag-problems-during-the-review" class="md-nav__link">
+  <a href="#go-deeper-schemas-and-workspace-objects" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Flag problems during the review
+        Go deeper — schemas and workspace objects
       
     </span>
   </a>
@@ -1465,10 +1442,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#automate-the-review-cycle" class="md-nav__link">
+  <a href="#check-for-elevated-privileges" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Automate the review cycle
+        Check for elevated privileges
       
     </span>
   </a>
@@ -1476,10 +1453,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#verify-catalog-access-from-the-resource-side" class="md-nav__link">
+  <a href="#export-to-csv-for-a-baseline-or-access-review" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verify catalog access from the resource side
+        Export to CSV for a baseline or access review
       
     </span>
   </a>
@@ -1487,10 +1464,65 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#reviewer-checklist" class="md-nav__link">
+  <a href="#visualize-for-a-manager" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reviewer checklist
+        Visualize for a manager
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#service-principals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Service principals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audit-a-group-as-a-principal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit a group as a principal
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related
       
     </span>
   </a>
@@ -1517,116 +1549,138 @@
   
 
 
-<h1 id="access-review">Access Review<a class="headerlink" href="#access-review" title="Permanent link">&para;</a></h1>
-<p>Every quarter, your CISO wants evidence that access to production data is controlled, appropriate, and hasn't silently drifted. The auditor's ask is always some version of: <em>"Show me who has access to the production catalog, and show me what changed since last quarter."</em></p>
-<p>In a multi-workspace Databricks account, this question has no native answer. You can query <code>INFORMATION_SCHEMA.GRANTS</code> in each workspace — but that's one metastore at a time, it doesn't resolve nested group memberships, and it gives you a point-in-time snapshot with nothing to compare against. You can click through the Account Console — one workspace, one group, one user at a time. By the time you've covered 12 workspaces and 47 groups, the quarter is nearly over.</p>
+<h1 id="principal-audit">Principal Audit<a class="headerlink" href="#principal-audit" title="Permanent link">&para;</a></h1>
+<p>You've just joined the platform team. A colleague asks: "Can you check what Alice can access? She's moving to a read-only role next week and we want to baseline her before the change."</p>
+<p>You open the Account Console. You find Alice. You see her direct group memberships — five of them. You click into each group to see what workspaces it grants. Some groups are nested inside other groups, so you start clicking into those too. Two workspaces have Unity Catalog attached — you open INFORMATION_SCHEMA in each one. An hour later you have a partial picture across two workspaces, two metastores, and maybe a third of her groups. You haven't touched workspace objects yet.</p>
+<p><code>--principal</code> does this in one command, across every workspace simultaneously.</p>
 <hr />
-<h2 id="export-the-current-state">Export the current state<a class="headerlink" href="#export-the-current-state" title="Permanent link">&para;</a></h2>
-<h3 id="what-does-data-engineers-access-right-now">What does data-engineers access right now?<a class="headerlink" href="#what-does-data-engineers-access-right-now" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span>--scan-schemas<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;<span class="w"> </span>data_engineers_<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.csv
+<h2 id="the-basic-audit">The basic audit<a class="headerlink" href="#the-basic-audit" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span>
 </code></pre></div>
-<p>The CSV covers every workspace in the account, includes group membership (with IdP sync status), and classifies every grant as <code>Direct</code>, <code>Upstream</code>, or <code>Member Direct</code> — so reviewers can immediately see what the group holds versus what individuals have bypassed the group to obtain personally.</p>
-<h3 id="what-can-a-specific-person-access">What can a specific person access?<a class="headerlink" href="#what-can-a-specific-person-access" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>--scan-schemas<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--scan-workspace-objects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;<span class="w"> </span>alice_<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.csv
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>============================================================
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  Principal audit: alice@company.com (USER, external)
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>============================================================
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  Group memberships (3, 3 IdP-synced, 0 Databricks-managed):
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    * data-engineers  (direct, external)
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>      path: alice@company.com → data-engineers
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    - all-data-team   (transitive, external)
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>      path: alice@company.com → data-engineers → all-data-team
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    - platform-users  (transitive, external)
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>      path: alice@company.com → data-engineers → all-data-team → platform-users
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>  Workspace access (1):
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    * prod-workspace: USER (via data-engineers)
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>  UC permissions (3):
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    [CATALOG] main:            USE_CATALOG, SELECT  via data-engineers  (prod-workspace)
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>    [SCHEMA]  main.analytics:  USE_SCHEMA           via data-engineers  (prod-workspace)
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>    [TABLE]   main.analytics.events: SELECT         via data-engineers  (prod-workspace)
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>============================================================
+</code></pre></div>
+<p>Each line tells you:</p>
+<ul>
+<li><strong><code>*</code> vs <code>-</code></strong> — direct membership vs transitive (inherited through a chain)</li>
+<li><strong><code>path:</code></strong> — the exact group chain. If you want to remove access, this tells you which group to modify and what else that change will affect downstream</li>
+<li><strong><code>via data-engineers</code></strong> on every UC permission — Alice doesn't hold any of these grants personally. They all flow through the same group. Remove her from <code>data-engineers</code> and all of this disappears</li>
+</ul>
+<hr />
+<h2 id="when-the-path-matters">When the path matters<a class="headerlink" href="#when-the-path-matters" title="Permanent link">&para;</a></h2>
+<p>The path isn't just informational. It's the answer to "why does Alice have access to <code>main</code>?" without which you can't safely revoke it.</p>
+<p>If Alice is in <code>data-engineers</code> because <code>data-engineers</code> is nested inside <code>all-data-team</code>, removing her from <code>data-engineers</code> also removes the <code>all-data-team</code> membership — and anything that comes with it. The output traces that chain so you know exactly what changes cascade.</p>
+<hr />
+<h2 id="go-deeper-schemas-and-workspace-objects">Go deeper — schemas and workspace objects<a class="headerlink" href="#go-deeper-schemas-and-workspace-objects" title="Permanent link">&para;</a></h2>
+<p>By default the audit scans catalog-level UC grants. Add flags to go further:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Include schema and table grants</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span>--scan-schemas
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Include workspace object ACLs (jobs, clusters, dashboards, pipelines, ...)</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span>--scan-workspace-objects
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># Both at once</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span>--scan-schemas<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span>--scan-workspace-objects
+</code></pre></div>
+<p>Workspace objects matter when you need to know:
+- Which jobs Alice can trigger or modify
+- Which clusters she can attach to
+- Whether she owns any dashboards or pipelines personally (these survive group changes)</p>
+<hr />
+<h2 id="check-for-elevated-privileges">Check for elevated privileges<a class="headerlink" href="#check-for-elevated-privileges" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span>--escalation-check
+</code></pre></div>
+<p><code>ALL_PRIVILEGES</code> and <code>MANAGE</code> on a production catalog mean Alice can grant that catalog's access to anyone — including herself after any future deprovisioning. <code>--escalation-check</code> flags these explicitly so they're not buried in a long permissions list.</p>
+<hr />
+<h2 id="export-to-csv-for-a-baseline-or-access-review">Export to CSV for a baseline or access review<a class="headerlink" href="#export-to-csv-for-a-baseline-or-access-review" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>--scan-schemas<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--scan-workspace-objects<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>--escalation-check<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;<span class="w"> </span>alice_<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.csv
+</code></pre></div>
+<p>The CSV has one row per grant. Import into Excel, Google Sheets, or attach to a ticket. The <code>grant_source</code> column separates grants Alice holds personally (<code>Member Direct</code>) from those she inherits through groups — useful when you're deciding what to revoke vs what handles itself through group membership changes.</p>
+<hr />
+<h2 id="visualize-for-a-manager">Visualize for a manager<a class="headerlink" href="#visualize-for-a-manager" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span>--output<span class="w"> </span>html<span class="w"> </span>&gt;<span class="w"> </span>alice.html
+</code></pre></div>
+<p>Opens in any browser — no server required. Shows a Mermaid flowchart of Alice's full access graph (groups → workspaces → catalogs), summary stats, and full data tables. Useful for sign-offs, handover documents, and access review conversations with stakeholders who don't live in a terminal.</p>
+<p>For a compact terminal view:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span>--tree
 </code></pre></div>
 <hr />
-<h2 id="the-quarterly-diff-proving-nothing-drifted">The quarterly diff — proving nothing drifted<a class="headerlink" href="#the-quarterly-diff-proving-nothing-drifted" title="Permanent link">&para;</a></h2>
-<p>The snapshot workflow turns point-in-time exports into a compliance audit trail.</p>
-<p><strong>Save the baseline at the start of the review period:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>--save-snapshot<span class="w"> </span>snapshots/data-engineers_<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.json
+<h2 id="service-principals">Service principals<a class="headerlink" href="#service-principals" title="Permanent link">&para;</a></h2>
+<p>The same command works for service principals. Pass the SP display name or application ID:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;etl-pipeline-sp&quot;</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;d7372b37-169d-4235-8896-46fb30ea57d0&quot;</span>
 </code></pre></div>
-<p><strong>At review time, compare:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>--baseline<span class="w"> </span>snapshots/data-engineers_2025-01-01.json<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;<span class="w"> </span>drift_Q1_to_Q2.csv
+<p>For SPs, pay particular attention to <code>--scan-workspace-objects</code> — jobs and pipelines with the SP as the run-as identity are the most operationally significant grants. If the SP is deprovisioned without transferring those, the workflows break.</p>
+<hr />
+<h2 id="audit-a-group-as-a-principal">Audit a group as a principal<a class="headerlink" href="#audit-a-group-as-a-principal" title="Permanent link">&para;</a></h2>
+<p>Passing a group name to <code>--principal</code> treats the group itself as the subject — what can <code>data-engineers</code> access directly (not its members)?</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span>
 </code></pre></div>
-<p>If nothing changed, the output is three words: <code>No changes detected.</code> That's your evidence.</p>
-<p>If something changed, the diff is explicit — every new grant, every removed grant, every membership change, timestamped and exportable:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>  Grants added (1):
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    + [CATALOG] main - bob@example.com (USE_CATALOG|SELECT)
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  Members added (1):
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    + Bob Jones (User, external)
-</code></pre></div>
-<p><strong>Save and compare in one pass</strong> — compare against the old baseline, save a new one for next quarter:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--baseline<span class="w"> </span>snapshots/data-engineers_2025-Q1.json<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--save-snapshot<span class="w"> </span>snapshots/data-engineers_2025-Q2.json<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;<span class="w"> </span>drift_Q1_to_Q2.csv
+<p>This differs from <code>--group "data-engineers"</code>, which audits the group's access AND analyses its members' personal grants for redundancy. Use <code>--principal</code> on a group when you just want the access picture; use <code>--group</code> when you want the full membership + redundancy analysis.</p>
+<hr />
+<h2 id="python-api">Python API<a class="headerlink" href="#python-api" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">databricks_access_audit</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_client</span><span class="p">,</span> <span class="n">PrincipalAuditor</span><span class="p">,</span> <span class="n">WorkspaceDiscovery</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">client</span> <span class="o">=</span> <span class="n">create_client</span><span class="p">(</span><span class="n">cloud</span><span class="o">=</span><span class="s2">&quot;azure&quot;</span><span class="p">,</span> <span class="n">client_id</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">client_secret</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">account_id</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="n">ws_disc</span> <span class="o">=</span> <span class="n">WorkspaceDiscovery</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">cloud_provider</span><span class="o">=</span><span class="s2">&quot;azure&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="n">auditor</span> <span class="o">=</span> <span class="n">PrincipalAuditor</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">workspace_discovery</span><span class="o">=</span><span class="n">ws_disc</span><span class="p">,</span> <span class="n">cloud_provider</span><span class="o">=</span><span class="s2">&quot;azure&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="n">result</span> <span class="o">=</span> <span class="n">auditor</span><span class="o">.</span><span class="n">audit</span><span class="p">(</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>    <span class="n">identifier</span><span class="o">=</span><span class="s2">&quot;alice@company.com&quot;</span><span class="p">,</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>    <span class="n">scan_schemas</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>    <span class="n">scan_workspace_objects</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>    <span class="n">max_workers</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="p">)</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">principal_name</span><span class="si">}</span><span class="s2"> is in </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">groups</span><span class="p">)</span><span class="si">}</span><span class="s2"> groups&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Workspace roles: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">workspace_roles</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;UC permissions:  </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">permissions</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="k">for</span> <span class="n">perm</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">permissions</span><span class="p">:</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>    <span class="n">via</span> <span class="o">=</span> <span class="n">perm</span><span class="o">.</span><span class="n">via_group</span> <span class="ow">or</span> <span class="s2">&quot;(direct)&quot;</span>
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">perm</span><span class="o">.</span><span class="n">securable_type</span><span class="si">}</span><span class="s2">] </span><span class="si">{</span><span class="n">perm</span><span class="o">.</span><span class="n">securable_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">perm</span><span class="o">.</span><span class="n">privileges</span><span class="p">)</span><span class="si">}</span><span class="s2"> via </span><span class="si">{</span><span class="n">via</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </code></pre></div>
 <hr />
-<h2 id="cover-multiple-groups">Cover multiple groups<a class="headerlink" href="#cover-multiple-groups" title="Permanent link">&para;</a></h2>
-<p>Most access reviews cover more than one group. Wrap the command in a loop:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">for</span><span class="w"> </span>group<span class="w"> </span><span class="k">in</span><span class="w"> </span>data-engineers<span class="w"> </span>bi-consumers<span class="w"> </span>pii-readers<span class="w"> </span>platform-admins<span class="p">;</span><span class="w"> </span><span class="k">do</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$group</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>--baseline<span class="w"> </span><span class="s2">&quot;snapshots/</span><span class="si">${</span><span class="nv">group</span><span class="si">}</span><span class="s2">_latest.json&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span>--save-snapshot<span class="w"> </span><span class="s2">&quot;snapshots/</span><span class="si">${</span><span class="nv">group</span><span class="si">}</span><span class="s2">_</span><span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span><span class="s2">.json&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;&gt;<span class="w"> </span>full_review_<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.csv
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="k">done</span>
-</code></pre></div>
-<p>One combined CSV, one pass, every group covered.</p>
-<hr />
-<h2 id="flag-problems-during-the-review">Flag problems during the review<a class="headerlink" href="#flag-problems-during-the-review" title="Permanent link">&para;</a></h2>
-<p>A good access review doesn't just confirm that memberships match expectations — it actively looks for things that shouldn't be there.</p>
-<p><strong>Redundant personal grants</strong> (members with direct access that duplicates what the group already provides):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--revoke-script
-</code></pre></div>
-<p>The <code>--revoke-script</code> flag adds copy-paste REVOKE SQL to the output. If you find redundancy during the review, you can clean it up in the same session.</p>
-<p><strong>Escalation risks</strong> (<code>ALL_PRIVILEGES</code>, <code>MANAGE</code>):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span>--escalation-check
-</code></pre></div>
-<p><strong>Stale grants</strong> (members with catalog access but no recorded activity):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span>--stale-days<span class="w"> </span><span class="m">90</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span>--sql-warehouse-id<span class="w"> </span><span class="s2">&quot;abc123def456&quot;</span>
-</code></pre></div>
-<p><strong>Workspace-local groups</strong> (groups that exist only in workspace SCIM, bypassing account-level management):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--check-local-groups
-</code></pre></div>
-<hr />
-<h2 id="automate-the-review-cycle">Automate the review cycle<a class="headerlink" href="#automate-the-review-cycle" title="Permanent link">&para;</a></h2>
-<p>Schedule quarterly snapshots in CI so the review happens even if no one remembers to kick it off manually:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Quarterly Databricks access review</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="no">databricks-access-audit --group &quot;data-engineers&quot; \</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">      </span><span class="no">--baseline snapshots/data-engineers_latest.json \</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">      </span><span class="no">--save-snapshot snapshots/data-engineers_$(date +%F).json \</span>
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">      </span><span class="no">--output csv &gt; drift_report_$(date +%F).csv</span>
-<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">  </span><span class="nt">env</span><span class="p">:</span>
-<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span><span class="nt">DATABRICKS_CLIENT_ID</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.DATABRICKS_CLIENT_ID }}</span>
-<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">    </span><span class="nt">DATABRICKS_CLIENT_SECRET</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.DATABRICKS_CLIENT_SECRET }}</span>
-<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">    </span><span class="nt">DATABRICKS_ACCOUNT_ID</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.DATABRICKS_ACCOUNT_ID }}</span>
-</code></pre></div>
-<p>A zero-diff run produces a clean compliance record. A non-empty diff triggers an alert and review. Either way, there's evidence.</p>
-<hr />
-<h2 id="verify-catalog-access-from-the-resource-side">Verify catalog access from the resource side<a class="headerlink" href="#verify-catalog-access-from-the-resource-side" title="Permanent link">&para;</a></h2>
-<p>The group and principal audits answer "what can this identity access?" For access reviews, you sometimes need the inverse: "who can access this catalog, right now, as a complete list?"</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Every identity with access to main.pii — direct grants and group members</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>databricks-access-audit<span class="w"> </span>--resource<span class="w"> </span><span class="s2">&quot;main.pii&quot;</span><span class="w"> </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;<span class="w"> </span>pii_access_<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.csv
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Groups only — fast overview of the access shape before expanding members</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>databricks-access-audit<span class="w"> </span>--resource<span class="w"> </span><span class="s2">&quot;main.pii&quot;</span><span class="w"> </span>--no-expand-groups
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="c1"># HTML report for sign-off by a manager or auditor</span>
-<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>databricks-access-audit<span class="w"> </span>--resource<span class="w"> </span><span class="s2">&quot;main.pii&quot;</span><span class="w"> </span>--output<span class="w"> </span>html<span class="w"> </span>&gt;<span class="w"> </span>pii_access_<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.html
-</code></pre></div>
-<p>This is especially useful when you don't know which groups have access to a catalog — <code>--resource</code> discovers them all, then expands each to its members. The CSV output maps directly to an access review spreadsheet row-by-row.</p>
-<hr />
-<h2 id="reviewer-checklist">Reviewer checklist<a class="headerlink" href="#reviewer-checklist" title="Permanent link">&para;</a></h2>
+<h2 id="checklist">Checklist<a class="headerlink" href="#checklist" title="Permanent link">&para;</a></h2>
 <ul class="task-list">
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Current membership matches expected team composition</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> No <code>Member Direct</code> grants duplicating what the group already provides (<code>--revoke-script</code>)</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> No unexpected <code>ALL_PRIVILEGES</code> or <code>MANAGE</code> grants (<code>--escalation-check</code>)</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> No members with no recorded activity for N days (<code>--stale-days</code>)</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> No workspace-local groups that should be migrated to account SCIM (<code>--check-local-groups</code>)</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Diff from last quarter reviewed and any changes explained</li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Catalog-level access confirmed with <code>--resource</code> — every name on the list is expected</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Group memberships reviewed — direct and transitive</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Every UC grant traced to its source group (no unexplained <code>Member Direct</code> grants)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Workspace object ownership checked (<code>--scan-workspace-objects</code>)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <code>ALL_PRIVILEGES</code> / <code>MANAGE</code> grants reviewed (<code>--escalation-check</code>)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> CSV exported and saved as baseline</li>
+</ul>
+<hr />
+<h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../offboarding/">Offboarding</a> — full pre-deprovisioning workflow using <code>--principal</code></li>
+<li><a href="../incident-response/">Incident Response</a> — scope mapping under time pressure</li>
+<li><a href="../../capabilities/#redundancy-and-overlap-analysis">Group Audit</a> — when you need the full group picture including member redundancy</li>
+<li><a href="../access-map/">Visualizing Access</a> — HTML and tree output options in depth</li>
 </ul>
 
 

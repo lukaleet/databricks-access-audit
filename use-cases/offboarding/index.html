@@ -13,10 +13,10 @@
         <link rel="canonical" href="https://lukaleet.github.io/databricks-access-audit/use-cases/offboarding/">
       
       
-        <link rel="prev" href="../../capabilities/">
+        <link rel="prev" href="../principal-audit/">
       
       
-        <link rel="next" href="../access-review/">
+        <link rel="next" href="../access-provisioning/">
       
       
         
@@ -286,7 +286,7 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+        <a href="../principal-audit/" class="md-tabs__link">
           
   
   
@@ -306,7 +306,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../reference/cli/" class="md-tabs__link">
+        <a href="../../reference/quick-reference/" class="md-tabs__link">
           
   
   
@@ -315,6 +315,44 @@
         </a>
       </li>
     
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../troubleshooting/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Troubleshooting
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
   
 
       
@@ -525,6 +563,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../principal-audit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Principal Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -588,10 +654,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-workflow" class="md-nav__link">
+  <a href="#pull-the-full-picture-in-one-command" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The workflow
+        Pull the full picture in one command
       
     </span>
   </a>
@@ -599,10 +665,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#handling-azure-ad-b2b-guests" class="md-nav__link">
+  <a href="#check-for-escalation-risks-before-you-sign-off" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Handling Azure AD B2B guests
+        Check for escalation risks before you sign off
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-thing-that-catches-everyone-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The thing that catches everyone out
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#azure-ad-b2b-guest-users" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Azure AD B2B guest users
       
     </span>
   </a>
@@ -614,6 +702,28 @@
     <span class="md-ellipsis">
       
         Service principal offboarding
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verify-removal-is-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify removal is complete
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#offboarding-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Offboarding checklist
       
     </span>
   </a>
@@ -636,6 +746,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../access-provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Access Provisioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../access-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualizing Access
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../access-review/" class="md-nav__link">
         
   
@@ -644,6 +810,62 @@
     
   
     Access Review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../permission-hygiene/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Permission Hygiene
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stale-access/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stale Access Detection
   
 
     
@@ -700,6 +922,34 @@
     
   
     Compliance Snapshots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resource-audit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resource Audit
   
 
     
@@ -771,6 +1021,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/quick-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -869,6 +1147,60 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
     
@@ -883,10 +1215,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
             
   
   
@@ -904,8 +1236,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1033,10 +1365,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-workflow" class="md-nav__link">
+  <a href="#pull-the-full-picture-in-one-command" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The workflow
+        Pull the full picture in one command
       
     </span>
   </a>
@@ -1044,10 +1376,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#handling-azure-ad-b2b-guests" class="md-nav__link">
+  <a href="#check-for-escalation-risks-before-you-sign-off" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Handling Azure AD B2B guests
+        Check for escalation risks before you sign off
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-thing-that-catches-everyone-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The thing that catches everyone out
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#azure-ad-b2b-guest-users" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Azure AD B2B guest users
       
     </span>
   </a>
@@ -1059,6 +1413,28 @@
     <span class="md-ellipsis">
       
         Service principal offboarding
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verify-removal-is-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify removal is complete
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#offboarding-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Offboarding checklist
       
     </span>
   </a>
@@ -1086,46 +1462,72 @@
 
 
 <h1 id="offboarding">Offboarding<a class="headerlink" href="#offboarding" title="Permanent link">&para;</a></h1>
-<p>When someone leaves the organisation, you need to know exactly what they have access to before deprovisioning their account. Databricks spreads this across multiple workspaces with no native cross-workspace view.</p>
-<h2 id="the-workflow">The workflow<a class="headerlink" href="#the-workflow" title="Permanent link">&para;</a></h2>
-<p><strong>Step 1 — pull their full access picture</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span><span class="se">\</span>
+<p>It's Thursday afternoon. Sarah's last day is tomorrow. Your IT ticket says "deprovision access." You open the Databricks Account Console — and realise you have six workspaces, no cross-workspace view, and no idea how many groups she's in.</p>
+<p>You start clicking. Workspace one: she's in four groups. Workspace two: three groups, maybe some overlap. You open <code>INFORMATION_SCHEMA.GRANTS</code> — that's one metastore. She might have direct grants in others. By the time you've pieced it together across everything, it's 6pm. You still don't know if she has personal catalog grants that will survive the deprovisioning.</p>
+<p>This is what offboarding looks like without the tool.</p>
+<hr />
+<h2 id="pull-the-full-picture-in-one-command">Pull the full picture in one command<a class="headerlink" href="#pull-the-full-picture-in-one-command" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;sarah@company.com&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span>--scan-workspace-objects<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>--scan-schemas<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;<span class="w"> </span>alice_offboarding_<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.csv
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;<span class="w"> </span>sarah_offboarding_<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.csv
 </code></pre></div>
-<p>This produces a CSV with:</p>
+<p>In under two minutes you have a single CSV with everything:</p>
 <ul>
-<li>All Unity Catalog grants (catalog, schema, table level)</li>
-<li>All workspace object ACLs — jobs, clusters, dashboards, pipelines, SQL warehouses, and 8 more types</li>
-<li>The group memberships that give access (direct vs transitive)</li>
-<li>The workspace where each grant lives</li>
+<li>Every Unity Catalog grant she holds — catalog, schema, and table level — across every workspace</li>
+<li>Every workspace object ACL: jobs she can manage, clusters she can attach to, dashboards, pipelines, SQL warehouses, and 8 more types</li>
+<li>The exact group chain that gives her each permission (<code>via data-engineers → all-data-team → ...</code>)</li>
+<li>Which memberships are IdP-synced vs Databricks-managed</li>
+<li>Which grants are personal (survive deprovisioning) vs group-inherited (removed when she's deprovisioned)</li>
 </ul>
-<p><strong>Step 2 — check for escalation risks</strong></p>
-<p>Before you deprovision, flag anything that could be misused:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span><span class="se">\</span>
+<hr />
+<h2 id="check-for-escalation-risks-before-you-sign-off">Check for escalation risks before you sign off<a class="headerlink" href="#check-for-escalation-risks-before-you-sign-off" title="Permanent link">&para;</a></h2>
+<p>Before anyone countersigns the offboarding, check whether she had privileges that could have been misused:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;sarah@company.com&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>--escalation-check<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--output<span class="w"> </span>json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.escalation_findings&#39;</span>
 </code></pre></div>
-<p><code>ALL_PRIVILEGES</code> or <code>MANAGE</code> grants on a catalog or schema mean Alice could modify permissions. Worth noting in the offboarding record.</p>
-<p><strong>Step 3 — hand the CSV to the access owner</strong></p>
-<p>The CSV is readable without this tool. Share it with the team lead or security team for sign-off before removing the account.</p>
-<p><strong>Step 4 — deprovision via your IdP</strong></p>
-<p>Removing the user from your IdP (Azure Entra ID, Okta, etc.) propagates through SCIM to Databricks automatically — assuming SCIM sync is configured. The Databricks account and workspace accounts are deprovisioned, and UC grants made directly to the user are effectively orphaned (they remain in the grant table but resolve to nothing).</p>
-<div class="admonition warning">
-<p class="admonition-title">Direct grants stay in the catalog</p>
-<p>Databricks does not automatically revoke UC grants when a user is deprovisioned. Run a group audit on any groups the user belonged to after offboarding and check for <code>MEMBER_DIRECT</code> grants that now point to a non-existent principal.</p>
-</div>
-<h2 id="handling-azure-ad-b2b-guests">Handling Azure AD B2B guests<a class="headerlink" href="#handling-azure-ad-b2b-guests" title="Permanent link">&para;</a></h2>
-<p>Azure AD B2B guest users have two workspace identities — the account email and a guest UPN (<code>alice_company.com#EXT#@tenant.onmicrosoft.com</code>). Workspace object ACLs are stored under the guest UPN.</p>
-<p>The tool resolves both automatically using the SCIM <code>externalId</code>, so the CSV will include grants under both identities. No extra flags needed.</p>
-<p>See <a href="../../how-it-works/azure-b2b-guests/">Azure AD B2B Guests</a> for the full explanation.</p>
-<h2 id="service-principal-offboarding">Service principal offboarding<a class="headerlink" href="#service-principal-offboarding" title="Permanent link">&para;</a></h2>
-<p>Same command, pass the SP display name or application ID:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;etl-pipeline-sp&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>--scan-workspace-objects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;<span class="w"> </span>etl_sp_offboarding_<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.csv
+<p><code>ALL_PRIVILEGES</code> on a catalog means she could have granted access to anyone. <code>MANAGE</code> means she could modify permissions on that securable. Worth noting in the offboarding record — especially if access was unexpectedly broad.</p>
+<hr />
+<h2 id="the-thing-that-catches-everyone-out">The thing that catches everyone out<a class="headerlink" href="#the-thing-that-catches-everyone-out" title="Permanent link">&para;</a></h2>
+<p>Removing a user from your IdP removes them from IdP-synced groups. It does <strong>not</strong> revoke Unity Catalog grants made directly to that user.</p>
+<p>After deprovisioning, those rows still exist in the UC grant table. They resolve to nothing while the account is deprovisioned — but if the account is ever reinstated (contractor returning, rehire), the grants come back.</p>
+<p>The CSV output tells you exactly which grants are <code>Member Direct</code> (personal). Deal with those explicitly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1">-- Generated from --revoke-script on any group she belonged to,</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="c1">-- or constructed manually from the CSV output:</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="k">REVOKE</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">CATALOG</span><span class="w"> </span><span class="n">main</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="o">`</span><span class="n">sarah</span><span class="o">@</span><span class="n">company</span><span class="p">.</span><span class="n">com</span><span class="o">`</span><span class="p">;</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="k">REVOKE</span><span class="w"> </span><span class="n">USE_CATALOG</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">CATALOG</span><span class="w"> </span><span class="n">analytics</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="o">`</span><span class="n">sarah</span><span class="o">@</span><span class="n">company</span><span class="p">.</span><span class="n">com</span><span class="o">`</span><span class="p">;</span>
 </code></pre></div>
+<hr />
+<h2 id="azure-ad-b2b-guest-users">Azure AD B2B guest users<a class="headerlink" href="#azure-ad-b2b-guest-users" title="Permanent link">&para;</a></h2>
+<p>If Sarah is an Azure AD B2B guest, she has two workspace identities: her account email and a guest UPN (<code>sarah_company.com#EXT#@tenant.onmicrosoft.com</code>). Workspace object ACLs are stored under the guest UPN. The Databricks UI shows you one; this tool resolves both automatically using the SCIM <code>externalId</code>, so nothing is missed.</p>
+<p>See <a href="../../how-it-works/azure-b2b-guests/">Azure AD B2B Guests</a> for the full explanation.</p>
+<hr />
+<h2 id="service-principal-offboarding">Service principal offboarding<a class="headerlink" href="#service-principal-offboarding" title="Permanent link">&para;</a></h2>
+<p>Same command. Pass the SP display name or application ID:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;etl-pipeline-sp&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>--scan-workspace-objects<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>--output<span class="w"> </span>csv<span class="w"> </span>&gt;<span class="w"> </span>etl_sp_offboarding_<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>.csv
+</code></pre></div>
+<p>For SPs, pay particular attention to jobs and pipelines with <code>CAN_MANAGE</code> or <code>IS_OWNER</code> — those workflows may need a new run-as identity before you deprovision the SP.</p>
+<hr />
+<h2 id="verify-removal-is-complete">Verify removal is complete<a class="headerlink" href="#verify-removal-is-complete" title="Permanent link">&para;</a></h2>
+<p>After the account is deprovisioned, confirm the principal no longer appears anywhere:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Run --resource on every catalog they had access to — confirm they&#39;re gone</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>databricks-access-audit<span class="w"> </span>--resource<span class="w"> </span><span class="s2">&quot;main&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;sarah@company.com&quot;</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>databricks-access-audit<span class="w"> </span>--resource<span class="w"> </span><span class="s2">&quot;analytics&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;sarah@company.com&quot;</span>
+</code></pre></div>
+<p>If the principal still appears — as a direct grant, or as a member of a group that wasn't updated — the <code>--resource</code> output shows exactly where and via which path. This is faster than re-running the full principal audit and easier to attach to the offboarding ticket as evidence.</p>
+<hr />
+<h2 id="offboarding-checklist">Offboarding checklist<a class="headerlink" href="#offboarding-checklist" title="Permanent link">&para;</a></h2>
+<ul class="task-list">
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Full access export saved as CSV (attach to the offboarding ticket)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Escalation findings reviewed (<code>--escalation-check</code>)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <code>Member Direct</code> grants revoked from UC (<code>REVOKE</code> SQL)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Jobs / pipelines with personal ownership transferred to a group or service principal</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> User removed from IdP (propagates through SCIM to Databricks automatically)</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Post-deprovisioning verification: <code>--resource</code> on affected catalogs confirms the name is gone</li>
+</ul>
 
 
 
