@@ -7,6 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.20.0] - 2026-05-09
 
+### Added
+- **UC-only group ancestor annotation** — when a group appears in the *UC-only* section of a principal audit (UC grants but no direct workspace assignment), the output now shows which parent group actually provides the workspace access, e.g. `test-audit-data-eng  [members get workspace access via test-audit-org]`. Groups with genuinely no workspace path continue to show without annotation. Applies to both `--tree` and `--output html`.
+
 ### Changed
 - Automated PyPI publishing via GitHub Actions (TestPyPI on `develop`, prod PyPI on `main`).
 - Removed prototype Jupyter notebook (superseded by the CLI and Python API).

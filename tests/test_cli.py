@@ -246,7 +246,11 @@ def test_group_audit_unknown_group_returns_error(capsys):
     assert rc == 1
 
 
-def test_group_audit_missing_credentials_returns_error(capsys):
+def test_group_audit_missing_credentials_returns_error(capsys, monkeypatch, tmp_path):
+    # Point config loader at an empty file so real ~/.databrickscfg is ignored
+    empty_cfg = tmp_path / "empty.cfg"
+    empty_cfg.write_text("")
+    monkeypatch.setenv("DATABRICKS_CONFIG_FILE", str(empty_cfg))
     rc = main(["--group", "data-engineers"])
     assert rc == 1
     assert "required" in capsys.readouterr().err.lower()
