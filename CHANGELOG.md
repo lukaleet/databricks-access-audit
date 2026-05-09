@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.21.0] - 2026-05-09
+
+### Fixed
+- Removed real SP application ID that had slipped into `docs/use-cases/principal-audit.md`; replaced with a generic placeholder UUID.
+
+---
+
 ## [0.20.0] - 2026-05-09
 
 ### Added
