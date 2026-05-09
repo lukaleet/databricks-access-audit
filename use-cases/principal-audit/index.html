@@ -1632,7 +1632,7 @@
 <h2 id="service-principals">Service principals<a class="headerlink" href="#service-principals" title="Permanent link">&para;</a></h2>
 <p>The same command works for service principals. Pass the SP display name or application ID:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;etl-pipeline-sp&quot;</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;d7372b37-169d-4235-8896-46fb30ea57d0&quot;</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;a1b2c3d4-0000-0000-0000-111122223333&quot;</span>
 </code></pre></div>
 <p>For SPs, pay particular attention to <code>--scan-workspace-objects</code> — jobs and pipelines with the SP as the run-as identity are the most operationally significant grants. If the SP is deprovisioned without transferring those, the workflows break.</p>
 <hr />
