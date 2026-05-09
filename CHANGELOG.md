@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.20.0] - 2026-05-09
+
+### Changed
+- Automated PyPI publishing via GitHub Actions (TestPyPI on `develop`, prod PyPI on `main`).
+- Removed prototype Jupyter notebook (superseded by the CLI and Python API).
+
+---
+
 ## [0.19.0] - 2026-05-07
 
 ### Added
