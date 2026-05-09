@@ -371,10 +371,36 @@ def render_html(
     if result.uc_only_groups or result.dead_end_groups:
         parts = []
         if result.uc_only_groups:
-            items = ", ".join(f"<strong>{_e(g)}</strong>" for g in result.uc_only_groups)
+            ws_via = {
+                r.via_group for r in result.workspace_roles
+                if r.via_group and r.via_group != "(direct)"
+            }
+
+            def _ws_ancestor(g_name: str) -> str:
+                for m in result.groups:
+                    try:
+                        idx = m.path.index(g_name)
+                    except ValueError:
+                        continue
+                    for later in m.path[idx + 1:]:
+                        if later in ws_via:
+                            return later
+                return ""
+
+            def _uc_item(g: str) -> str:
+                ancestor = _ws_ancestor(g)
+                label = f"<strong>{_e(g)}</strong>"
+                if ancestor:
+                    label += (
+                        f' <span class="tag t-transit">'
+                        f"workspace via {_e(ancestor)}</span>"
+                    )
+                return label
+
+            items = ", ".join(_uc_item(g) for g in result.uc_only_groups)
             parts.append(
                 "<p><strong>UC-only groups</strong> "
-                f"(no workspace assignment — access via UC grants only):<br>{items}</p>"
+                f"(no direct workspace assignment — UC grants only):<br>{items}</p>"
             )
         if result.dead_end_groups:
             items = ", ".join(f"<strong>{_e(g)}</strong>" for g in result.dead_end_groups)

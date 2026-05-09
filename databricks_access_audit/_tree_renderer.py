@@ -114,9 +114,29 @@ def render_principal_tree(
 
     # ── uc-only / unused groups ───────────────────────────────────────────────
     if result.uc_only_groups:
-        print("\n  UC-only groups  (UC grants only — no workspace assignment):")
+        ws_via = {
+            r.via_group for r in result.workspace_roles
+            if r.via_group and r.via_group != "(direct)"
+        }
+
+        def _ws_ancestor(g_name: str) -> str:
+            for m in result.groups:
+                try:
+                    idx = m.path.index(g_name)
+                except ValueError:
+                    continue
+                for later in m.path[idx + 1:]:
+                    if later in ws_via:
+                        return later
+            return ""
+
+        print("\n  UC-only groups  (UC grants only — no direct workspace assignment):")
         for g in result.uc_only_groups:
-            print(f"    · {g}")
+            ancestor = _ws_ancestor(g)
+            if ancestor:
+                print(f"    · {g}  [members get workspace access via {ancestor}]")
+            else:
+                print(f"    · {g}")
 
     if result.dead_end_groups:
         print("\n  Unused groups  (no workspace access, no UC grants):")
