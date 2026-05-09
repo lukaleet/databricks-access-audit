@@ -123,7 +123,7 @@ The same command works for service principals. Pass the SP display name or appli
 
 ```bash
 databricks-access-audit --principal "etl-pipeline-sp"
-databricks-access-audit --principal "d7372b37-169d-4235-8896-46fb30ea57d0"
+databricks-access-audit --principal "a1b2c3d4-0000-0000-0000-111122223333"
 ```
 
 For SPs, pay particular attention to `--scan-workspace-objects` — jobs and pipelines with the SP as the run-as identity are the most operationally significant grants. If the SP is deprovisioned without transferring those, the workflows break.
