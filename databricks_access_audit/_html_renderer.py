@@ -294,7 +294,8 @@ _STYLE = """
                  color:#3949ab; cursor:pointer; font-size:12px; font-weight:600;
                  padding:3px 10px; flex-shrink:0; }
     .depth-btn:hover { background:#c5cae9; }
-    .trunc-note { font-size:12px; color:#aaa; font-style:italic; margin-top:8px; text-align:center; }
+    .trunc-note { font-size:12px; color:#aaa; font-style:italic;
+                  margin-top:8px; text-align:center; }
 """
 
 _SCRIPT = """
@@ -547,7 +548,8 @@ def render_html(
 
   <section>
     <h2>Access graph{"" if not _has_depth else
-      ' <button id="depth-toggle" class="depth-btn" onclick="toggleDepth()">Schema view</button>'}</h2>
+      ' <button id="depth-toggle" class="depth-btn"'
+      ' onclick="toggleDepth()">Schema view</button>'}</h2>
     <div id="wrap-cat">
       <div class="mermaid">
 {diagram_cat}
@@ -558,7 +560,8 @@ def render_html(
     </script>
     <div id="wrap-sch" style="display:none">
       {"" if not _schemas_truncated else
-        f'<p class="trunc-note">{_schemas_truncated} schema(s) not shown — see Unity Catalog permissions table.</p>'}
+        f'<p class="trunc-note">{_schemas_truncated} schema(s) not shown'
+        f' — see Unity Catalog permissions table.</p>'}
     </div>'''}
   </section>
 

@@ -214,7 +214,8 @@ _STYLE = """
                  color:#2e7d32; cursor:pointer; font-size:12px; font-weight:600;
                  padding:3px 10px; flex-shrink:0; }
     .depth-btn:hover { background:#c8e6c9; }
-    .trunc-note { font-size:12px; color:#aaa; font-style:italic; margin-top:8px; text-align:center; }
+    .trunc-note { font-size:12px; color:#aaa; font-style:italic;
+                  margin-top:8px; text-align:center; }
 """
 
 _SCRIPT = """
@@ -279,10 +280,13 @@ def render_group_html(
     n_part  = sum(1 for r in redundancy if r.redundancy_level.value == "Partial")
     n_redun = n_full + n_part
 
-    diagram_cat = build_group_mermaid(group_name, group_node, members, catalog_grants, schema_grants=None)
+    diagram_cat = build_group_mermaid(
+        group_name, group_node, members, catalog_grants, schema_grants=None)
     _has_depth  = bool(schema_grants)
-    diagram_sch = build_group_mermaid(group_name, group_node, members, catalog_grants, schema_grants) \
-                  if _has_depth else None
+    diagram_sch = (
+        build_group_mermaid(group_name, group_node, members, catalog_grants, schema_grants)
+        if _has_depth else None
+    )
     _n_schemas_total = len({sg.schema_name for sg in schema_grants}) if schema_grants else 0
     _schemas_truncated = max(0, _n_schemas_total - 20)
 
@@ -482,7 +486,8 @@ def render_group_html(
 
   <section>
     <h2>Access graph{"" if not _has_depth else
-      ' <button id="depth-toggle" class="depth-btn" onclick="toggleDepth()">Schema view</button>'}</h2>
+      ' <button id="depth-toggle" class="depth-btn"'
+      ' onclick="toggleDepth()">Schema view</button>'}</h2>
     <div id="wrap-cat">
       <div class="mermaid">{diagram_cat}</div>
     </div>
@@ -491,7 +496,8 @@ def render_group_html(
     </script>
     <div id="wrap-sch" style="display:none">
       {"" if not _schemas_truncated else
-        f'<p class="trunc-note">{_schemas_truncated} schema(s) not shown — see Unity Catalog grants table.</p>'}
+        f'<p class="trunc-note">{_schemas_truncated} schema(s) not shown'
+        f' — see Unity Catalog grants table.</p>'}
     </div>'''}
   </section>
 {redundancy_section}
