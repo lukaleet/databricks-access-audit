@@ -21,7 +21,8 @@
     section { background: #fff; border-radius: 12px; padding: 22px 24px;
               margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
     section h2 { font-size: 15px; font-weight: 600; color: #3949ab;
-                 border-bottom: 2px solid #e8eaf6; padding-bottom: 10px; margin-bottom: 16px; }
+                 border-bottom: 2px solid #e8eaf6; padding-bottom: 10px; margin-bottom: 16px;
+                 display: flex; justify-content: space-between; align-items: center; }
 
     .mermaid { overflow-x: auto; text-align: center; padding: 8px 0; }
 
@@ -57,6 +58,11 @@
 
     footer { text-align:center; font-size:12px; color:#aaa; margin-top:24px; padding-bottom:16px; }
     a { color: #3949ab; }
+    .depth-btn { background:#e8eaf6; border:1px solid #9fa8da; border-radius:4px;
+                 color:#3949ab; cursor:pointer; font-size:12px; font-weight:600;
+                 padding:3px 10px; flex-shrink:0; }
+    .depth-btn:hover { background:#c5cae9; }
+    .trunc-note { font-size:12px; color:#aaa; font-style:italic; margin-top:8px; text-align:center; }
 </style>
 </head>
 <body>
@@ -67,13 +73,82 @@
     <div class="meta">
       USER
       <span class="badge">external (IdP-synced)</span>
-      &nbsp;·&nbsp; Generated 2026-05-10 11:15 UTC
+      &nbsp;·&nbsp; Generated 2026-05-10 18:07 UTC
     </div>
   </header>
 
   <section>
-    <h2>Access graph</h2>
-    <div class="mermaid">
+    <h2>Access graph <button id="depth-toggle" class="depth-btn" onclick="toggleDepth()">Schema view</button></h2>
+    <div id="wrap-cat">
+      <div class="mermaid">
+graph LR
+    P["👤 Łukasz Maroń
+USER · external"]
+    G0["👥 account users
+(built-in — all users)"]
+    UC1["📦 CATALOG
+npb_analysis_catalog_old_backup"]
+    UC2["📦 CATALOG
+npb_analysis_catalog_old_backup_old_backup"]
+    UC3["📦 CATALOG
+npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923"]
+    UC4["📦 CATALOG
+npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753"]
+    UC5["📦 CATALOG
+samples"]
+    UC6["📦 CATALOG
+system"]
+    G1["👥 dbw-databricks-developers
+direct · Databricks"]
+    UC0["📦 CATALOG
+npb_analysis_catalog"]
+    G2["👥 2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com
+transitive · Databricks"]
+    DIRECT["🔑 Personal grants
+(no group)"]
+    WS0["🏢 dbw-databricks-nbp-dev
+ADMIN"]
+    P --> G0
+    G0 -- USE_CATALOG, USE_SCHEMA --> UC1
+    G0 -- USE_CATALOG, USE_SCHEMA --> UC2
+    G0 -- USE_CATALOG, USE_SCHEMA --> UC3
+    G0 -- USE_CATALOG, USE_SCHEMA --> UC4
+    G0 -- EXECUTE, READ_VOLUME… --> UC5
+    G0 -- USE_CATALOG --> UC6
+    P --> G1
+    G1 -- ALL_PRIVILEGES --> UC0
+    G1 -- ALL_PRIVILEGES --> UC1
+    G1 -- ALL_PRIVILEGES --> UC2
+    G1 -- ALL_PRIVILEGES --> UC3
+    G1 -- ALL_PRIVILEGES --> UC4
+    P -..-> G2
+    G2 -- ALL_PRIVILEGES --> UC0
+    G2 -- ALL_PRIVILEGES --> UC1
+    G2 -- ALL_PRIVILEGES, MANAGE --> UC2
+    G2 -- ALL_PRIVILEGES --> UC3
+    G2 -- ALL_PRIVILEGES --> UC4
+    P --> DIRECT
+    DIRECT -- ADMIN --> WS0
+    classDef principal    fill:#3949ab,color:#fff,stroke:#1a237e,stroke-width:2px
+    classDef grp_direct   fill:#2e7d32,color:#fff,stroke:#1b5e20,stroke-width:2px
+    classDef grp_transitive fill:#81c784,color:#1b5e20,stroke:#388e3c,stroke-width:1px,stroke-dasharray:5
+    classDef grp_builtin  fill:#90a4ae,color:#fff,stroke:#546e7a,stroke-width:1px,stroke-dasharray:4
+    classDef workspace    fill:#b71c1c,color:#fff,stroke:#7f0000,stroke-width:2px
+    classDef catalog      fill:#e65100,color:#fff,stroke:#bf360c,stroke-width:2px
+    classDef schema_n     fill:#f57c00,color:#fff,stroke:#e65100,stroke-width:1px
+    classDef table_n      fill:#ffd54f,color:#5d4037,stroke:#f57c00,stroke-width:1px
+    classDef direct_n     fill:#546e7a,color:#fff,stroke:#263238,stroke-width:2px
+    class P principal
+    class G1 grp_direct
+    class G2 grp_transitive
+    class G0 grp_builtin
+    class WS0 workspace
+    class UC1,UC2,UC3,UC4,UC5,UC6,UC0 catalog
+    class DIRECT direct_n
+      </div>
+    </div>
+    <div id="wrap-sch" style="display:none">
+      <div class="mermaid">
 graph LR
     P["👤 Łukasz Maroń
 USER · external"]
@@ -99,16 +174,6 @@ npb_analysis_catalog.information_schema"]
 npb_analysis_catalog_old_backup.information_schema"]
     UC18["📂 SCHEMA
 npb_analysis_catalog_old_backup_old_backup.information_schema"]
-    UC22["📂 SCHEMA
-npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.information_schema"]
-    UC26["📂 SCHEMA
-npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.information_schema"]
-    UC28["📂 SCHEMA
-samples.information_schema"]
-    UC29["📂 SCHEMA
-system.ai"]
-    UC30["📂 SCHEMA
-system.information_schema"]
     G1["👥 dbw-databricks-developers
 direct · Databricks"]
     UC0["📦 CATALOG
@@ -135,14 +200,6 @@ npb_analysis_catalog_old_backup_old_backup.silver"]
 npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.bronze"]
     UC21["📂 SCHEMA
 npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.gold"]
-    UC23["📂 SCHEMA
-npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.silver"]
-    UC24["📂 SCHEMA
-npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.bronze"]
-    UC25["📂 SCHEMA
-npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.gold"]
-    UC27["📂 SCHEMA
-npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.silver"]
     G2["👥 meta-store-admins
 direct · Databricks"]
     G3["👥 2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com
@@ -162,11 +219,6 @@ ADMIN"]
     G0 -- USE_SCHEMA --> UC10
     G0 -- USE_SCHEMA --> UC14
     G0 -- USE_SCHEMA --> UC18
-    G0 -- USE_SCHEMA --> UC22
-    G0 -- USE_SCHEMA --> UC26
-    G0 -- USE_SCHEMA --> UC28
-    G0 -- EXECUTE, READ_VOLUME… --> UC29
-    G0 -- USE_SCHEMA --> UC30
     P --> G1
     G1 -- ALL_PRIVILEGES --> UC0
     G1 -- ALL_PRIVILEGES --> UC1
@@ -197,15 +249,6 @@ ADMIN"]
     UC2 -..-> UC19
     UC3 -..-> UC20
     UC3 -..-> UC21
-    UC3 -..-> UC22
-    UC3 -..-> UC23
-    UC4 -..-> UC24
-    UC4 -..-> UC25
-    UC4 -..-> UC26
-    UC4 -..-> UC27
-    UC5 -..-> UC28
-    UC6 -..-> UC29
-    UC6 -..-> UC30
     classDef principal    fill:#3949ab,color:#fff,stroke:#1a237e,stroke-width:2px
     classDef grp_direct   fill:#2e7d32,color:#fff,stroke:#1b5e20,stroke-width:2px
     classDef grp_transitive fill:#81c784,color:#1b5e20,stroke:#388e3c,stroke-width:1px,stroke-dasharray:5
@@ -221,8 +264,10 @@ ADMIN"]
     class G0 grp_builtin
     class WS0 workspace
     class UC1,UC2,UC3,UC4,UC5,UC6,UC0 catalog
-    class UC7,UC10,UC14,UC18,UC22,UC26,UC28,UC29,UC30,UC8,UC9,UC11,UC12,UC13,UC15,UC16,UC17,UC19,UC20,UC21,UC23,UC24,UC25,UC27 schema_n
+    class UC7,UC10,UC14,UC18,UC8,UC9,UC11,UC12,UC13,UC15,UC16,UC17,UC19,UC20,UC21 schema_n
     class DIRECT direct_n
+      </div>
+      <p class="trunc-note">9 schema(s) not shown — see Unity Catalog permissions table.</p>
     </div>
   </section>
 
@@ -236,8 +281,8 @@ ADMIN"]
     <div class="table-wrap"><table>
       <tr><th>Group</th><th>Membership</th><th>Source</th><th>Path</th></tr>
       <tr><td><strong>account users</strong> <span class="tag t-builtin" title="Built-in implicit group — every account user is a member automatically">built-in</span></td><td><span class="tag t-direct">direct</span></td><td><span class="tag t-int">Databricks</span></td><td class="chain">Łukasz Maroń → account users</td></tr>
-<tr><td><strong>dbw-databricks-developers</strong></td><td><span class="tag t-direct">direct</span></td><td><span class="tag t-int">Databricks</span></td><td class="chain">Łukasz Maroń → dbw-databricks-developers</td></tr>
 <tr><td><strong>meta-store-admins</strong></td><td><span class="tag t-direct">direct</span></td><td><span class="tag t-int">Databricks</span></td><td class="chain">Łukasz Maroń → meta-store-admins</td></tr>
+<tr><td><strong>dbw-databricks-developers</strong></td><td><span class="tag t-direct">direct</span></td><td><span class="tag t-int">Databricks</span></td><td class="chain">Łukasz Maroń → dbw-databricks-developers</td></tr>
     </table></div>
   </section>
 
@@ -326,7 +371,7 @@ ADMIN"]
 
   <section>
     <h2>Group notes</h2>
-    <p><strong>UC-only groups</strong> (no direct workspace assignment — UC grants only):<br><strong>account users</strong>, <strong>dbw-databricks-developers</strong>, <strong>meta-store-admins</strong></p>
+    <p><strong>UC-only groups</strong> (no direct workspace assignment — UC grants only):<br><strong>account users</strong>, <strong>meta-store-admins</strong>, <strong>dbw-databricks-developers</strong></p>
   </section>
 
   <footer>
@@ -341,6 +386,25 @@ ADMIN"]
     themeVariables: { fontSize: '13px' },
     flowchart: { curve: 'basis', useMaxWidth: true }
   });
+  var _schRendered = false;
+  function toggleDepth() {
+    var wc = document.getElementById('wrap-cat');
+    var ws = document.getElementById('wrap-sch');
+    var btn = document.getElementById('depth-toggle');
+    if (wc.style.display !== 'none') {
+      wc.style.display = 'none';
+      ws.style.display = 'block';
+      btn.textContent = 'Catalog view';
+      if (!_schRendered) {
+        mermaid.run({ nodes: ws.querySelectorAll('.mermaid') });
+        _schRendered = true;
+      }
+    } else {
+      wc.style.display = 'block';
+      ws.style.display = 'none';
+      btn.textContent = 'Schema view';
+    }
+  }
 </script>
 </body>
 </html>

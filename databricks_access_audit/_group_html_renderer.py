@@ -131,8 +131,7 @@ def build_group_mermaid(
                 lbl = ", ".join(privs[:2]) + ("…" if len(privs) > 2 else "")
                 edge("G", scid, label=lbl)
             edge(cat_nid[cat_name], scid, dashed=True)
-        if len(merged_schemas) > 20:
-            node("SCmore", f"📂 +{len(merged_schemas) - 20} more schemas", "schema_n")
+        # overflow schemas are noted in the stats section — no dangling node needed
 
     lines = ["graph LR"]
     lines.extend(node_lines)
@@ -169,7 +168,8 @@ _STYLE = """
     section { background: #fff; border-radius: 12px; padding: 22px 24px;
               margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
     section h2 { font-size: 15px; font-weight: 600; color: #2e7d32;
-                 border-bottom: 2px solid #e8f5e9; padding-bottom: 10px; margin-bottom: 16px; }
+                 border-bottom: 2px solid #e8f5e9; padding-bottom: 10px; margin-bottom: 16px;
+                 display: flex; justify-content: space-between; align-items: center; }
 
     .mermaid { overflow-x: auto; text-align: center; padding: 8px 0; }
 
@@ -210,6 +210,11 @@ _STYLE = """
     .empty { color: #aaa; font-style: italic; }
     footer { text-align:center; font-size:12px; color:#aaa; margin-top:24px; padding-bottom:16px; }
     a { color: #2e7d32; }
+    .depth-btn { background:#e8f5e9; border:1px solid #a5d6a7; border-radius:4px;
+                 color:#2e7d32; cursor:pointer; font-size:12px; font-weight:600;
+                 padding:3px 10px; flex-shrink:0; }
+    .depth-btn:hover { background:#c8e6c9; }
+    .trunc-note { font-size:12px; color:#aaa; font-style:italic; margin-top:8px; text-align:center; }
 """
 
 _SCRIPT = """
@@ -219,6 +224,25 @@ _SCRIPT = """
     themeVariables: { fontSize: '13px' },
     flowchart: { curve: 'basis', useMaxWidth: true }
   });
+  var _schRendered = false;
+  function toggleDepth() {
+    var wc = document.getElementById('wrap-cat');
+    var ws = document.getElementById('wrap-sch');
+    var btn = document.getElementById('depth-toggle');
+    if (wc.style.display !== 'none') {
+      wc.style.display = 'none';
+      ws.style.display = 'block';
+      btn.textContent = 'Catalog view';
+      if (!_schRendered) {
+        mermaid.run({ nodes: ws.querySelectorAll('.mermaid') });
+        _schRendered = true;
+      }
+    } else {
+      wc.style.display = 'block';
+      ws.style.display = 'none';
+      btn.textContent = 'Schema view';
+    }
+  }
 """
 
 
@@ -250,7 +274,12 @@ def render_group_html(
     n_part  = sum(1 for r in redundancy if r.redundancy_level.value == "Partial")
     n_redun = n_full + n_part
 
-    diagram = build_group_mermaid(group_name, group_node, members, catalog_grants, schema_grants)
+    diagram_cat = build_group_mermaid(group_name, group_node, members, catalog_grants, schema_grants=None)
+    _has_depth  = bool(schema_grants)
+    diagram_sch = build_group_mermaid(group_name, group_node, members, catalog_grants, schema_grants) \
+                  if _has_depth else None
+    _n_schemas_total = len({sg.schema_name for sg in schema_grants}) if schema_grants else 0
+    _schemas_truncated = max(0, _n_schemas_total - 20)
 
     # ── stats ─────────────────────────────────────────────────────────────────
     def stat(n: int, label: str, warn: bool = False) -> str:
@@ -447,8 +476,16 @@ def render_group_html(
   </section>
 
   <section>
-    <h2>Access graph</h2>
-    <div class="mermaid">{diagram}</div>
+    <h2>Access graph{"" if not _has_depth else
+      ' <button id="depth-toggle" class="depth-btn" onclick="toggleDepth()">Schema view</button>'}</h2>
+    <div id="wrap-cat">
+      <div class="mermaid">{diagram_cat}</div>
+    </div>
+    {"" if not _has_depth else f'''<div id="wrap-sch" style="display:none">
+      <div class="mermaid">{diagram_sch}</div>
+      {"" if not _schemas_truncated else
+        f'<p class="trunc-note">{_schemas_truncated} schema(s) not shown — see Unity Catalog grants table.</p>'}
+    </div>'''}
   </section>
 {redundancy_section}
   <section>

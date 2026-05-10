@@ -45,9 +45,13 @@ def _uc_parent_key(stype: str, sname: str):
 
 # ── Mermaid diagram ───────────────────────────────────────────────────────────
 
+_MAX_SCHEMAS_IN_CHART = 15
+
+
 def build_mermaid(
     result: "PrincipalAuditResult",
     obj_grants: List["WorkspaceObjectGrant"],
+    catalog_only: bool = False,
 ) -> str:
     """Return Mermaid LR flowchart source for the principal access map."""
     from databricks_access_audit.models import PrincipalSource
@@ -87,8 +91,22 @@ def build_mermaid(
         _k = "__direct__" if not r.via_group or r.via_group == "(direct)" else r.via_group
         ws_by_group.setdefault(_k, []).append(r)
 
+    # Filter permissions to this view's depth (tables never shown in chart)
+    if catalog_only:
+        _perms = [p for p in result.permissions if p.securable_type == "CATALOG"]
+    else:
+        _shown_schemas = sorted({
+            p.securable_name for p in result.permissions if p.securable_type == "SCHEMA"
+        })[:_MAX_SCHEMAS_IN_CHART]
+        _shown_schemas_set = set(_shown_schemas)
+        _perms = [
+            p for p in result.permissions
+            if p.securable_type == "CATALOG"
+            or (p.securable_type == "SCHEMA" and p.securable_name in _shown_schemas_set)
+        ]
+
     perm_by_group: dict[str, list] = {}
-    for p in result.permissions:
+    for p in _perms:
         _k = "__direct__" if not p.via_group or p.via_group == "(direct)" else p.via_group
         perm_by_group.setdefault(_k, []).append(p)
 
@@ -113,8 +131,8 @@ def build_mermaid(
     all_ws = sorted({r.workspace_name for r in result.workspace_roles})
     ws_nid  = {ws: f"WS{i}" for i, ws in enumerate(all_ws)}
 
-    # UC securable nodes (deduplicated by type+name)
-    all_sec = sorted({(p.securable_type, p.securable_name) for p in result.permissions})
+    # UC securable nodes (deduplicated by type+name, from filtered perms)
+    all_sec = sorted({(p.securable_type, p.securable_name) for p in _perms})
     sec_nid  = {k: f"UC{i}" for i, k in enumerate(all_sec)}
 
     def _sort_key(g: str) -> tuple:
@@ -185,11 +203,12 @@ def build_mermaid(
                 lbl = ", ".join(privs[:2]) + ("…" if len(privs) > 2 else "")
                 edge("DIRECT", ucid, label=lbl)
 
-    # UC hierarchy edges — structural dashed lines CATALOG -.-> SCHEMA -.-> TABLE
-    for (stype, sname) in sorted(sec_nid.keys()):
-        parent = _uc_parent_key(stype, sname)
-        if parent and parent in sec_nid:
-            edge(sec_nid[parent], sec_nid[(stype, sname)], dashed=True)
+    # UC hierarchy edges — structural dashed lines CATALOG -.-> SCHEMA (not in catalog-only view)
+    if not catalog_only:
+        for (stype, sname) in sorted(sec_nid.keys()):
+            parent = _uc_parent_key(stype, sname)
+            if parent and parent in sec_nid:
+                edge(sec_nid[parent], sec_nid[(stype, sname)], dashed=True)
 
     lines = ["graph LR"]
     lines.extend(node_lines)
@@ -234,7 +253,8 @@ _STYLE = """
     section { background: #fff; border-radius: 12px; padding: 22px 24px;
               margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
     section h2 { font-size: 15px; font-weight: 600; color: #3949ab;
-                 border-bottom: 2px solid #e8eaf6; padding-bottom: 10px; margin-bottom: 16px; }
+                 border-bottom: 2px solid #e8eaf6; padding-bottom: 10px; margin-bottom: 16px;
+                 display: flex; justify-content: space-between; align-items: center; }
 
     .mermaid { overflow-x: auto; text-align: center; padding: 8px 0; }
 
@@ -270,6 +290,11 @@ _STYLE = """
 
     footer { text-align:center; font-size:12px; color:#aaa; margin-top:24px; padding-bottom:16px; }
     a { color: #3949ab; }
+    .depth-btn { background:#e8eaf6; border:1px solid #9fa8da; border-radius:4px;
+                 color:#3949ab; cursor:pointer; font-size:12px; font-weight:600;
+                 padding:3px 10px; flex-shrink:0; }
+    .depth-btn:hover { background:#c5cae9; }
+    .trunc-note { font-size:12px; color:#aaa; font-style:italic; margin-top:8px; text-align:center; }
 """
 
 _SCRIPT = """
@@ -279,6 +304,25 @@ _SCRIPT = """
     themeVariables: { fontSize: '13px' },
     flowchart: { curve: 'basis', useMaxWidth: true }
   });
+  var _schRendered = false;
+  function toggleDepth() {
+    var wc = document.getElementById('wrap-cat');
+    var ws = document.getElementById('wrap-sch');
+    var btn = document.getElementById('depth-toggle');
+    if (wc.style.display !== 'none') {
+      wc.style.display = 'none';
+      ws.style.display = 'block';
+      btn.textContent = 'Catalog view';
+      if (!_schRendered) {
+        mermaid.run({ nodes: ws.querySelectorAll('.mermaid') });
+        _schRendered = true;
+      }
+    } else {
+      wc.style.display = 'block';
+      ws.style.display = 'none';
+      btn.textContent = 'Schema view';
+    }
+  }
 """
 
 
@@ -298,7 +342,11 @@ def render_html(
         else "internal (Databricks-managed)"
     )
 
-    diagram = build_mermaid(result, obj_grants)
+    diagram_cat = build_mermaid(result, obj_grants, catalog_only=True)
+    _n_schemas = len({p.securable_name for p in result.permissions if p.securable_type == "SCHEMA"})
+    _has_depth  = _n_schemas > 0
+    diagram_sch = build_mermaid(result, obj_grants, catalog_only=False) if _has_depth else None
+    _schemas_truncated = max(0, _n_schemas - _MAX_SCHEMAS_IN_CHART)
 
     # ── summary stats ─────────────────────────────────────────────────────────
     n_direct  = sum(1 for m in result.groups if m.is_direct)
@@ -493,10 +541,20 @@ def render_html(
   </header>
 
   <section>
-    <h2>Access graph</h2>
-    <div class="mermaid">
-{diagram}
+    <h2>Access graph{"" if not _has_depth else
+      ' <button id="depth-toggle" class="depth-btn" onclick="toggleDepth()">Schema view</button>'}</h2>
+    <div id="wrap-cat">
+      <div class="mermaid">
+{diagram_cat}
+      </div>
     </div>
+    {"" if not _has_depth else f'''<div id="wrap-sch" style="display:none">
+      <div class="mermaid">
+{diagram_sch}
+      </div>
+      {"" if not _schemas_truncated else
+        f'<p class="trunc-note">{_schemas_truncated} schema(s) not shown — see Unity Catalog permissions table.</p>'}
+    </div>'''}
   </section>
 
   <section>
