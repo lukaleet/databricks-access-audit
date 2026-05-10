@@ -73,10 +73,10 @@ The same two output modes work for `--group`, but organised around the group's a
 databricks-access-audit --group "data-engineers" --output html > data-engineers.html
 ```
 
-- **Access graph** — group → parent groups that grant it access (dashed) → workspaces and UC catalogs.
+- **Access graph** — group → parent groups that grant it access (dashed) → workspaces and UC catalogs. Add `--scan-schemas` to extend the chart with schema nodes: groups with `ALL_PRIVILEGES` on a catalog don't draw redundant schema-level edges — schemas connect to their parent catalog via dashed hierarchy edges instead.
 - **Redundancy highlighted** — amber warning stat + dedicated table when members hold personal grants the group already covers. Shown before the full grant list so it's hard to miss.
 - **Members table** — all users and SPs with direct/transitive and IdP/Databricks tags.
-- **UC grants table** — catalog, schema, and table grants combined with grant-source tags (Direct / Upstream / Member Direct).
+- **UC grants table** — catalog, schema, and table grants for the group itself, tagged `Direct` or `Upstream`. Member personal grants are not shown here — they appear exclusively in the redundancy section.
 
 ### `--tree`
 
