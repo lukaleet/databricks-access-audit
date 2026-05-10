@@ -1562,7 +1562,7 @@
 </code></pre></div>
 <p>Open <code>thomas.html</code> in a browser. You get:</p>
 <ul>
-<li><strong>Access graph</strong> — Mermaid flowchart: principal → groups (solid edges = direct, dashed = transitive) → workspaces and UC securables. The full path from identity to data in one diagram.</li>
+<li><strong>Access graph</strong> — Mermaid flowchart: principal → groups (solid edges = direct, dashed = transitive) → workspaces and UC securables. Catalogs connect to schemas via dashed hierarchy edges; groups with <code>ALL_PRIVILEGES</code> on a catalog don't repeat redundant schema-level arrows — the hierarchy edge implies them. Groups that grant only specific schemas still show their edges directly. The full path from identity to data in one diagram.</li>
 <li><strong>Summary stats</strong> — direct groups, transitive groups, workspaces, UC grants at a glance.</li>
 <li><strong>Data tables</strong> — group memberships, workspace access, UC permissions, workspace objects (if <code>--scan-workspace-objects</code> is set).</li>
 </ul>
@@ -1602,10 +1602,10 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--output<span class="w"> </span>html<span class="w"> </span>&gt;<span class="w"> </span>data-engineers.html
 </code></pre></div>
 <ul>
-<li><strong>Access graph</strong> — group → parent groups that grant it access (dashed) → workspaces and UC catalogs.</li>
+<li><strong>Access graph</strong> — group → parent groups that grant it access (dashed) → workspaces and UC catalogs. Add <code>--scan-schemas</code> to extend the chart with schema nodes: groups with <code>ALL_PRIVILEGES</code> on a catalog don't draw redundant schema-level edges — schemas connect to their parent catalog via dashed hierarchy edges instead.</li>
 <li><strong>Redundancy highlighted</strong> — amber warning stat + dedicated table when members hold personal grants the group already covers. Shown before the full grant list so it's hard to miss.</li>
 <li><strong>Members table</strong> — all users and SPs with direct/transitive and IdP/Databricks tags.</li>
-<li><strong>UC grants table</strong> — catalog, schema, and table grants combined with grant-source tags (Direct / Upstream / Member Direct).</li>
+<li><strong>UC grants table</strong> — catalog, schema, and table grants for the group itself, tagged <code>Direct</code> or <code>Upstream</code>. Member personal grants are not shown here — they appear exclusively in the redundancy section.</li>
 </ul>
 <h3 id="-tree_1"><code>--tree</code><a class="headerlink" href="#-tree_1" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--tree
