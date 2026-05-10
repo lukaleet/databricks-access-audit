@@ -18,7 +18,7 @@ databricks-access-audit --principal "thomas@company.com" --output html > thomas.
 
 Open `thomas.html` in a browser. You get:
 
-- **Access graph** — Mermaid flowchart: principal → groups (solid edges = direct, dashed = transitive) → workspaces and UC securables. Catalogs connect to schemas via dashed hierarchy edges; groups with `ALL_PRIVILEGES` on a catalog don't repeat redundant schema-level arrows — the hierarchy edge implies them. Groups that grant only specific schemas still show their edges directly. The full path from identity to data in one diagram.
+- **Access graph** — Mermaid flowchart: principal → groups (solid edges = direct, dashed = transitive) → workspaces and UC securables. Defaults to catalog-level view; a **Schema view** button renders a deeper diagram on demand (requires `--scan-schemas`). In schema view, catalogs connect to schemas via dashed hierarchy edges; groups with `ALL_PRIVILEGES` on a catalog don't repeat redundant schema-level arrows — the hierarchy edge implies them. Groups that grant only specific schemas still show their edges directly. Tables are not shown in the chart — they appear in the grants table below it.
 - **Summary stats** — direct groups, transitive groups, workspaces, UC grants at a glance.
 - **Data tables** — group memberships, workspace access, UC permissions, workspace objects (if `--scan-workspace-objects` is set).
 
@@ -73,7 +73,7 @@ The same two output modes work for `--group`, but organised around the group's a
 databricks-access-audit --group "data-engineers" --output html > data-engineers.html
 ```
 
-- **Access graph** — group → parent groups that grant it access (dashed) → workspaces and UC catalogs. Add `--scan-schemas` to extend the chart with schema nodes: groups with `ALL_PRIVILEGES` on a catalog don't draw redundant schema-level edges — schemas connect to their parent catalog via dashed hierarchy edges instead.
+- **Access graph** — group → parent groups that grant it access (dashed) → workspaces and UC catalogs. Defaults to catalog-level view; a **Schema view** button is unlocked when `--scan-schemas` is passed. In schema view, schemas connect to their parent catalog via dashed hierarchy edges; groups with `ALL_PRIVILEGES` on a catalog don't draw redundant schema-level edges — the hierarchy edge implies them.
 - **Redundancy highlighted** — amber warning stat + dedicated table when members hold personal grants the group already covers. Shown before the full grant list so it's hard to miss.
 - **Members table** — all users and SPs with direct/transitive and IdP/Databricks tags.
 - **UC grants table** — catalog, schema, and table grants for the group itself, tagged `Direct` or `Upstream`. Member personal grants are not shown here — they appear exclusively in the redundancy section.
