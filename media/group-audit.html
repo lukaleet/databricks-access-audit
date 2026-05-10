@@ -1,3 +1,8 @@
+Resolving group: dbw-databricks-developers ...
+  Found 1 users, 0 SPs
+  Scanning 1 workspace(s)
+  Found 10 catalog grant(s)
+  Found 30 schema grant(s)
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -73,7 +78,7 @@
       Databricks-managed (internal)
       <span class="badge">1 user</span>
       <span class="badge">0 service principals</span>
-      <span class="badge">2026-05-10 11:20 UTC</span>
+      <span class="badge">2026-05-10 11:37 UTC</span>
     </div>
   </header>
 
@@ -98,19 +103,66 @@ npb_analysis_catalog_old_backup_old_backup"]
 npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923"]
     UC4["📦 CATALOG
 npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753"]
+    SC0["📂 SCHEMA
+npb_analysis_catalog.bronze"]
+    SC1["📂 SCHEMA
+npb_analysis_catalog.gold"]
+    SC2["📂 SCHEMA
+npb_analysis_catalog.silver"]
+    SC3["📂 SCHEMA
+npb_analysis_catalog_old_backup.bronze"]
+    SC4["📂 SCHEMA
+npb_analysis_catalog_old_backup.gold"]
+    SC5["📂 SCHEMA
+npb_analysis_catalog_old_backup.silver"]
+    SC6["📂 SCHEMA
+npb_analysis_catalog_old_backup_old_backup.bronze"]
+    SC7["📂 SCHEMA
+npb_analysis_catalog_old_backup_old_backup.gold"]
+    SC8["📂 SCHEMA
+npb_analysis_catalog_old_backup_old_backup.silver"]
+    SC9["📂 SCHEMA
+npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.bronze"]
+    SC10["📂 SCHEMA
+npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.gold"]
+    SC11["📂 SCHEMA
+npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.silver"]
+    SC12["📂 SCHEMA
+npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.bronze"]
+    SC13["📂 SCHEMA
+npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.gold"]
+    SC14["📂 SCHEMA
+npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.silver"]
     G --> WS0
     G -- "ALL_PRIVILEGES" --> UC0
     G -- "ALL_PRIVILEGES" --> UC1
     G -- "ALL_PRIVILEGES" --> UC2
     G -- "ALL_PRIVILEGES" --> UC3
     G -- "ALL_PRIVILEGES" --> UC4
-    classDef group    fill:#2e7d32,color:#fff,stroke:#1b5e20,stroke-width:2px
-    classDef parent   fill:#81c784,color:#1b5e20,stroke:#388e3c,stroke-width:1px,stroke-dasharray:5
+    UC0 -..-> SC0
+    UC0 -..-> SC1
+    UC0 -..-> SC2
+    UC1 -..-> SC3
+    UC1 -..-> SC4
+    UC1 -..-> SC5
+    UC2 -..-> SC6
+    UC2 -..-> SC7
+    UC2 -..-> SC8
+    UC3 -..-> SC9
+    UC3 -..-> SC10
+    UC3 -..-> SC11
+    UC4 -..-> SC12
+    UC4 -..-> SC13
+    UC4 -..-> SC14
+    classDef group     fill:#2e7d32,color:#fff,stroke:#1b5e20,stroke-width:2px
+    classDef parent    fill:#81c784,color:#1b5e20,stroke:#388e3c,stroke-width:1px,stroke-dasharray:5
     classDef workspace fill:#b71c1c,color:#fff,stroke:#7f0000,stroke-width:2px
-    classDef catalog  fill:#e65100,color:#fff,stroke:#bf360c,stroke-width:2px
+    classDef catalog   fill:#e65100,color:#fff,stroke:#bf360c,stroke-width:2px
+    classDef schema_n  fill:#f57c00,color:#fff,stroke:#e65100,stroke-width:1px
     class G group
     class WS0 workspace
-    class UC0,UC1,UC2,UC3,UC4 catalog</div>
+    class UC0,UC1,UC2,UC3,UC4 catalog
+    class SC0,SC1,SC2,SC3,SC4,SC5,SC6,SC7,SC8,SC9,SC10,SC11,SC12,SC13,SC14 schema_n</div>
   </section>
 
   <section>
@@ -138,45 +190,25 @@ npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753"]
     <table>
       <tr><th>Level</th><th>Securable</th><th>Privileges</th>
           <th>Grant source</th><th>Workspace</th></tr>
-      <tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+      <tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup_old_backup</td><td><span class="tag t-priv">ALL_PRIVILEGES</span> <span class="tag t-priv">MANAGE</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup_old_backup</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
-<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
 <tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
     </table>
   </section>
@@ -187,7 +219,7 @@ npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753"]
     <pre style="background:#1e1e1e;color:#d4d4d4;padding:16px;border-radius:6px;
                 overflow-x:auto;font-size:13px;line-height:1.6">-- ==================================================================
 -- AUTO-GENERATED REVOKE SCRIPT
--- Generated: 2026-05-10T13:20:16.148031
+-- Generated: 2026-05-10T13:37:57.101591
 -- Review carefully before executing!
 -- ==================================================================
 
