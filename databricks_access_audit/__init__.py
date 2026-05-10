@@ -12,7 +12,7 @@ Quick start::
     node = resolver.resolve_group("data-engineers")
 """
 
-__version__ = "0.22.0"
+__version__ = "0.22.1"
 
 from databricks_access_audit._classification import build_member_lookups, classify_grant
 from databricks_access_audit.access_cloner import AccessCloner
