@@ -1,0 +1,59 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title></title>
+<style type="text/css">
+.ansi2html-content { display: inline; white-space: pre-wrap; word-wrap: break-word; }
+.body_foreground { color: #AAAAAA; }
+.body_background { background-color: #000000; }
+.inv_foreground { color: #000000; }
+.inv_background { background-color: #AAAAAA; }
+</style>
+</head>
+<body class="body_foreground body_background" style="font-size: normal;" >
+<pre class="ansi2html-content">
+Auditing principal: 2lukaszmaron@gmail.com ...
+  Escalation check: 0 finding(s)
+
+============================================================
+  Principal: Łukasz Maroń (USER, external)
+============================================================
+
+  Group memberships (1, 0 IdP-synced, 1 Databricks-managed):
+    * account users (direct, internal)
+      path: Łukasz Maroń -&gt; account users
+
+  Workspace access (1):
+    * dbw-databricks-nbp-dev: ADMIN (direct)
+
+  UC-only groups (1):
+    (no workspace assignment — access via Unity Catalog grants only)
+    - account users
+
+  UC permissions (15):
+    * [CATALOG] npb_analysis_catalog_old_backup_old_backup  USE_CATALOG, USE_SCHEMA  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+    * [SCHEMA] npb_analysis_catalog_old_backup_old_backup.information_schema  USE_SCHEMA  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+    * [SCHEMA] npb_analysis_catalog.information_schema  USE_SCHEMA  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+    * [CATALOG] npb_analysis_catalog_old_backup  USE_CATALOG, USE_SCHEMA  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+    * [SCHEMA] npb_analysis_catalog_old_backup.information_schema  USE_SCHEMA  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+    * [CATALOG] npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923  USE_CATALOG, USE_SCHEMA  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+    * [SCHEMA] npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.information_schema  USE_SCHEMA  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+    * [CATALOG] npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753  USE_CATALOG, USE_SCHEMA  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+    * [SCHEMA] npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.information_schema  USE_SCHEMA  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+    * [SCHEMA] dbw_databricks_nbp_dev.information_schema  USE_SCHEMA  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+    * [CATALOG] samples  EXECUTE, READ_VOLUME, SELECT, USE_CATALOG, USE_SCHEMA  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+    * [SCHEMA] samples.information_schema  USE_SCHEMA  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+    * [CATALOG] system  USE_CATALOG  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+    * [SCHEMA] system.ai  EXECUTE, READ_VOLUME, SELECT, USE_SCHEMA  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+    * [SCHEMA] system.information_schema  USE_SCHEMA  [Łukasz Maroń → account users]  @ dbw-databricks-nbp-dev
+
+  Escalation risks (0):
+    No escalation risks found.
+
+============================================================
+
+</pre>
+</body>
+
+</html>

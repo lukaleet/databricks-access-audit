@@ -1,0 +1,62 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title></title>
+<style type="text/css">
+.ansi2html-content { display: inline; white-space: pre-wrap; word-wrap: break-word; }
+.body_foreground { color: #AAAAAA; }
+.body_background { background-color: #000000; }
+.inv_foreground { color: #000000; }
+.inv_background { background-color: #AAAAAA; }
+</style>
+</head>
+<body class="body_foreground body_background" style="font-size: normal;" >
+<pre class="ansi2html-content">
+Resolving group: dbw-databricks-developers ...
+  Found 1 users, 0 SPs
+  Scanning 1 workspace(s)
+  Found 10 catalog grant(s)
+  Found 30 schema grant(s)
+
+============================================================
+  Audit complete for group: dbw-databricks-developers
+  Users: 1 (1 IdP-synced, 0 Databricks-managed)  |  SPs: 0 (0 IdP-synced, 0 Databricks-managed)
+  Catalog grants: 10  |  Schema: 30  |  Table: 0
+  Redundancy: 4 full, 1 partial
+
+  Top 1 member(s) by personal grants:
+    1. 2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com  —  5 grant(s)  [Full redundancy]
+============================================================
+
+-- ==================================================================
+-- AUTO-GENERATED REVOKE SCRIPT
+-- Generated: 2026-05-10T11:26:41.690734
+-- Review carefully before executing!
+-- ==================================================================
+
+-- [PARTIAL REDUNDANCY] 2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com on npb_analysis_catalog_old_backup_old_backup
+-- Redundant: ['ALL_PRIVILEGES']
+-- Kept:      ['MANAGE']
+-- REVOKE ALL_PRIVILEGES ON CATALOG `npb_analysis_catalog_old_backup_old_backup` FROM `2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com`;
+
+-- [FULL REDUNDANCY] 2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com on npb_analysis_catalog
+REVOKE ALL_PRIVILEGES ON CATALOG `npb_analysis_catalog` FROM `2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com`;
+
+-- [FULL REDUNDANCY] 2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com on npb_analysis_catalog_old_backup
+REVOKE ALL_PRIVILEGES ON CATALOG `npb_analysis_catalog_old_backup` FROM `2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com`;
+
+-- [FULL REDUNDANCY] 2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com on npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923
+REVOKE ALL_PRIVILEGES ON CATALOG `npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923` FROM `2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com`;
+
+-- [FULL REDUNDANCY] 2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com on npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753
+REVOKE ALL_PRIVILEGES ON CATALOG `npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753` FROM `2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com`;
+
+-- ------------------------------------------------------------------
+-- Summary: 4 full revoke(s), 1 partial (commented)
+-- ------------------------------------------------------------------
+
+</pre>
+</body>
+
+</html>

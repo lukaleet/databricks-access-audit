@@ -36,6 +36,7 @@ def build_group_mermaid(
     group_node: "GroupNode",
     members: dict,
     catalog_grants: List["CatalogGrant"],
+    schema_grants: List["SchemaGrant"] = None,
 ) -> str:
     """Return Mermaid LR flowchart for the group access footprint."""
     from databricks_access_audit.models import GrantSource
@@ -45,7 +46,7 @@ def build_group_mermaid(
     seen_nodes: set[str] = set()
     seen_edges: set[tuple] = set()
     class_map: dict[str, list[str]] = {
-        "group": [], "parent": [], "workspace": [], "catalog": [],
+        "group": [], "parent": [], "workspace": [], "catalog": [], "schema_n": [],
     }
 
     def node(nid: str, label: str, cls: str) -> None:
@@ -95,24 +96,53 @@ def build_group_mermaid(
             for priv in g.privileges:
                 if priv not in direct_cats.setdefault(g.catalog_name, []):
                     direct_cats[g.catalog_name].append(priv)
-    for i, (cat_name, privs) in enumerate(sorted(direct_cats.items())[:8]):
+    shown_cats = sorted(direct_cats.keys())[:8]
+    cat_nid: Dict[str, str] = {}
+    for i, cat_name in enumerate(shown_cats):
         cid = f"UC{i}"
+        cat_nid[cat_name] = cid
         node(cid, f"📦 CATALOG\n{cat_name}", "catalog")
+        privs = direct_cats[cat_name]
         lbl = ", ".join(privs[:2]) + ("…" if len(privs) > 2 else "")
         edge("G", cid, label=lbl)
     if len(direct_cats) > 8:
         node("UCmore", f"📦 +{len(direct_cats) - 8} more catalogs", "catalog")
         edge("G", "UCmore")
 
+    # Catalogs where the group holds ALL_PRIVILEGES directly (used for schema collapse)
+    all_priv_cats = {cat for cat, privs in direct_cats.items() if "ALL_PRIVILEGES" in privs}
+
+    # Schema nodes — DIRECT grants only, for shown catalogs, cap at 20
+    if schema_grants:
+        merged_schemas: Dict[tuple, list] = {}
+        for sg in schema_grants:
+            if sg.grant_source != GrantSource.DIRECT or sg.catalog_name not in cat_nid:
+                continue
+            key = (sg.catalog_name, sg.schema_name)
+            for p in sg.privileges:
+                if p not in merged_schemas.setdefault(key, []):
+                    merged_schemas[key].append(p)
+        shown_schemas = sorted(merged_schemas.keys())[:20]
+        for j, (cat_name, sch_name) in enumerate(shown_schemas):
+            privs = merged_schemas[(cat_name, sch_name)]
+            scid = f"SC{j}"
+            node(scid, f"📂 SCHEMA\n{cat_name}.{sch_name}", "schema_n")
+            if cat_name not in all_priv_cats:
+                lbl = ", ".join(privs[:2]) + ("…" if len(privs) > 2 else "")
+                edge("G", scid, label=lbl)
+            edge(cat_nid[cat_name], scid, dashed=True)
+        # overflow schemas are noted in the stats section — no dangling node needed
+
     lines = ["graph LR"]
     lines.extend(node_lines)
     lines.extend(edge_lines)
     lines += [
-        "    classDef group    fill:#2e7d32,color:#fff,stroke:#1b5e20,stroke-width:2px",
-        "    classDef parent   fill:#81c784,color:#1b5e20,stroke:#388e3c,"
+        "    classDef group     fill:#2e7d32,color:#fff,stroke:#1b5e20,stroke-width:2px",
+        "    classDef parent    fill:#81c784,color:#1b5e20,stroke:#388e3c,"
         "stroke-width:1px,stroke-dasharray:5",
         "    classDef workspace fill:#b71c1c,color:#fff,stroke:#7f0000,stroke-width:2px",
-        "    classDef catalog  fill:#e65100,color:#fff,stroke:#bf360c,stroke-width:2px",
+        "    classDef catalog   fill:#e65100,color:#fff,stroke:#bf360c,stroke-width:2px",
+        "    classDef schema_n  fill:#f57c00,color:#fff,stroke:#e65100,stroke-width:1px",
     ]
     for cls, nids in class_map.items():
         if nids:
@@ -138,7 +168,8 @@ _STYLE = """
     section { background: #fff; border-radius: 12px; padding: 22px 24px;
               margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
     section h2 { font-size: 15px; font-weight: 600; color: #2e7d32;
-                 border-bottom: 2px solid #e8f5e9; padding-bottom: 10px; margin-bottom: 16px; }
+                 border-bottom: 2px solid #e8f5e9; padding-bottom: 10px; margin-bottom: 16px;
+                 display: flex; justify-content: space-between; align-items: center; }
 
     .mermaid { overflow-x: auto; text-align: center; padding: 8px 0; }
 
@@ -179,6 +210,12 @@ _STYLE = """
     .empty { color: #aaa; font-style: italic; }
     footer { text-align:center; font-size:12px; color:#aaa; margin-top:24px; padding-bottom:16px; }
     a { color: #2e7d32; }
+    .depth-btn { background:#e8f5e9; border:1px solid #a5d6a7; border-radius:4px;
+                 color:#2e7d32; cursor:pointer; font-size:12px; font-weight:600;
+                 padding:3px 10px; flex-shrink:0; }
+    .depth-btn:hover { background:#c8e6c9; }
+    .trunc-note { font-size:12px; color:#aaa; font-style:italic;
+                  margin-top:8px; text-align:center; }
 """
 
 _SCRIPT = """
@@ -188,6 +225,30 @@ _SCRIPT = """
     themeVariables: { fontSize: '13px' },
     flowchart: { curve: 'basis', useMaxWidth: true }
   });
+  var _schRendered = false;
+  function toggleDepth() {
+    var wc = document.getElementById('wrap-cat');
+    var ws = document.getElementById('wrap-sch');
+    var btn = document.getElementById('depth-toggle');
+    if (wc.style.display !== 'none') {
+      wc.style.display = 'none';
+      ws.style.display = 'block';
+      btn.textContent = 'Catalog view';
+      if (!_schRendered) {
+        var src = document.getElementById('sch-src').textContent.trim();
+        var div = document.createElement('div');
+        div.className = 'mermaid';
+        div.textContent = src;
+        ws.appendChild(div);
+        mermaid.run({ nodes: [div] });
+        _schRendered = true;
+      }
+    } else {
+      wc.style.display = 'block';
+      ws.style.display = 'none';
+      btn.textContent = 'Schema view';
+    }
+  }
 """
 
 
@@ -203,6 +264,7 @@ def render_group_html(
     workspace_object_grants: List["WorkspaceObjectGrant"],
     redundancy: List["RedundancyResult"],
     show_workspace_objects: bool = False,
+    revoke_sql: str = "",
 ) -> str:
 
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -218,7 +280,15 @@ def render_group_html(
     n_part  = sum(1 for r in redundancy if r.redundancy_level.value == "Partial")
     n_redun = n_full + n_part
 
-    diagram = build_group_mermaid(group_name, group_node, members, catalog_grants)
+    diagram_cat = build_group_mermaid(
+        group_name, group_node, members, catalog_grants, schema_grants=None)
+    _has_depth  = bool(schema_grants)
+    diagram_sch = (
+        build_group_mermaid(group_name, group_node, members, catalog_grants, schema_grants)
+        if _has_depth else None
+    )
+    _n_schemas_total = len({sg.schema_name for sg in schema_grants}) if schema_grants else 0
+    _schemas_truncated = max(0, _n_schemas_total - 20)
 
     # ── stats ─────────────────────────────────────────────────────────────────
     def stat(n: int, label: str, warn: bool = False) -> str:
@@ -286,16 +356,19 @@ def render_group_html(
         rows = []
         all_grants = (
             [(g.catalog_name, "", "", g.workspace_name, g.privileges, g.grant_source, "CATALOG")
-             for g in catalog_grants]
+             for g in catalog_grants
+             if g.grant_source.value != "Member Direct"]
             + [
                 (g.catalog_name, g.schema_name, "", g.workspace_name,
                  g.privileges, g.grant_source, "SCHEMA")
                 for g in schema_grants
+                if g.grant_source.value != "Member Direct"
             ]
             + [
                 (g.catalog_name, g.schema_name, g.table_name, g.workspace_name,
                  g.privileges, g.grant_source, "TABLE")
                 for g in table_grants
+                if g.grant_source.value != "Member Direct"
             ]
         )
         if not all_grants:
@@ -412,8 +485,20 @@ def render_group_html(
   </section>
 
   <section>
-    <h2>Access graph</h2>
-    <div class="mermaid">{diagram}</div>
+    <h2>Access graph{"" if not _has_depth else
+      ' <button id="depth-toggle" class="depth-btn"'
+      ' onclick="toggleDepth()">Schema view</button>'}</h2>
+    <div id="wrap-cat">
+      <div class="mermaid">{diagram_cat}</div>
+    </div>
+    {"" if not _has_depth else f'''<script type="text/plain" id="sch-src">
+{diagram_sch}
+    </script>
+    <div id="wrap-sch" style="display:none">
+      {"" if not _schemas_truncated else
+        f'<p class="trunc-note">{_schemas_truncated} schema(s) not shown'
+        f' — see Unity Catalog grants table.</p>'}
+    </div>'''}
   </section>
 {redundancy_section}
   <section>
@@ -433,6 +518,12 @@ def render_group_html(
     </table>
   </section>
 {obj_section}
+
+  {f'''<section>
+    <h2>REVOKE Script</h2>
+    <pre style="background:#1e1e1e;color:#d4d4d4;padding:16px;border-radius:6px;
+                overflow-x:auto;font-size:13px;line-height:1.6">{_e(revoke_sql.strip())}</pre>
+  </section>''' if revoke_sql.strip() else ""}
 
   <footer>
     Generated by <a href="https://github.com/lukaleet/databricks-access-audit">databricks-access-audit</a>

@@ -117,6 +117,78 @@ class PrincipalAuditor:
         raise ValueError(f"Principal '{identifier}' not found as user, SP, or group.")
 
     # ------------------------------------------------------------------
+    # Step 1b — Alternate identity resolution (B2B guest users)
+    # ------------------------------------------------------------------
+
+    def _resolve_alternate_identities(
+        self,
+        principal_type: str,
+        principal_id: str,
+        principal_name: str,
+        external_id: Optional[str],
+        workspaces: List[WorkspaceInfo],
+        max_workers: int = 8,
+    ) -> Tuple[Set[str], Set[str]]:
+        """Discover alternate account SCIM records for the same physical person.
+
+        Azure AD B2B guest users appear in workspace SCIM under a guest UPN
+        (e.g. ``user_gmail.com#EXT#@tenant.onmicrosoft.com``) that is a
+        *different* account SCIM record from their home-tenant email record.
+        Group memberships and UC grants may be stored against either identity.
+
+        Strategy:
+        1. Search workspace SCIM on each workspace by ``externalId`` (supported
+           there) to discover B2B UPN aliases.
+        2. Look each alias up in account SCIM by ``userName`` (supported) to get
+           the alternate account SCIM ID for BFS.
+
+        Returns ``(alternate_account_ids, alternate_usernames)``.
+        """
+        if principal_type != "USER" or not workspaces:
+            return set(), set()
+
+        # Step 1 — collect B2B UPN aliases from all workspaces in parallel
+        known: Set[str] = {principal_name}
+        ws_aliases: Set[str] = set()
+
+        def _aliases_for_ws(ws: WorkspaceInfo) -> Set[str]:
+            return self._get_workspace_principal_aliases(
+                ws.workspace_url, principal_type, principal_id,
+                known_identities=known,
+                external_id=external_id,
+            )
+
+        with ThreadPoolExecutor(max_workers=min(max_workers, len(workspaces))) as ex:
+            for result in ex.map(_aliases_for_ws, workspaces):
+                ws_aliases |= result
+
+        if not ws_aliases:
+            return set(), set()
+
+        # Step 2 — look up each alias in account SCIM by userName
+        alt_ids: Set[str] = set()
+        for username in ws_aliases:
+            try:
+                resp = self.api.account_api(
+                    "GET", "/scim/v2/Users",
+                    params={"filter": f'userName eq "{_scim_filter_escape(username)}"'},
+                )
+                for u in resp.get("Resources", []):
+                    uid = u.get("id", "")
+                    if uid and uid != principal_id:
+                        alt_ids.add(uid)
+                        log.info(
+                            "Alternate account SCIM record for %s: id=%s userName=%s",
+                            principal_name, uid, username,
+                        )
+            except Exception as exc:
+                log.debug(
+                    "Account SCIM userName lookup for '%s' failed: %s", username, exc,
+                )
+
+        return alt_ids, ws_aliases
+
+    # ------------------------------------------------------------------
     # Step 2 — Reverse group membership (BFS upward)
     # ------------------------------------------------------------------
 
@@ -537,8 +609,40 @@ class PrincipalAuditor:
         log.info("Principal: %s (%s, id=%s, source=%s)", pname, ptype, pid,
                  "external" if p_ext_id else "internal")
 
-        # 2. Resolve group memberships
+        # 2. Discover workspaces (moved before BFS so alias resolution can use
+        # workspace SCIM to find B2B guest UPN records)
+        workspaces = self.ws_discovery.discover(explicit_workspace_urls)
+
+        # 1b. Alternate identity resolution — Azure AD B2B guests appear in
+        # workspace SCIM under a guest UPN that is a separate account SCIM record.
+        # Group memberships and UC grants may be stored against that identity.
+        # Uses workspace SCIM (externalId filter supported) → account SCIM by userName.
+        alt_ids: Set[str] = set()
+        alt_uc_names: Set[str] = set()
+        if ptype == "USER":
+            alt_ids, alt_uc_names = self._resolve_alternate_identities(
+                ptype, pid, pname, p_ext_id, workspaces, max_workers,
+            )
+            if alt_ids:
+                log.info(
+                    "Found %d alternate identity record(s) for %s",
+                    len(alt_ids), pname,
+                )
+
+        # 3. Resolve group memberships — BFS from primary ID, then from any alternate
+        # IDs (B2B guest records); merge, deduplicating by group_id.
         memberships, id_to_name = self.resolve_group_memberships(pid, ptype, pname)
+        if alt_ids:
+            seen_group_ids = {m.group_id for m in memberships}
+            for alt_id in alt_ids:
+                alt_memberships, alt_id_map = self.resolve_group_memberships(
+                    alt_id, ptype, pname,
+                )
+                id_to_name.update(alt_id_map)
+                for m in alt_memberships:
+                    if m.group_id not in seen_group_ids:
+                        memberships.append(m)
+                        seen_group_ids.add(m.group_id)
         group_ids = {m.group_id for m in memberships}
         group_names = {m.group_name for m in memberships}
         log.info("Found %d group membership(s)", len(memberships))
@@ -547,9 +651,6 @@ class PrincipalAuditor:
         # workspace and UC grant match site; zero additional API calls.
         group_id_to_path: Dict[str, List[str]] = {m.group_id: m.path for m in memberships}
         group_name_to_path: Dict[str, List[str]] = {m.group_name: m.path for m in memberships}
-
-        # 3. Discover workspaces
-        workspaces = self.ws_discovery.discover(explicit_workspace_urls)
 
         # 4. Workspace assignments
         ws_roles = self.get_workspace_assignments(
@@ -595,7 +696,10 @@ class PrincipalAuditor:
         # 6. Scan UC permissions
         # p_uc_name may differ from pname for Azure AD guest users whose UC
         # grants are stored under their tenant UPN (user_gmail.com#ext#@tenant).
+        # alt_uc_names adds userNames from any alternate account SCIM records
+        # (B2B guest UPNs) so direct grants stored under those identities are found.
         aliases: Set[str] = {p_uc_name} if p_uc_name != pname else set()
+        aliases |= alt_uc_names
         perms = self.scan_permissions(
             ws_roles, pname, group_names,
             scan_schemas=scan_schemas or scan_tables,
