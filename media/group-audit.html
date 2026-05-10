@@ -79,7 +79,7 @@
       Databricks-managed (internal)
       <span class="badge">1 user</span>
       <span class="badge">0 service principals</span>
-      <span class="badge">2026-05-10 18:07 UTC</span>
+      <span class="badge">2026-05-10 18:24 UTC</span>
     </div>
   </header>
 
@@ -120,8 +120,8 @@ npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753"]
     class WS0 workspace
     class UC0,UC1,UC2,UC3,UC4 catalog</div>
     </div>
-    <div id="wrap-sch" style="display:none">
-      <div class="mermaid">graph LR
+    <script type="text/plain" id="sch-src">
+graph LR
     G["👥 dbw-databricks-developers
 Databricks · 1 members"]
     WS0["🏢 dbw-databricks-nbp-dev"]
@@ -194,7 +194,9 @@ npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.silver"]
     class G group
     class WS0 workspace
     class UC0,UC1,UC2,UC3,UC4 catalog
-    class SC0,SC1,SC2,SC3,SC4,SC5,SC6,SC7,SC8,SC9,SC10,SC11,SC12,SC13,SC14 schema_n</div>
+    class SC0,SC1,SC2,SC3,SC4,SC5,SC6,SC7,SC8,SC9,SC10,SC11,SC12,SC13,SC14 schema_n
+    </script>
+    <div id="wrap-sch" style="display:none">
       
     </div>
   </section>
@@ -253,7 +255,7 @@ npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.silver"]
     <pre style="background:#1e1e1e;color:#d4d4d4;padding:16px;border-radius:6px;
                 overflow-x:auto;font-size:13px;line-height:1.6">-- ==================================================================
 -- AUTO-GENERATED REVOKE SCRIPT
--- Generated: 2026-05-10T20:07:17.827001
+-- Generated: 2026-05-10T20:24:07.201893
 -- Review carefully before executing!
 -- ==================================================================
 
@@ -301,7 +303,12 @@ REVOKE ALL_PRIVILEGES ON CATALOG `npb_analysis_catalog_old_backup_old_backup_fai
       ws.style.display = 'block';
       btn.textContent = 'Catalog view';
       if (!_schRendered) {
-        mermaid.run({ nodes: ws.querySelectorAll('.mermaid') });
+        var src = document.getElementById('sch-src').textContent.trim();
+        var div = document.createElement('div');
+        div.className = 'mermaid';
+        div.textContent = src;
+        ws.appendChild(div);
+        mermaid.run({ nodes: [div] });
         _schRendered = true;
       }
     } else {

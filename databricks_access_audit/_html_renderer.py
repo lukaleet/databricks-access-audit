@@ -314,7 +314,12 @@ _SCRIPT = """
       ws.style.display = 'block';
       btn.textContent = 'Catalog view';
       if (!_schRendered) {
-        mermaid.run({ nodes: ws.querySelectorAll('.mermaid') });
+        var src = document.getElementById('sch-src').textContent.trim();
+        var div = document.createElement('div');
+        div.className = 'mermaid';
+        div.textContent = src;
+        ws.appendChild(div);
+        mermaid.run({ nodes: [div] });
         _schRendered = true;
       }
     } else {
@@ -548,10 +553,10 @@ def render_html(
 {diagram_cat}
       </div>
     </div>
-    {"" if not _has_depth else f'''<div id="wrap-sch" style="display:none">
-      <div class="mermaid">
+    {"" if not _has_depth else f'''<script type="text/plain" id="sch-src">
 {diagram_sch}
-      </div>
+    </script>
+    <div id="wrap-sch" style="display:none">
       {"" if not _schemas_truncated else
         f'<p class="trunc-note">{_schemas_truncated} schema(s) not shown — see Unity Catalog permissions table.</p>'}
     </div>'''}
