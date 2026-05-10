@@ -238,7 +238,7 @@ databricks-access-audit --principal "alice@company.com" --tree
 databricks-access-audit --group "data-engineers" --tree
 ```
 
-The HTML output is self-contained — one file, no server required. The tree output is useful for CI logs, Slack messages, and incident tickets.
+The HTML output is self-contained — one file, no server required. The chart defaults to a catalog-level view; a **Schema view** toggle renders a deeper diagram on demand (requires `--scan-schemas`). The tree output is useful for CI logs, Slack messages, and incident tickets.
 
 See [Visualizing Access](use-cases/access-map.md) for examples and when to use each format.
 
