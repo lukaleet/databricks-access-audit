@@ -5,6 +5,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.22.0] - 2026-05-10
+
+### Added
+- **UC hierarchy in principal audit HTML chart** — catalog nodes connect to schema nodes via dashed structural edges. Groups with `ALL_PRIVILEGES` on a catalog no longer draw redundant schema-level arrows; hierarchy edges imply them. Collapse is conservative: only suppressed when the same group holds `ALL_PRIVILEGES` on the direct parent, so no information is lost.
+- **Schema hierarchy in group audit HTML chart** — group audit Mermaid chart now includes schema nodes when `--scan-schemas` is used, using the same conservative collapse logic.
+- **Depth toggle on HTML charts** — both principal and group HTML output now have a "Schema view" / "Catalog view" toggle button. Catalog view (default) always stays readable; schema view renders lazily on first click via `mermaid.run()` so the catalog diagram is never blocked by hidden-element rendering issues.
+- **Azure AD B2B guest UPN identity resolution** — `--principal` now correctly resolves B2B guest identities. When a principal has a home-tenant email (e.g. `alice@gmail.com`) and a guest UPN (e.g. `alice_gmail.com#EXT#@tenant.onmicrosoft.com`), the tool now chains: workspace SCIM `externalId` filter → account SCIM `userName` filter to discover all alternate SCIM IDs. BFS is run from each ID and merged, so UC grants and group memberships stored against either identity are surfaced.
+- **REVOKE SQL embedded in group audit HTML** — `--revoke-script --output html` now embeds the generated SQL in a dark `<pre>` block inside the HTML report instead of appending raw text after `</html>`.
+- **Built-in group styling** — `account users` and `admins` are styled separately in the principal audit chart (grey dashed nodes) with a "built-in" badge in the group memberships table.
+
+### Changed
+- **Group audit UC grants table** — `Member Direct` rows removed from the HTML grants table. Member personal grants are already fully covered by the redundancy section; mixing them into the group grants table conflated two different questions and exploded at scale. `Member Direct` grants continue to appear in `--output csv`, `--output text`, and `--output json`.
+- **HTML table overflow** — long securable names no longer break table layout (`word-break: break-word`, `overflow-wrap: anywhere`, `max-width: 340px` on `td`; tables wrapped in `overflow-x: auto`).
+- Principal audit HTML progress messages (`Auditing principal: ...`) routed to stderr for non-text output formats so they never appear in redirected HTML files.
+
+### Fixed
+- `--revoke-script --output html` no longer prints raw SQL to stdout after the HTML closing tag.
+
+### Tests
+- 570 tests (unchanged count — all existing tests pass against new renderer behaviour).
+
+---
+
 ## [0.21.0] - 2026-05-09
 
 ### Fixed
