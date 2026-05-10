@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.22.1] - 2026-05-10
+
+### Fixed
+- Documentation corrections: test count in CLAUDE.md (477 → 570), depth toggle description in `capabilities.md` and `docs/use-cases/access-map.md`.
+
+---
+
 ## [0.22.0] - 2026-05-10
 
 ### Added
