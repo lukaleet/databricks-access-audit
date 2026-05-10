@@ -1099,12 +1099,17 @@ def _run_group_audit(args: argparse.Namespace) -> int:
 
     if args.output == "html":
         from databricks_access_audit._group_html_renderer import render_group_html
+        _revoke_sql = (
+            RevokeScriptGenerator.generate(redundancy, include_partial=True)
+            if args.revoke_script else ""
+        )
         print(render_group_html(
             args.group, group_node, members,
             catalog_grants, schema_grants, table_grants,
             workspace_object_grants or [],
             redundancy,
             show_workspace_objects=args.scan_workspace_objects,
+            revoke_sql=_revoke_sql,
         ))
     elif getattr(args, "tree", False):
         from databricks_access_audit._group_tree_renderer import render_group_tree
@@ -1218,7 +1223,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
 
         print(f"{'='*60}")
 
-    if args.revoke_script:
+    if args.revoke_script and args.output != "html":
         print("\n" + RevokeScriptGenerator.generate(redundancy, include_partial=True))
 
     return 0

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Group audit — dbw-databricks-developers</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #f0f2f5; color: #1a1a2e; }
+    .wrapper { max-width: 1400px; margin: 0 auto; padding: 32px 20px; }
+
+    header { background: linear-gradient(135deg, #1b5e20, #2e7d32);
+             color: #fff; border-radius: 12px; padding: 26px 30px; margin-bottom: 22px; }
+    header h1 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .meta { font-size: 13px; opacity: .85; }
+    .badge { display:inline-block; background:rgba(255,255,255,.2); border-radius:4px;
+             padding:1px 8px; margin-left:6px; font-size:12px; }
+
+    section { background: #fff; border-radius: 12px; padding: 22px 24px;
+              margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+    section h2 { font-size: 15px; font-weight: 600; color: #2e7d32;
+                 border-bottom: 2px solid #e8f5e9; padding-bottom: 10px; margin-bottom: 16px; }
+
+    .mermaid { overflow-x: auto; text-align: center; padding: 8px 0; }
+
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+             gap: 12px; }
+    .stat { background: #e8f5e9; border-radius: 10px; padding: 16px 12px; text-align: center; }
+    .stat .n { font-size: 30px; font-weight: 800; color: #2e7d32; line-height: 1; }
+    .stat .l { font-size: 11px; color: #666; margin-top: 5px; text-transform: uppercase;
+               letter-spacing: .04em; }
+    .stat.warn .n { color: #e65100; }
+    .stat.warn { background: #fff3e0; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #e8f5e9; color: #2e7d32; font-weight: 600;
+         padding: 9px 13px; text-align: left; white-space: nowrap; }
+    td { padding: 8px 13px; border-bottom: 1px solid #f5f5f5; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f9fff9; }
+
+    .tag { display:inline-block; border-radius:4px; padding:1px 7px; font-size:11px;
+           font-weight:600; margin:1px 2px; white-space:nowrap; }
+    .t-direct   { background:#e8f5e9; color:#2e7d32; }
+    .t-transit  { background:#f1f8e9; color:#558b2f; }
+    .t-upstream { background:#e3f2fd; color:#1565c0; }
+    .t-member   { background:#fce4ec; color:#880e4f; }
+    .t-ext      { background:#e3f2fd; color:#1565c0; }
+    .t-int      { background:#ede7f6; color:#4527a0; }
+    .t-priv     { background:#fff8e1; color:#e65100; font-family:monospace; }
+    .t-full     { background:#ffebee; color:#b71c1c; font-weight:700; }
+    .t-partial  { background:#fff3e0; color:#e65100; }
+    .t-cat      { background:#e8f5e9; color:#2e7d32; }
+    .t-sch      { background:#e3f2fd; color:#1565c0; }
+    .t-tbl      { background:#fff8e1; color:#e65100; }
+
+    .redundancy-banner { background: #fff8e1; border: 1px solid #ffcc02;
+                         border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;
+                         font-size: 13px; color: #5d4037; }
+    .empty { color: #aaa; font-style: italic; }
+    footer { text-align:center; font-size:12px; color:#aaa; margin-top:24px; padding-bottom:16px; }
+    a { color: #2e7d32; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <h1>👥 dbw-databricks-developers</h1>
+    <div class="meta">
+      Databricks-managed (internal)
+      <span class="badge">1 user</span>
+      <span class="badge">0 service principals</span>
+      <span class="badge">2026-05-10 11:20 UTC</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>Overview</h2>
+    <div class="stats"><div class="stat"><div class="n">1</div><div class="l">users</div></div><div class="stat"><div class="n">0</div><div class="l">service principals</div></div><div class="stat"><div class="n">10</div><div class="l">catalog grants</div></div><div class="stat"><div class="n">30</div><div class="l">schema grants</div></div><div class="stat warn"><div class="n">5</div><div class="l">redundant grants</div></div></div>
+  </section>
+
+  <section>
+    <h2>Access graph</h2>
+    <div class="mermaid">graph LR
+    G["👥 dbw-databricks-developers
+Databricks · 1 members"]
+    WS0["🏢 dbw-databricks-nbp-dev"]
+    UC0["📦 CATALOG
+npb_analysis_catalog"]
+    UC1["📦 CATALOG
+npb_analysis_catalog_old_backup"]
+    UC2["📦 CATALOG
+npb_analysis_catalog_old_backup_old_backup"]
+    UC3["📦 CATALOG
+npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923"]
+    UC4["📦 CATALOG
+npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753"]
+    G --> WS0
+    G -- "ALL_PRIVILEGES" --> UC0
+    G -- "ALL_PRIVILEGES" --> UC1
+    G -- "ALL_PRIVILEGES" --> UC2
+    G -- "ALL_PRIVILEGES" --> UC3
+    G -- "ALL_PRIVILEGES" --> UC4
+    classDef group    fill:#2e7d32,color:#fff,stroke:#1b5e20,stroke-width:2px
+    classDef parent   fill:#81c784,color:#1b5e20,stroke:#388e3c,stroke-width:1px,stroke-dasharray:5
+    classDef workspace fill:#b71c1c,color:#fff,stroke:#7f0000,stroke-width:2px
+    classDef catalog  fill:#e65100,color:#fff,stroke:#bf360c,stroke-width:2px
+    class G group
+    class WS0 workspace
+    class UC0,UC1,UC2,UC3,UC4 catalog</div>
+  </section>
+
+  <section>
+    <h2>⚠️ Redundant personal grants</h2>
+    <div class="redundancy-banner">⚠️ <strong>4 full</strong> and <strong>1 partial</strong> redundant personal grants detected — members hold catalog grants already covered by this group. Run <code>--revoke-script</code> to generate REVOKE SQL.</div>
+    <table>
+      <tr><th>Member</th><th>Catalog</th><th>Overlap</th><th>Redundant privileges</th></tr>
+      <tr><td>2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com</td><td>npb_analysis_catalog</td><td><span class="tag t-full">Full</span></td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td></tr>
+<tr><td>2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com</td><td>npb_analysis_catalog_old_backup</td><td><span class="tag t-full">Full</span></td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td></tr>
+<tr><td>2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com</td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923</td><td><span class="tag t-full">Full</span></td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td></tr>
+<tr><td>2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com</td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753</td><td><span class="tag t-full">Full</span></td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td></tr>
+<tr><td>2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com</td><td>npb_analysis_catalog_old_backup_old_backup</td><td><span class="tag t-partial">Partial</span></td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td></tr>
+    </table>
+  </section>
+  <section>
+    <h2>Members</h2>
+    <table>
+      <tr><th>Name</th><th>Type</th><th>Membership</th><th>Source</th></tr>
+      <tr><td><strong>Łukasz Maroń</strong><br><span style="color:#888;font-size:11px">2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com</span></td><td>User</td><td><span class="tag t-direct">direct</span></td><td><span class="tag t-ext">IdP-synced</span></td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Unity Catalog grants</h2>
+    <table>
+      <tr><th>Level</th><th>Securable</th><th>Privileges</th>
+          <th>Grant source</th><th>Workspace</th></tr>
+      <tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup_old_backup</td><td><span class="tag t-priv">ALL_PRIVILEGES</span> <span class="tag t-priv">MANAGE</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup_old_backup</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-cat">CATALOG</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.bronze</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.gold</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-member">Member Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+<tr><td><span class="tag t-sch">SCHEMA</span></td><td>npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753.silver</td><td><span class="tag t-priv">ALL_PRIVILEGES</span></td><td><span class="tag t-direct">Direct</span></td><td>dbw-databricks-nbp-dev</td></tr>
+    </table>
+  </section>
+
+
+  <section>
+    <h2>REVOKE Script</h2>
+    <pre style="background:#1e1e1e;color:#d4d4d4;padding:16px;border-radius:6px;
+                overflow-x:auto;font-size:13px;line-height:1.6">-- ==================================================================
+-- AUTO-GENERATED REVOKE SCRIPT
+-- Generated: 2026-05-10T13:20:16.148031
+-- Review carefully before executing!
+-- ==================================================================
+
+-- [PARTIAL REDUNDANCY] 2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com on npb_analysis_catalog_old_backup_old_backup
+-- Redundant: [&#x27;ALL_PRIVILEGES&#x27;]
+-- Kept:      [&#x27;MANAGE&#x27;]
+-- REVOKE ALL_PRIVILEGES ON CATALOG `npb_analysis_catalog_old_backup_old_backup` FROM `2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com`;
+
+-- [FULL REDUNDANCY] 2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com on npb_analysis_catalog
+REVOKE ALL_PRIVILEGES ON CATALOG `npb_analysis_catalog` FROM `2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com`;
+
+-- [FULL REDUNDANCY] 2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com on npb_analysis_catalog_old_backup
+REVOKE ALL_PRIVILEGES ON CATALOG `npb_analysis_catalog_old_backup` FROM `2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com`;
+
+-- [FULL REDUNDANCY] 2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com on npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923
+REVOKE ALL_PRIVILEGES ON CATALOG `npb_analysis_catalog_old_backup_old_backup_failed_20260210_220923` FROM `2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com`;
+
+-- [FULL REDUNDANCY] 2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com on npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753
+REVOKE ALL_PRIVILEGES ON CATALOG `npb_analysis_catalog_old_backup_old_backup_failed_20260216_213753` FROM `2lukaszmaron_gmail.com#ext#@2lukaszmarongmail.onmicrosoft.com`;
+
+-- ------------------------------------------------------------------
+-- Summary: 4 full revoke(s), 1 partial (commented)
+-- ------------------------------------------------------------------</pre>
+  </section>
+
+  <footer>
+    Generated by <a href="https://github.com/lukaleet/databricks-access-audit">databricks-access-audit</a>
+  </footer>
+
+</div>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: { fontSize: '13px' },
+    flowchart: { curve: 'basis', useMaxWidth: true }
+  });
+</script>
+</body>
+</html>

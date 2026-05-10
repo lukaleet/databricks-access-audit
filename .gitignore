@@ -53,3 +53,6 @@ site/
 
 # Claude Code local settings (may contain credentials from live testing sessions)
 .claude/
+
+# Draft articles (not part of the distributed package)
+MEDIUM_ARTICLE.md

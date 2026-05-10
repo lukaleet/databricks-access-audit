@@ -18,7 +18,7 @@ databricks-access-audit --principal "thomas@company.com" --output html > thomas.
 
 Open `thomas.html` in a browser. You get:
 
-- **Access graph** — Mermaid flowchart: principal → groups (solid edges = direct, dashed = transitive) → workspaces and UC securables. The full path from identity to data in one diagram.
+- **Access graph** — Mermaid flowchart: principal → groups (solid edges = direct, dashed = transitive) → workspaces and UC securables. Catalogs connect to schemas via dashed hierarchy edges; groups with `ALL_PRIVILEGES` on a catalog don't repeat redundant schema-level arrows — the hierarchy edge implies them. Groups that grant only specific schemas still show their edges directly. The full path from identity to data in one diagram.
 - **Summary stats** — direct groups, transitive groups, workspaces, UC grants at a glance.
 - **Data tables** — group memberships, workspace access, UC permissions, workspace objects (if `--scan-workspace-objects` is set).
 

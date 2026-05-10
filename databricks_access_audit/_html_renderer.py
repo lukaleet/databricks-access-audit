@@ -26,6 +26,23 @@ def _ml(text: str) -> str:
     )
 
 
+# Built-in implicit groups every account user belongs to automatically.
+_BUILTIN_GROUPS = {"account users", "admins"}
+
+
+def _uc_parent_key(stype: str, sname: str):
+    """Return (parent_stype, parent_sname) for UC hierarchy, or None for catalogs."""
+    if stype == "SCHEMA":
+        dot = sname.find(".")
+        if dot != -1:
+            return ("CATALOG", sname[:dot])
+    elif stype in ("TABLE", "VIEW", "FUNCTION", "VOLUME"):
+        dot = sname.rfind(".")
+        if dot != -1:
+            return ("SCHEMA", sname[:dot])
+    return None
+
+
 # ── Mermaid diagram ───────────────────────────────────────────────────────────
 
 def build_mermaid(
@@ -39,7 +56,7 @@ def build_mermaid(
     edge_lines: list[str] = []
     seen_nodes: set[str] = set()
     class_map: dict[str, list[str]] = {
-        "principal": [], "grp_direct": [], "grp_transitive": [],
+        "principal": [], "grp_direct": [], "grp_transitive": [], "grp_builtin": [],
         "workspace": [], "catalog": [], "schema_n": [], "table_n": [],
         "direct_n": [],
     }
@@ -77,6 +94,21 @@ def build_mermaid(
 
     grant_groups = (set(ws_by_group) | set(perm_by_group)) - {"__direct__"}
 
+    # Build privilege map for parent-coverage checks: {group_key: {(stype, sname): {privs}}}
+    _gp: dict[str, dict[tuple, set]] = {}
+    for _gkey, _perms_list in perm_by_group.items():
+        _gmap: dict[tuple, set] = {}
+        for _p in _perms_list:
+            _gmap.setdefault((_p.securable_type, _p.securable_name), set()).update(_p.privileges)
+        _gp[_gkey] = _gmap
+
+    def _parent_covers_child(group_key: str, stype: str, sname: str) -> bool:
+        """True only if the same group has ALL_PRIVILEGES on this securable's direct parent."""
+        parent = _uc_parent_key(stype, sname)
+        if parent is None:
+            return False
+        return "ALL_PRIVILEGES" in _gp.get(group_key, {}).get(parent, set())
+
     # Workspace nodes (deduplicated)
     all_ws = sorted({r.workspace_name for r in result.workspace_roles})
     ws_nid  = {ws: f"WS{i}" for i, ws in enumerate(all_ws)}
@@ -93,10 +125,15 @@ def build_mermaid(
         gid = f"G{i}"
         m   = mem_by_name.get(gname)
         is_direct = m.is_direct if m else False
+        is_builtin = gname in _BUILTIN_GROUPS
         src_tag   = "Entra/IdP" if (m and m.source.value == "external") else "Databricks"
         d_tag     = "direct" if is_direct else "transitive"
-        cls       = "grp_direct" if is_direct else "grp_transitive"
-        node(gid, f"👥 {gname}\n{d_tag} · {src_tag}", cls)
+        if is_builtin:
+            cls = "grp_builtin"
+            node(gid, f"👥 {gname}\n(built-in — all users)", cls)
+        else:
+            cls = "grp_direct" if is_direct else "grp_transitive"
+            node(gid, f"👥 {gname}\n{d_tag} · {src_tag}", cls)
         edge("P", gid, dashed=not is_direct)
 
         # → workspaces
@@ -118,8 +155,9 @@ def build_mermaid(
             _uc_cls = {"CATALOG": "catalog", "SCHEMA": "schema_n", "TABLE": "table_n"}
             ucls  = _uc_cls.get(stype, "catalog")
             node(ucid, f"{icon} {stype}\n{sname}", ucls)
-            lbl   = ", ".join(privs[:2]) + ("…" if len(privs) > 2 else "")
-            edge(gid, ucid, label=lbl)
+            if not _parent_covers_child(gname, stype, sname):
+                lbl = ", ".join(privs[:2]) + ("…" if len(privs) > 2 else "")
+                edge(gid, ucid, label=lbl)
 
     # Direct (personal) grants
     direct_ws    = ws_by_group.get("__direct__", [])
@@ -143,7 +181,15 @@ def build_mermaid(
             _uc_node_cls = {"CATALOG": "catalog", "SCHEMA": "schema_n", "TABLE": "table_n"}
             ucls = _uc_node_cls.get(stype, "catalog")
             node(ucid, f"{icon} {stype}\n{sname}", ucls)
-            edge("DIRECT", ucid)
+            if not _parent_covers_child("__direct__", stype, sname):
+                lbl = ", ".join(privs[:2]) + ("…" if len(privs) > 2 else "")
+                edge("DIRECT", ucid, label=lbl)
+
+    # UC hierarchy edges — structural dashed lines CATALOG -.-> SCHEMA -.-> TABLE
+    for (stype, sname) in sorted(sec_nid.keys()):
+        parent = _uc_parent_key(stype, sname)
+        if parent and parent in sec_nid:
+            edge(sec_nid[parent], sec_nid[(stype, sname)], dashed=True)
 
     lines = ["graph LR"]
     lines.extend(node_lines)
@@ -155,6 +201,8 @@ def build_mermaid(
         "    classDef grp_direct   fill:#2e7d32,color:#fff,stroke:#1b5e20,stroke-width:2px",
         "    classDef grp_transitive fill:#81c784,color:#1b5e20,stroke:#388e3c,"
         "stroke-width:1px,stroke-dasharray:5",
+        "    classDef grp_builtin  fill:#90a4ae,color:#fff,stroke:#546e7a,"
+        "stroke-width:1px,stroke-dasharray:4",
         "    classDef workspace    fill:#b71c1c,color:#fff,stroke:#7f0000,stroke-width:2px",
         "    classDef catalog      fill:#e65100,color:#fff,stroke:#bf360c,stroke-width:2px",
         "    classDef schema_n     fill:#f57c00,color:#fff,stroke:#e65100,stroke-width:1px",
@@ -197,10 +245,12 @@ _STYLE = """
     .stat .l { font-size: 11px; color: #666; margin-top: 5px; text-transform: uppercase;
                letter-spacing: .04em; }
 
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: auto; }
     th { background: #e8eaf6; color: #3949ab; font-weight: 600;
          padding: 9px 13px; text-align: left; white-space: nowrap; }
-    td { padding: 8px 13px; border-bottom: 1px solid #f5f5f5; vertical-align: top; }
+    td { padding: 8px 13px; border-bottom: 1px solid #f5f5f5; vertical-align: top;
+         word-break: break-word; overflow-wrap: anywhere; max-width: 340px; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #fafbff; }
 
@@ -210,6 +260,7 @@ _STYLE = """
     .t-transit   { background:#f1f8e9; color:#558b2f; }
     .t-ext       { background:#e3f2fd; color:#1565c0; }
     .t-int       { background:#ede7f6; color:#4527a0; }
+    .t-builtin   { background:#eceff1; color:#546e7a; }
     .t-priv      { background:#fff8e1; color:#e65100; font-family:monospace; }
     .t-risk      { background:#ffebee; color:#b71c1c; }
     .t-ws        { background:#fce4ec; color:#880e4f; }
@@ -283,9 +334,15 @@ def render_html(
                 if g.source.value == "external" else
                 '<span class="tag t-int">Databricks</span>'
             )
+            builtin_tag = (
+                ' <span class="tag t-builtin" '
+                'title="Built-in implicit group — every account user is a member automatically">'
+                'built-in</span>'
+                if g.group_name in _BUILTIN_GROUPS else ""
+            )
             path  = " → ".join(_e(s) for s in g.path)
             rows.append(
-                f"<tr><td><strong>{_e(g.group_name)}</strong></td>"
+                f"<tr><td><strong>{_e(g.group_name)}</strong>{builtin_tag}</td>"
                 f"<td>{d_tag}</td><td>{s_tag}</td>"
                 f'<td class="chain">{path}</td></tr>'
             )
@@ -338,10 +395,10 @@ def render_html(
         obj_section = f"""
   <section>
     <h2>🗂 Workspace object permissions</h2>
-    <table>
+    <div class="table-wrap"><table>
       <tr><th>Type</th><th>Object</th><th>Permission</th><th>Via</th><th>Workspace</th></tr>
       {"".join(rows)}
-    </table>
+    </table></div>
   </section>"""
 
     # ── escalation findings section ───────────────────────────────────────────
@@ -359,11 +416,11 @@ def render_html(
         esc_section = f"""
   <section>
     <h2>⚠️ Escalation risks</h2>
-    <table>
+    <div class="table-wrap"><table>
       <tr><th>Privilege</th><th>Type</th><th>Securable</th><th>Via group</th>
           <th>Membership</th><th>Workspace</th></tr>
       {"".join(rows)}
-    </table>
+    </table></div>
   </section>"""
 
     # ── UC-only / unused groups ───────────────────────────────────────────────
@@ -449,27 +506,27 @@ def render_html(
 
   <section>
     <h2>Group memberships</h2>
-    <table>
+    <div class="table-wrap"><table>
       <tr><th>Group</th><th>Membership</th><th>Source</th><th>Path</th></tr>
       {_group_rows()}
-    </table>
+    </table></div>
   </section>
 
   <section>
     <h2>Workspace access</h2>
-    <table>
+    <div class="table-wrap"><table>
       <tr><th>Workspace</th><th>Permission</th><th>Via group</th><th>Path</th></tr>
       {_ws_rows()}
-    </table>
+    </table></div>
   </section>
 
   <section>
     <h2>Unity Catalog permissions</h2>
-    <table>
+    <div class="table-wrap"><table>
       <tr><th>Type</th><th>Securable</th><th>Privileges</th>
           <th>Via group</th><th>Workspace</th></tr>
       {_uc_rows()}
-    </table>
+    </table></div>
   </section>
 
 {obj_section}
