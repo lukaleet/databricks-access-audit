@@ -227,6 +227,33 @@ databricks-access-audit --resource "main" --output html > main_catalog.html
 databricks-access-audit --group "data-engineers" --baseline snapshots/Q1.json --output html > q1-q2-diff.html
 ```
 
+### `--summary`
+
+Print a compact executive summary after the audit: member counts, UC grant totals by level, and key risk indicators (redundancy, stale grants, escalations, workspace-local groups). Supported by `--group`, `--principal`, and `--resource`.
+
+For `--output json`, `csv`, or `html` the summary is written to stderr so machine-readable stdout is not corrupted.
+
+```bash
+# One-page summary alongside the default text report
+databricks-access-audit --group "data-engineers" --summary
+
+# Summary only alongside JSON (summary goes to stderr, JSON to stdout)
+databricks-access-audit --group "data-engineers" --output json --summary > grants.json
+```
+
+Example output:
+
+```
+==============================================================
+  SUMMARY  —  data-engineers
+==============================================================
+  Members       12 users, 2 SPs  (10 IdP-synced, 4 Databricks-managed)
+  UC grants     24 total  (8 catalog | 10 schema | 4 table | 2 volume)
+  Personal      3 member-direct grant(s)
+  Risks         3 fully redundant, 1 partial | 1 stale (>90d inactive)
+==============================================================
+```
+
 ### `--tree`
 
 Render audit output as an ASCII tree grouped by grant source rather than securable type. Supported by both `--principal` and `--group`.
