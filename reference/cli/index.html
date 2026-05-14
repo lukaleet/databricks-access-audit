@@ -1309,6 +1309,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#-tree" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2180,6 +2191,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#-tree" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2693,14 +2715,33 @@ Groups with UC grants → classified as <code>Databricks</code>. Groups with no 
 <a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="c1"># Compliance diff page (baseline → current)</span>
 <a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--baseline<span class="w"> </span>snapshots/Q1.json<span class="w"> </span>--output<span class="w"> </span>html<span class="w"> </span>&gt;<span class="w"> </span>q1-q2-diff.html
 </code></pre></div>
+<h3 id="-summary"><code>--summary</code><a class="headerlink" href="#-summary" title="Permanent link">&para;</a></h3>
+<p>Print a compact executive summary after the audit: member counts, UC grant totals by level, and key risk indicators (redundancy, stale grants, escalations, workspace-local groups). Supported by <code>--group</code>, <code>--principal</code>, and <code>--resource</code>.</p>
+<p>For <code>--output json</code>, <code>csv</code>, or <code>html</code> the summary is written to stderr so machine-readable stdout is not corrupted.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># One-page summary alongside the default text report</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--summary
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Summary only alongside JSON (summary goes to stderr, JSON to stdout)</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--output<span class="w"> </span>json<span class="w"> </span>--summary<span class="w"> </span>&gt;<span class="w"> </span>grants.json
+</code></pre></div>
+<p>Example output:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>==============================================================
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>  SUMMARY  —  data-engineers
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>==============================================================
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>  Members       12 users, 2 SPs  (10 IdP-synced, 4 Databricks-managed)
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>  UC grants     24 total  (8 catalog | 10 schema | 4 table | 2 volume)
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>  Personal      3 member-direct grant(s)
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>  Risks         3 fully redundant, 1 partial | 1 stale (&gt;90d inactive)
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>==============================================================
+</code></pre></div>
 <h3 id="-tree"><code>--tree</code><a class="headerlink" href="#-tree" title="Permanent link">&para;</a></h3>
 <p>Render audit output as an ASCII tree grouped by grant source rather than securable type. Supported by both <code>--principal</code> and <code>--group</code>.</p>
 <ul>
 <li><strong>Principal audit</strong> — organises by granting group: "what does alice get <em>via</em> data-engineers?"</li>
 <li><strong>Group audit</strong> — organises by grant source: direct grants the group holds, upstream grants inherited from parent groups, member-direct personal grants with redundancy callout.</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span>--tree
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--tree
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>databricks-access-audit<span class="w"> </span>--principal<span class="w"> </span><span class="s2">&quot;alice@company.com&quot;</span><span class="w"> </span>--tree
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--tree
 </code></pre></div>
 <h3 id="-revoke-script"><code>--revoke-script</code><a class="headerlink" href="#-revoke-script" title="Permanent link">&para;</a></h3>
 <p>Print copy-paste REVOKE SQL for redundant member-direct grants. Group audit only.</p>
