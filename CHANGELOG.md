@@ -5,6 +5,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.24.0] - 2026-05-14
+
+### Added
+- **`--summary` flag** — prints a compact executive summary after any audit run: member counts,
+  UC grant totals by level, and key risk indicators (redundancy, stale grants, escalations,
+  workspace-local groups). For `--output json/csv/html` the summary is written to stderr so
+  machine-readable stdout is not corrupted.
+- **Better error messages** — HTTP errors (401/403/404/429) and network failures now produce
+  plain-English messages instead of stack traces. 401 hints at credential misconfiguration;
+  403 mentions `--auto-elevate`; 404 includes the failing URL; `ConnectionError` advises
+  checking network reachability.
+- **Bandit + pip-audit security CI** — `.github/workflows/security.yml` runs static analysis
+  and dependency CVE scanning on every push/PR.
+
+### Changed
+- `requests` lower bound raised to `>=2.33.0` on Python 3.10+ (clears CVE-2026-25645);
+  Python 3.9 retains `>=2.28` for compatibility.
+- `bandit` and `pip-audit` added to `[dev]` extras.
+
+### Tests
+- 7 new tests in `tests/test_cli.py`: `--summary` output for group and principal audit,
+  `--summary` goes to stderr for JSON output, and `_handle_fatal` error message formatting
+  for HTTP 401/403/404 and `ConnectionError`.
+- Total: 597 tests.
+
+---
+
 ## [0.23.0] - 2026-05-14
 
 ### Added

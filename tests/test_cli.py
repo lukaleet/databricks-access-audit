@@ -1286,3 +1286,132 @@ def test_group_audit_tree_contains_member_count(capsys):
         ])
     out = capsys.readouterr().out
     assert "member" in out   # "N members" always in header and/or footer
+
+
+# ---------------------------------------------------------------------------
+# --summary flag
+# ---------------------------------------------------------------------------
+
+def test_group_audit_summary_appended_to_text_output(capsys):
+    """--summary prints a compact summary block to stdout for text output."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        rc = main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--summary",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "SUMMARY" in out
+    assert "data-engineers" in out
+    assert "Members" in out
+    assert "UC grants" in out
+    assert "Risks" in out
+
+
+def test_group_audit_summary_goes_to_stderr_for_json(capsys):
+    """--summary writes to stderr when --output json so stdout stays machine-readable."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        rc = main([
+            "--group", "data-engineers",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--output", "json", "--summary",
+        ])
+    assert rc == 0
+    captured = capsys.readouterr()
+    # stdout must be valid JSON
+    json.loads(captured.out)
+    assert "SUMMARY" in captured.err
+
+
+def test_principal_audit_summary_appended_to_text_output(capsys):
+    """--summary prints a compact summary block for principal audits."""
+    with responses_lib.RequestsMock(assert_all_requests_are_fired=False) as rsps:
+        _register_common_mocks(rsps)
+        rc = main([
+            "--principal", "alice@example.com",
+            "--client-id", "cid", "--client-secret", "secret",
+            "--account-id", ACCOUNT_ID, "--cloud", "azure", "--no-sdk",
+            "--workspace-urls", WORKSPACE_HOST,
+            "--summary",
+        ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "SUMMARY" in out
+    assert "alice@example.com" in out
+    assert "Groups" in out
+    assert "UC perms" in out
+
+
+# ---------------------------------------------------------------------------
+# Better error messages — _handle_fatal
+# ---------------------------------------------------------------------------
+
+def test_http_401_prints_auth_error(capsys):
+    """A 401 from the API produces a clear authentication error message."""
+    import requests as req_lib
+
+    from databricks_access_audit.cli import _handle_fatal
+
+    resp = req_lib.Response()
+    resp.status_code = 401
+    resp.url = "https://accounts.azuredatabricks.net/api/2.0/accounts/abc/scim/v2/Groups"
+    exc = req_lib.exceptions.HTTPError(response=resp)
+    rc = _handle_fatal(exc)
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "401" in err
+    assert "Authentication" in err or "credentials" in err.lower()
+
+
+def test_http_403_prints_permission_error(capsys):
+    """A 403 produces a clear permission-denied message mentioning Account Admin."""
+    import requests as req_lib
+
+    from databricks_access_audit.cli import _handle_fatal
+
+    resp = req_lib.Response()
+    resp.status_code = 403
+    resp.url = "https://adb-123.azuredatabricks.net/api/2.0/permissions/clusters/abc"
+    exc = req_lib.exceptions.HTTPError(response=resp)
+    rc = _handle_fatal(exc)
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "403" in err
+    assert "Permission" in err or "permission" in err
+
+
+def test_http_404_prints_not_found_error(capsys):
+    """A 404 prints the URL and a hint to check account-id/cloud."""
+    import requests as req_lib
+
+    from databricks_access_audit.cli import _handle_fatal
+
+    resp = req_lib.Response()
+    resp.status_code = 404
+    resp.url = "https://accounts.azuredatabricks.net/api/2.0/accounts/wrong-id/workspaces"
+    exc = req_lib.exceptions.HTTPError(response=resp)
+    rc = _handle_fatal(exc)
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "404" in err
+    assert "wrong-id" in err
+
+
+def test_connection_error_prints_network_error(capsys):
+    """A ConnectionError prints a clear network error message."""
+    import requests as req_lib
+
+    from databricks_access_audit.cli import _handle_fatal
+
+    exc = req_lib.exceptions.ConnectionError("Failed to establish connection")
+    rc = _handle_fatal(exc)
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "connect" in err.lower()

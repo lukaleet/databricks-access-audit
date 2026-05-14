@@ -94,6 +94,15 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
                         "instead of by securable type. Ignored for --output json/csv/html.")
     p.add_argument("--revoke-script", action="store_true",
                    help="Print REVOKE SQL for redundant grants (group audit only)")
+    p.add_argument(
+        "--summary",
+        action="store_true",
+        help=(
+            "Print a compact executive summary after the audit: total members, "
+            "grant counts, top risk indicators.  For non-text output formats the "
+            "summary is written to stderr so it does not corrupt machine-readable output."
+        ),
+    )
 
     # Snapshot / diff
     p.add_argument(
@@ -690,6 +699,9 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
 
         print(f"\n{'='*60}")
 
+    if args.summary:
+        _print_principal_summary(args, result, [], local_findings)
+
     return 0
 
 
@@ -922,6 +934,109 @@ def _run_clone(args: argparse.Namespace) -> int:
 
     print(f"\n{'='*60}")
     return 0
+
+
+def _print_group_summary(
+    args: argparse.Namespace,
+    members: Any,
+    catalog_grants: List,
+    schema_grants: List,
+    table_grants: List,
+    volume_grants: List,
+    redundancy: List,
+    stale_findings: List,
+    workspace_object_grants: List,
+    local_findings: List,
+) -> None:
+    """Print a compact executive summary for a group audit."""
+    from databricks_access_audit.models import GrantSource, RedundancyLevel
+
+    out = sys.stdout if args.output == "text" else sys.stderr
+
+    n_users = len(members.get("users", []))
+    n_sps = len(members.get("service_principals", []))
+    ext = sum(1 for u in members.get("users", []) + members.get("service_principals", [])
+              if getattr(u, "external_id", None))
+    n_full = sum(1 for r in redundancy if r.redundancy_level == RedundancyLevel.FULL)
+    n_partial = sum(1 for r in redundancy if r.redundancy_level == RedundancyLevel.PARTIAL)
+    n_member_direct = sum(1 for g in catalog_grants if g.grant_source == GrantSource.MEMBER_DIRECT)
+
+    w = 62
+    bar = "=" * w
+    print(f"\n{bar}", file=out)
+    print(f"  SUMMARY  —  {args.group}", file=out)
+    print(bar, file=out)
+    print(f"  Members       {n_users} users, {n_sps} SPs  "
+          f"({ext} IdP-synced, {n_users + n_sps - ext} Databricks-managed)", file=out)
+    uc_total = len(catalog_grants) + len(schema_grants) + len(table_grants) + len(volume_grants)
+    parts = [f"{len(catalog_grants)} catalog"]
+    if schema_grants:
+        parts.append(f"{len(schema_grants)} schema")
+    if table_grants:
+        parts.append(f"{len(table_grants)} table")
+    if volume_grants:
+        parts.append(f"{len(volume_grants)} volume")
+    print(f"  UC grants     {uc_total} total  ({' | '.join(parts)})", file=out)
+    print(f"  Personal      {n_member_direct} member-direct grant(s)", file=out)
+    risk_parts = []
+    if n_full or n_partial:
+        risk_parts.append(f"{n_full} fully redundant, {n_partial} partial")
+    if stale_findings:
+        risk_parts.append(f"{len(stale_findings)} stale (>{args.stale_days}d inactive)")
+    if local_findings:
+        risk_parts.append(f"{len(local_findings)} workspace-local group(s)")
+    if risk_parts:
+        print(f"  Risks         {' | '.join(risk_parts)}", file=out)
+    else:
+        print("  Risks         none flagged", file=out)
+    if workspace_object_grants:
+        print(f"  WS objects    {len(workspace_object_grants)} permission(s)", file=out)
+    print(bar, file=out)
+
+
+def _print_principal_summary(
+    args: argparse.Namespace,
+    result: Any,
+    stale_findings: List,
+    local_findings: List,
+) -> None:
+    """Print a compact executive summary for a principal audit."""
+    out = sys.stdout if args.output == "text" else sys.stderr
+
+    n_groups = len(result.groups)
+    n_direct_groups = sum(1 for g in result.groups if g.is_direct)
+    n_ws = len(set(r.workspace_name for r in result.workspace_roles))
+    by_type: Dict[str, int] = {}
+    for p in result.permissions:
+        by_type[p.securable_type] = by_type.get(p.securable_type, 0) + 1
+    n_escalations = len(result.escalation_findings)
+    n_obj = len(result.workspace_object_grants)
+
+    w = 62
+    bar = "=" * w
+    print(f"\n{bar}", file=out)
+    print(f"  SUMMARY  —  {result.principal_name}", file=out)
+    print(bar, file=out)
+    print(f"  Groups        {n_groups} ({n_direct_groups} direct, "
+          f"{n_groups - n_direct_groups} transitive)", file=out)
+    print(f"  Workspaces    {n_ws} with assigned role", file=out)
+    uc_total = sum(by_type.values())
+    uc_parts = [f"{v} {k.lower()}" for k, v in sorted(by_type.items()) if v]
+    print(f"  UC perms      {uc_total} total  ({' | '.join(uc_parts) or 'none'})", file=out)
+    risk_parts = []
+    if n_escalations:
+        risk_parts.append(f"{n_escalations} escalation finding(s)")
+    if stale_findings:
+        risk_parts.append(f"{len(stale_findings)} stale grant(s) (>{args.stale_days}d inactive)")
+    if local_findings:
+        risk_parts.append(f"{len(local_findings)} workspace-local group(s)")
+    if risk_parts:
+        print(f"  Risks         {' | '.join(risk_parts)}", file=out)
+    else:
+        print("  Risks         none flagged", file=out)
+    if n_obj:
+        print(f"  WS objects    {n_obj} permission(s)", file=out)
+    print(bar, file=out)
 
 
 def _run_group_audit(args: argparse.Namespace) -> int:
@@ -1265,6 +1380,12 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     if args.revoke_script and args.output != "html":
         print("\n" + RevokeScriptGenerator.generate(redundancy, include_partial=True))
 
+    if args.summary:
+        _print_group_summary(
+            args, members, catalog_grants, schema_grants, table_grants, volume_grants,
+            redundancy, stale_findings, workspace_object_grants, local_findings,
+        )
+
     return 0
 
 
@@ -1363,6 +1484,65 @@ def _run_resource_audit(args: argparse.Namespace, client: Any) -> int:
     return 0
 
 
+def _handle_fatal(exc: Exception) -> int:
+    """Translate common exceptions into clear user-facing error messages."""
+    try:
+        import requests
+        if isinstance(exc, requests.exceptions.ConnectionError):
+            print(
+                "ERROR: Could not connect to Databricks.\n"
+                "  Check your network and verify the account/workspace host is reachable.",
+                file=sys.stderr,
+            )
+            return 1
+        if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
+            status = exc.response.status_code
+            body = exc.response.text or ""
+            url = exc.response.url or ""
+            if status == 401:
+                print(
+                    "ERROR: Authentication failed (HTTP 401).\n"
+                    "  The service principal credentials were rejected.\n"
+                    "  Check --client-id / --client-secret and verify the SP exists.",
+                    file=sys.stderr,
+                )
+            elif status == 403:
+                print(
+                    "ERROR: Permission denied (HTTP 403).\n"
+                    "  The SP lacks the required role for this operation.\n"
+                    "  Account Admin is needed for full audits (or use --auto-elevate).",
+                    file=sys.stderr,
+                )
+            elif status == 404:
+                print(
+                    f"ERROR: Resource not found (HTTP 404).\n"
+                    f"  URL: {url}\n"
+                    f"  Check --account-id and --cloud.",
+                    file=sys.stderr,
+                )
+            elif status == 429:
+                print(
+                    "ERROR: Rate limited (HTTP 429).\n"
+                    "  Try reducing --workers or increasing --retry-max-delay.",
+                    file=sys.stderr,
+                )
+            else:
+                snippet = body[:200].replace("\n", " ") if body else "(no response body)"
+                print(
+                    f"ERROR: Databricks API returned HTTP {status}.\n"
+                    f"  URL: {url}\n"
+                    f"  Response: {snippet}",
+                    file=sys.stderr,
+                )
+            return 1
+    except ImportError:
+        pass
+    # Fallback for any other exception
+    print(f"ERROR: {exc}", file=sys.stderr)
+    log.debug("Unhandled exception", exc_info=True)
+    return 1
+
+
 def main(argv: List[str] | None = None) -> int:
     args = _parse_args(argv)
     _resolve_credentials(args)
@@ -1377,13 +1557,16 @@ def main(argv: List[str] | None = None) -> int:
         )
         return 1
 
-    if args.compare:
-        return _run_compare(args)
-    if args.clone_from:
-        return _run_clone(args)
-    if args.principal:
-        return _run_principal_audit(args)
-    if args.resource:
-        client = _build_client(args)
-        return _run_resource_audit(args, client)
-    return _run_group_audit(args)
+    try:
+        if args.compare:
+            return _run_compare(args)
+        if args.clone_from:
+            return _run_clone(args)
+        if args.principal:
+            return _run_principal_audit(args)
+        if args.resource:
+            client = _build_client(args)
+            return _run_resource_audit(args, client)
+        return _run_group_audit(args)
+    except Exception as exc:  # noqa: BLE001
+        return _handle_fatal(exc)
