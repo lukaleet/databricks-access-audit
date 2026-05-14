@@ -33,7 +33,7 @@ dependencies = [
 
 [project.optional-dependencies]
 sdk = [
-    "databricks-sdk>=0.20.0",
+    "databricks-sdk>=0.20.0,<2.0",
 ]
 dev = [
     "pytest>=7.0",
