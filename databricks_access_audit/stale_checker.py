@@ -53,7 +53,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import date, timedelta
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from databricks_access_audit.client import AuditClient
 from databricks_access_audit.models import CatalogGrant, GrantSource, StaleFinding
@@ -69,6 +69,7 @@ _TERMINAL_STATES = frozenset({"SUCCEEDED", "FAILED", "CANCELLED", "CLOSED"})
 # activity (but outside the stale threshold) still get a ``last_access`` date
 # rather than reporting ``None``.  The stale threshold is applied in Python
 # after the query returns.
+# Modern schema (user_identity is a STRUCT with .email and .subject_name fields).
 _ACTIVITY_QUERY = """\
 SELECT
   COALESCE(
@@ -84,6 +85,25 @@ WHERE event_time >= DATEADD(DAY, -{lookback}, CURRENT_TIMESTAMP())
   ) IS NOT NULL
 GROUP BY 1
 """
+
+# Legacy schema (flat columns, pre-2024 accounts that have not yet migrated).
+_ACTIVITY_QUERY_LEGACY = """\
+SELECT
+  COALESCE(
+    user_name,
+    service_principal_name
+  ) AS principal,
+  DATE(MAX(event_time)) AS last_seen_date
+FROM system.access.audit
+WHERE event_time >= DATEADD(DAY, -{lookback}, CURRENT_TIMESTAMP())
+  AND COALESCE(
+    user_name,
+    service_principal_name
+  ) IS NOT NULL
+GROUP BY 1
+"""
+
+_ISSUES_URL = "https://github.com/lukaleet/databricks-access-audit/issues"
 
 
 class StaleGrantChecker:
@@ -134,21 +154,20 @@ class StaleGrantChecker:
             max_lookback_days if max_lookback_days > 0
             else max(stale_days * 3, 365)
         )
+        # Cached result of _probe_audit_columns — probed at most once per instance.
+        self._audit_columns: Optional[Set[str]] = None
 
     # ------------------------------------------------------------------
     # Statement execution
     # ------------------------------------------------------------------
 
-    def _execute_statement(self, sql: str) -> List[Dict[str, Any]]:
-        """Submit a SQL statement and return the result rows as a list of dicts.
+    def _execute_statement_raw(self, sql: str) -> Tuple[List[str], List[List]]:
+        """Submit SQL and return ``(column_names, data_rows)`` on success.
 
-        Uses the Databricks Statement Execution API (v2.0) with inline
-        disposition and JSON_ARRAY format so results are returned directly in
-        the response body without a separate download step.
-
-        Returns an empty list on error; the error is logged at ERROR level so
-        it is visible without raising an exception (stale-check failure should
-        not abort the audit).
+        Shares the same polling loop used by the public API; separated from
+        :meth:`_execute_statement` so that :meth:`_probe_audit_columns` can
+        inspect column names from a LIMIT 0 query without receiving an empty
+        list of dicts.
         """
         resp = self.api.workspace_api(
             self.workspace_url, "POST", "/api/2.0/sql/statements",
@@ -168,11 +187,6 @@ class StaleGrantChecker:
                 f"Statement execution API returned no statement_id: {resp}"
             )
 
-        # Poll until terminal state or wall-clock timeout.
-        # time.monotonic() is used rather than accumulated sleep durations so
-        # that (a) the timeout is accurate even when time.sleep() overshoots,
-        # and (b) a poll_interval of 0 (used in tests) cannot produce an
-        # infinite loop if the mock never reaches a terminal state.
         deadline = time.monotonic() + self.max_wait
         while resp.get("status", {}).get("state", "") not in _TERMINAL_STATES:
             if time.monotonic() >= deadline:
@@ -190,16 +204,79 @@ class StaleGrantChecker:
             err = resp.get("status", {}).get("error", {}).get("message", state)
             raise RuntimeError(f"SQL statement {stmt_id} failed: {err}")
 
-        # Parse schema + data.
         manifest = resp.get("manifest", {})
         columns = [c.get("name", "") for c in manifest.get("schema", {}).get("columns", [])]
         data_array = resp.get("result", {}).get("data_array") or []
+        return columns, data_array
 
+    def _execute_statement(self, sql: str) -> List[Dict[str, Any]]:
+        """Submit a SQL statement and return the result rows as a list of dicts.
+
+        Uses the Databricks Statement Execution API (v2.0) with inline
+        disposition and JSON_ARRAY format so results are returned directly in
+        the response body without a separate download step.
+
+        Returns an empty list on error; the error is logged at ERROR level so
+        it is visible without raising an exception (stale-check failure should
+        not abort the audit).
+        """
+        columns, data_array = self._execute_statement_raw(sql)
         if not columns:
-            log.warning("Statement %s returned no column schema.", stmt_id)
+            log.warning("Statement returned no column schema.")
             return []
-
         return [dict(zip(columns, row)) for row in data_array]
+
+    # ------------------------------------------------------------------
+    # Schema introspection
+    # ------------------------------------------------------------------
+
+    def _probe_audit_columns(self) -> Set[str]:
+        """Return the top-level column names of ``system.access.audit``.
+
+        Runs ``SELECT * … LIMIT 0`` — no rows returned, only the manifest
+        schema — so the probe is fast and has no cost on large tables.
+        Result is cached for the lifetime of this checker instance; repeated
+        calls to :meth:`_get_activity_by_principal` issue the probe at most once.
+
+        Raises :class:`RuntimeError` if the probe statement fails (propagated
+        to :meth:`_get_activity_by_principal`, which catches and logs it).
+        """
+        if self._audit_columns is not None:
+            return self._audit_columns
+        cols, _ = self._execute_statement_raw(
+            "SELECT * FROM system.access.audit LIMIT 0"
+        )
+        self._audit_columns = set(cols)
+        return self._audit_columns
+
+    def _build_activity_query(self) -> str:
+        """Return the appropriate activity query for this account's audit schema.
+
+        Probes ``system.access.audit`` column names and selects:
+
+        * ``user_identity`` present → modern struct-access query
+          (``user_identity.email`` / ``user_identity.subject_name``)
+        * ``user_name`` present → legacy flat-column query
+          (``user_name`` / ``service_principal_name``)
+        * Neither → :class:`RuntimeError` with a link to file an issue
+
+        The result of :meth:`_probe_audit_columns` is cached, so this method
+        is safe to call multiple times without re-issuing the probe.
+        """
+        cols = self._probe_audit_columns()
+        if "user_identity" in cols:
+            return _ACTIVITY_QUERY
+        if "user_name" in cols:
+            log.info(
+                "system.access.audit: detected legacy flat-column schema "
+                "(user_name / service_principal_name). Using legacy query."
+            )
+            return _ACTIVITY_QUERY_LEGACY
+        raise RuntimeError(
+            "Unrecognised system.access.audit schema — neither 'user_identity' "
+            "(modern) nor 'user_name' (legacy) column found. "
+            f"Please report this at {_ISSUES_URL}"
+        )
 
     # ------------------------------------------------------------------
     # Activity lookup
@@ -217,7 +294,7 @@ class StaleGrantChecker:
         that :meth:`check_catalog_grants` can catch it and avoid producing
         false stale findings.
         """
-        sql = _ACTIVITY_QUERY.format(lookback=self.max_lookback_days)
+        sql = self._build_activity_query().format(lookback=self.max_lookback_days)
         rows = self._execute_statement(sql)
         activity: Dict[str, str] = {}
         for row in rows:
@@ -233,9 +310,10 @@ class StaleGrantChecker:
         """Return the set of principals with any auditable activity in the
         last ``stale_days`` days, as recorded in ``system.access.audit``.
 
-        Principals are identified by ``user_identity.email`` (for users) or
-        ``user_identity.subject_name`` (for service principals) — whichever
-        field is populated in ``system.access.audit``.
+        Principals are identified using the available schema — modern accounts
+        use ``user_identity.email`` / ``user_identity.subject_name``; legacy
+        accounts use flat ``user_name`` / ``service_principal_name`` columns.
+        Schema is auto-detected via :meth:`_probe_audit_columns`.
 
         Raises :class:`RuntimeError` when the statement execution API fails so
         that :meth:`check_catalog_grants` can catch it and avoid producing

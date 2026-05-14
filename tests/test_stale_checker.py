@@ -54,6 +54,15 @@ def _succeeded_response(rows=None, columns=None):
     }
 
 
+def _probe_response(modern: bool = True):
+    """Succeeded LIMIT-0 response used to satisfy the schema probe call."""
+    if modern:
+        cols = ["event_time", "user_identity", "action_name", "request_params"]
+    else:
+        cols = ["event_time", "user_name", "service_principal_name", "action_name"]
+    return _succeeded_response(rows=[], columns=cols)
+
+
 def _member_grant(principal, principal_type="USER", catalog="main",
                   privileges=None):
     return CatalogGrant(
@@ -161,7 +170,7 @@ def test_get_active_principals_returns_set():
         ["alice@example.com", _RECENT],
         ["sp-etl-bot", _RECENT],
     ])
-    checker, _ = _make_checker(ws_api_responses=[resp])
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(), resp])
     active = checker.get_active_principals()
     assert "alice@example.com" in active
     assert "sp-etl-bot" in active
@@ -169,7 +178,7 @@ def test_get_active_principals_returns_set():
 
 def test_get_active_principals_case_insensitive():
     resp = _succeeded_response(rows=[["Alice@Example.COM", _RECENT]])
-    checker, _ = _make_checker(ws_api_responses=[resp])
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(), resp])
     active = checker.get_active_principals()
     # Both original and lowercased should be present
     assert "alice@example.com" in active
@@ -177,7 +186,7 @@ def test_get_active_principals_case_insensitive():
 
 def test_get_active_principals_skips_null_principal():
     resp = _succeeded_response(rows=[[None, _RECENT], ["alice@example.com", _RECENT]])
-    checker, _ = _make_checker(ws_api_responses=[resp])
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(), resp])
     active = checker.get_active_principals()
     # None-principal row is skipped; alice@example.com (+ its lowercase) are present
     assert "alice@example.com" in active
@@ -187,7 +196,7 @@ def test_get_active_principals_skips_null_principal():
 def test_get_active_principals_excludes_old_activity():
     """Principals whose last activity predates the stale threshold are NOT active."""
     resp = _succeeded_response(rows=[["alice@example.com", _OLD]])
-    checker, _ = _make_checker(ws_api_responses=[resp])
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(), resp])
     active = checker.get_active_principals()
     assert "alice@example.com" not in active
 
@@ -205,7 +214,7 @@ def test_no_member_grants_returns_empty():
 
 def test_active_principal_not_stale():
     resp = _succeeded_response(rows=[["alice@example.com", _RECENT]])
-    checker, _ = _make_checker(ws_api_responses=[resp])
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(), resp])
 
     grants = [_member_grant("alice@example.com")]
     findings = checker.check_catalog_grants(grants, "prod", WS_URL)
@@ -214,7 +223,7 @@ def test_active_principal_not_stale():
 
 def test_inactive_principal_flagged():
     resp = _succeeded_response(rows=[])  # no active principals
-    checker, _ = _make_checker(ws_api_responses=[resp])
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(), resp])
 
     grants = [_member_grant("bob@example.com")]
     findings = checker.check_catalog_grants(grants, "prod", WS_URL)
@@ -226,7 +235,7 @@ def test_inactive_principal_flagged():
 
 def test_stale_finding_carries_grant_metadata():
     resp = _succeeded_response(rows=[])
-    checker, _ = _make_checker(ws_api_responses=[resp], stale_days=60)
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(), resp], stale_days=60)
 
     grants = [_member_grant("bob@example.com", catalog="staging",
                             privileges=["MODIFY"])]
@@ -239,7 +248,7 @@ def test_stale_finding_carries_grant_metadata():
 
 def test_mixed_active_and_inactive():
     resp = _succeeded_response(rows=[["alice@example.com", _RECENT]])
-    checker, _ = _make_checker(ws_api_responses=[resp])
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(), resp])
 
     grants = [
         _member_grant("alice@example.com"),
@@ -252,7 +261,7 @@ def test_mixed_active_and_inactive():
 
 def test_case_insensitive_match_prevents_false_stale():
     resp = _succeeded_response(rows=[["Alice@Example.COM", _RECENT]])
-    checker, _ = _make_checker(ws_api_responses=[resp])
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(), resp])
 
     grants = [_member_grant("alice@example.com")]
     # Case-insensitive match: alice@example.com should be considered active
@@ -275,7 +284,7 @@ def test_stale_principal_last_access_populated():
     """last_access is the ISO date from the audit log when the principal has
     some history but outside the stale threshold."""
     resp = _succeeded_response(rows=[["bob@example.com", _OLD]])
-    checker, _ = _make_checker(ws_api_responses=[resp])
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(), resp])
 
     grants = [_member_grant("bob@example.com")]
     findings = checker.check_catalog_grants(grants, "prod", WS_URL)
@@ -287,7 +296,7 @@ def test_stale_principal_no_history_last_access_none():
     """last_access is None when the principal does not appear in the audit log
     at all (never seen within max_lookback_days)."""
     resp = _succeeded_response(rows=[])  # bob has no audit history
-    checker, _ = _make_checker(ws_api_responses=[resp])
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(), resp])
 
     grants = [_member_grant("bob@example.com")]
     findings = checker.check_catalog_grants(grants, "prod", WS_URL)
@@ -309,7 +318,7 @@ def test_max_lookback_days_explicit_override():
 def test_mixed_last_access_some_with_date_some_none():
     """alice has known old history; bob has no history at all."""
     resp = _succeeded_response(rows=[["alice@example.com", _OLD]])
-    checker, _ = _make_checker(ws_api_responses=[resp])
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(), resp])
 
     grants = [
         _member_grant("alice@example.com"),
@@ -325,7 +334,7 @@ def test_mixed_last_access_some_with_date_some_none():
 
 def test_sp_principal_type_preserved():
     resp = _succeeded_response(rows=[])
-    checker, _ = _make_checker(ws_api_responses=[resp])
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(), resp])
 
     grant = CatalogGrant(
         catalog_name="main", workspace_name="prod", workspace_url=WS_URL,
@@ -334,3 +343,81 @@ def test_sp_principal_type_preserved():
     )
     findings = checker.check_catalog_grants([grant], "prod", WS_URL)
     assert findings[0].principal_type == "SERVICE_PRINCIPAL"
+
+
+# ---------------------------------------------------------------------------
+# Schema introspection — _probe_audit_columns / _build_activity_query
+# ---------------------------------------------------------------------------
+
+def test_probe_audit_columns_modern_schema():
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(modern=True)])
+    cols = checker._probe_audit_columns()
+    assert "user_identity" in cols
+    assert "event_time" in cols
+
+
+def test_probe_audit_columns_legacy_schema():
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(modern=False)])
+    cols = checker._probe_audit_columns()
+    assert "user_name" in cols
+    assert "service_principal_name" in cols
+
+
+def test_probe_audit_columns_caches_result():
+    checker, client = _make_checker(ws_api_responses=[_probe_response()])
+    checker._probe_audit_columns()
+    checker._probe_audit_columns()
+    # probe issues one POST; cache means the second call issues no new API calls
+    assert client.workspace_api.call_count == 1
+
+
+def test_build_activity_query_modern():
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(modern=True)])
+    q = checker._build_activity_query()
+    assert "user_identity.email" in q
+    assert "user_identity.subject_name" in q
+
+
+def test_build_activity_query_legacy():
+    checker, _ = _make_checker(ws_api_responses=[_probe_response(modern=False)])
+    q = checker._build_activity_query()
+    assert "user_name" in q
+    assert "service_principal_name" in q
+
+
+def test_build_activity_query_unknown_schema_raises():
+    unknown = _succeeded_response(rows=[], columns=["event_time", "action_name"])
+    checker, _ = _make_checker(ws_api_responses=[unknown])
+    with pytest.raises(RuntimeError, match="github.com/lukaleet/databricks-access-audit"):
+        checker._build_activity_query()
+
+
+def test_get_activity_uses_modern_query():
+    activity_resp = _succeeded_response(rows=[["alice@example.com", _RECENT]])
+    checker, _ = _make_checker(
+        ws_api_responses=[_probe_response(modern=True), activity_resp]
+    )
+    activity = checker._get_activity_by_principal()
+    assert "alice@example.com" in activity
+
+
+def test_get_activity_uses_legacy_query():
+    activity_resp = _succeeded_response(rows=[["bob@example.com", _OLD]])
+    checker, _ = _make_checker(
+        ws_api_responses=[_probe_response(modern=False), activity_resp]
+    )
+    activity = checker._get_activity_by_principal()
+    assert "bob@example.com" in activity
+
+
+def test_probe_caches_across_multiple_check_calls():
+    """Schema probe fires once even when check_catalog_grants is called twice."""
+    resp = _succeeded_response(rows=[])
+    checker, client = _make_checker(
+        ws_api_responses=[_probe_response(), resp, resp]
+    )
+    grants = [_member_grant("bob@example.com")]
+    checker.check_catalog_grants(grants, "prod", WS_URL)
+    checker.check_catalog_grants(grants, "prod", WS_URL)
+    # call_count: 1 (probe) + 1 (activity q #1) + 1 (activity q #2) = 3
+    assert client.workspace_api.call_count == 3
