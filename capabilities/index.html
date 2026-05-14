@@ -586,10 +586,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#schema-and-table-drill-down" class="md-nav__link">
+  <a href="#schema-table-and-volume-drill-down" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Schema and table drill-down
+        Schema, table, and volume drill-down
       
     </span>
   </a>
@@ -1459,10 +1459,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#schema-and-table-drill-down" class="md-nav__link">
+  <a href="#schema-table-and-volume-drill-down" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Schema and table drill-down
+        Schema, table, and volume drill-down
       
     </span>
   </a>
@@ -1650,28 +1650,35 @@
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    + scratch-workspace-admins [internal — applied with --apply]
 </code></pre></div>
 <hr />
-<h2 id="schema-and-table-drill-down">Schema and table drill-down<a class="headerlink" href="#schema-and-table-drill-down" title="Permanent link">&para;</a></h2>
+<h2 id="schema-table-and-volume-drill-down">Schema, table, and volume drill-down<a class="headerlink" href="#schema-table-and-volume-drill-down" title="Permanent link">&para;</a></h2>
 <p><strong>Use this when:</strong> catalog-level grants don't tell the full story. Someone might have <code>USE_CATALOG</code> on <code>main</code> but <code>SELECT</code> on a sensitive schema inside it — that only appears at the schema or table level. Use this during deep access reviews or incident response when you need to know the exact data boundary.</p>
-<p>Catalog-level grants are the default scan depth. The Databricks UI often shows only catalog-level grants — but schema and table grants can be far more granular and are frequently set independently.</p>
+<p>Catalog-level grants are the default scan depth. The Databricks UI often shows only catalog-level grants — but schema, table, and volume grants can be far more granular and are frequently set independently.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Schema grants included</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--scan-schemas
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Full depth — catalog → schema → table/view</span>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--scan-schemas<span class="w"> </span>--scan-tables
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># UC volume grants (GA securable type — files, unstructured data)</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--scan-volumes
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c1"># Combine: tables + volumes in one pass (schemas enumerated once)</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>databricks-access-audit<span class="w"> </span>--group<span class="w"> </span><span class="s2">&quot;data-engineers&quot;</span><span class="w"> </span>--scan-tables<span class="w"> </span>--scan-volumes
 </code></pre></div>
 <p>The output cascades — you can see exactly where access starts and where it stops:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>  UC permissions (6):
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>  UC permissions (7):
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    * [CATALOG] main: USE_CATALOG, SELECT via data-engineers (prod-workspace)
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    * [SCHEMA]  main.analytics: USE_SCHEMA via data-engineers (prod-workspace)
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    * [SCHEMA]  main.raw: USE_SCHEMA via data-engineers (prod-workspace)
 <a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    * [TABLE]   main.analytics.events: SELECT via data-engineers (prod-workspace)
 <a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    * [TABLE]   main.analytics.sessions: SELECT via data-engineers (prod-workspace)
 <a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    * [TABLE]   main.raw.ingest: USE_SCHEMA via all-data-team (prod-workspace)
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    * [VOLUME]  main.raw.uploads: READ_VOLUME via data-engineers (prod-workspace)
 </code></pre></div>
-<p>The last row — <code>main.raw.ingest</code> via <code>all-data-team</code> — is inherited from a parent group, not from <code>data-engineers</code> directly. This is invisible in the Databricks UI.</p>
+<p>The last two rows demonstrate two different access vectors: <code>main.raw.ingest</code> is inherited from a parent group; <code>main.raw.uploads</code> is a volume grant held directly by the group. Both are invisible in the Databricks UI without dedicated queries.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><code>--scan-tables</code> adds one API call per schema per workspace. On large metastores, use <code>--workers</code> to parallelise and <code>--scan-schemas</code> first to confirm the catalog picture before going deeper.</p>
+<p><code>--scan-tables</code> and <code>--scan-volumes</code> each add one API call per schema per workspace. When combined, schema enumeration runs only once — the two scanners share the same <code>(catalog, schema)</code> triple list. On large metastores, use <code>--workers</code> to parallelise and <code>--scan-schemas</code> first to confirm the catalog picture before going deeper.</p>
 </div>
 <hr />
 <h2 id="workspace-object-acls">Workspace object ACLs<a class="headerlink" href="#workspace-object-acls" title="Permanent link">&para;</a></h2>

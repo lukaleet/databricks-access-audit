@@ -1237,6 +1237,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#-scan-volumes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --scan-volumes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#-scan-workspace-objects" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2097,6 +2108,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#-scan-volumes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --scan-volumes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#-scan-workspace-objects" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2575,6 +2597,8 @@ Groups with UC grants → classified as <code>Databricks</code>. Groups with no 
 <p>Include schema-level Unity Catalog grants. Off by default.</p>
 <h3 id="-scan-tables"><code>--scan-tables</code><a class="headerlink" href="#-scan-tables" title="Permanent link">&para;</a></h3>
 <p>Include table and view-level grants. Implies schema scanning. Off by default.</p>
+<h3 id="-scan-volumes"><code>--scan-volumes</code><a class="headerlink" href="#-scan-volumes" title="Permanent link">&para;</a></h3>
+<p>Include Unity Catalog volume-level grants. Requires schema enumeration (triggers the same <code>(catalog, schema)</code> traversal as <code>--scan-tables</code>). Off by default. Can be combined with <code>--scan-tables</code> without double-scanning schemas.</p>
 <h3 id="-scan-workspace-objects"><code>--scan-workspace-objects</code><a class="headerlink" href="#-scan-workspace-objects" title="Permanent link">&para;</a></h3>
 <p>Scan workspace object ACLs: jobs, clusters, SQL warehouses, pipelines, cluster policies, dashboards, Genie spaces, MLflow experiments, registered models, serving endpoints, apps. Off by default — adds significant API calls.</p>
 <h3 id="-workspace-object-types-list"><code>--workspace-object-types LIST</code><a class="headerlink" href="#-workspace-object-types-list" title="Permanent link">&para;</a></h3>
