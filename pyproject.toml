@@ -28,7 +28,7 @@ classifiers = [
     "Topic :: System :: Systems Administration",
 ]
 dependencies = [
-    "requests>=2.28",
+    "requests>=2.33.0",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +40,8 @@ dev = [
     "pytest-cov",
     "responses>=0.23",
     "ruff",
+    "bandit>=1.7",
+    "pip-audit>=2.7",
 ]
 notebook = [
     "pyspark>=3.4",
@@ -69,6 +71,10 @@ exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101", "B112"]   # B101: assert ok outside tests; B112: try/except/continue is intentional in resilient scan loops
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
