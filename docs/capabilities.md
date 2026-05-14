@@ -104,11 +104,11 @@ The `--clone-from` and `--compare` modes surface this distinction on every group
 
 ---
 
-## Schema and table drill-down
+## Schema, table, and volume drill-down
 
 **Use this when:** catalog-level grants don't tell the full story. Someone might have `USE_CATALOG` on `main` but `SELECT` on a sensitive schema inside it — that only appears at the schema or table level. Use this during deep access reviews or incident response when you need to know the exact data boundary.
 
-Catalog-level grants are the default scan depth. The Databricks UI often shows only catalog-level grants — but schema and table grants can be far more granular and are frequently set independently.
+Catalog-level grants are the default scan depth. The Databricks UI often shows only catalog-level grants — but schema, table, and volume grants can be far more granular and are frequently set independently.
 
 ```bash
 # Schema grants included
@@ -116,24 +116,31 @@ databricks-access-audit --group "data-engineers" --scan-schemas
 
 # Full depth — catalog → schema → table/view
 databricks-access-audit --group "data-engineers" --scan-schemas --scan-tables
+
+# UC volume grants (GA securable type — files, unstructured data)
+databricks-access-audit --group "data-engineers" --scan-volumes
+
+# Combine: tables + volumes in one pass (schemas enumerated once)
+databricks-access-audit --group "data-engineers" --scan-tables --scan-volumes
 ```
 
 The output cascades — you can see exactly where access starts and where it stops:
 
 ```
-  UC permissions (6):
+  UC permissions (7):
     * [CATALOG] main: USE_CATALOG, SELECT via data-engineers (prod-workspace)
     * [SCHEMA]  main.analytics: USE_SCHEMA via data-engineers (prod-workspace)
     * [SCHEMA]  main.raw: USE_SCHEMA via data-engineers (prod-workspace)
     * [TABLE]   main.analytics.events: SELECT via data-engineers (prod-workspace)
     * [TABLE]   main.analytics.sessions: SELECT via data-engineers (prod-workspace)
     * [TABLE]   main.raw.ingest: USE_SCHEMA via all-data-team (prod-workspace)
+    * [VOLUME]  main.raw.uploads: READ_VOLUME via data-engineers (prod-workspace)
 ```
 
-The last row — `main.raw.ingest` via `all-data-team` — is inherited from a parent group, not from `data-engineers` directly. This is invisible in the Databricks UI.
+The last two rows demonstrate two different access vectors: `main.raw.ingest` is inherited from a parent group; `main.raw.uploads` is a volume grant held directly by the group. Both are invisible in the Databricks UI without dedicated queries.
 
 !!! note
-    `--scan-tables` adds one API call per schema per workspace. On large metastores, use `--workers` to parallelise and `--scan-schemas` first to confirm the catalog picture before going deeper.
+    `--scan-tables` and `--scan-volumes` each add one API call per schema per workspace. When combined, schema enumeration runs only once — the two scanners share the same `(catalog, schema)` triple list. On large metastores, use `--workers` to parallelise and `--scan-schemas` first to confirm the catalog picture before going deeper.
 
 ---
 

@@ -5,6 +5,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.23.0] - 2026-05-14
+
+### Added
+- **`--scan-volumes` flag** — scan Unity Catalog volume-level grants in group audit, principal
+  audit, and snapshots. Volumes are a GA UC securable type and were previously invisible to the
+  tool.
+- **`VolumeGrant` model** — new dataclass for volume grants; purple `.t-vol` tag in HTML output;
+  appears in grants table (not in Mermaid chart, same as tables).
+- **`VolumePermissionScanner` class** — exported from the public API.
+- **`system.access.audit` schema introspection** (`--stale-days`) — `StaleGrantChecker` now probes
+  the audit table schema at runtime before running the activity query. Modern accounts use the
+  `user_identity` struct; legacy accounts use flat `user_name`/`service_principal_name` columns.
+  The probe result is cached per checker instance. If the schema is unrecognised, a `RuntimeError`
+  with a GitHub issues link is raised rather than silently producing wrong results.
+- **Weekly SDK compatibility CI** — `.github/workflows/sdk-compat.yml` runs the test suite on
+  Mondays against both the latest `databricks-sdk` and the minimum pinned version (0.20.0).
+
+### Changed
+- `databricks-sdk` dependency upper-bounded to `<2.0` to prevent unvetted major-version breakage.
+  The raw HTTP fallback (`--no-sdk`) remains available if SDK issues arise.
+
+### Tests
+- `tests/test_stale_checker.py`: added `_probe_response()` fixture helper; 10 new introspection
+  tests covering both schema variants, caching, unknown schema error, and end-to-end query routing.
+- `tests/test_volume_scanner.py`: 11 new tests (new file).
+- Total: 590 tests.
+
+---
+
 ## [0.22.1] - 2026-05-10
 
 ### Fixed

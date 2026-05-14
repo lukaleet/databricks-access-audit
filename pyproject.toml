@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "databricks-access-audit"
-version = "0.22.1"
+version = "0.23.0"
 description = "Cross-workspace access visibility for Databricks — audit who can reach what across every workspace in your account."
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -28,18 +28,21 @@ classifiers = [
     "Topic :: System :: Systems Administration",
 ]
 dependencies = [
-    "requests>=2.28",
+    "requests>=2.33.0; python_version >= '3.10'",
+    "requests>=2.28; python_version < '3.10'",
 ]
 
 [project.optional-dependencies]
 sdk = [
-    "databricks-sdk>=0.20.0",
+    "databricks-sdk>=0.20.0,<2.0",
 ]
 dev = [
     "pytest>=7.0",
     "pytest-cov",
     "responses>=0.23",
     "ruff",
+    "bandit>=1.7",
+    "pip-audit>=2.7",
 ]
 notebook = [
     "pyspark>=3.4",
@@ -69,6 +72,10 @@ exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101", "B112"]   # B101: assert ok outside tests; B112: try/except/continue is intentional in resilient scan loops
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

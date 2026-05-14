@@ -315,6 +315,7 @@ class PrincipalAuditor:
         scan_schemas: bool,
         scan_tables: bool,
         group_name_to_path: Optional[Dict[str, List[str]]] = None,
+        scan_volumes: bool = False,
     ) -> List[EffectivePermission]:
         """Scan UC grants for a single workspace role.
 
@@ -405,42 +406,78 @@ class PrincipalAuditor:
                             via_path=_path_for(principal),
                         ))
 
-                if not scan_tables:
+                if not scan_tables and not scan_volumes:
                     continue
 
-                try:
-                    tables = self.api.workspace_api(
-                        role.workspace_url, "GET",
-                        "/api/2.1/unity-catalog/tables",
-                        params={"catalog_name": cname, "schema_name": sname},
-                    ).get("tables", [])
-                except Exception:
-                    tables = []
-
-                for tbl in tables:
-                    tname = tbl.get("name", "")
-                    if not tname:
-                        continue
-                    full_table = f"{cname}.{sname}.{tname}"
+                if scan_tables:
                     try:
-                        tgrants = self.api.workspace_api(
+                        tables = self.api.workspace_api(
                             role.workspace_url, "GET",
-                            f"/api/2.1/unity-catalog/permissions/table/{full_table}",
-                        ).get("privilege_assignments") or []
+                            "/api/2.1/unity-catalog/tables",
+                            params={"catalog_name": cname, "schema_name": sname},
+                        ).get("tables", [])
                     except Exception:
-                        tgrants = []
+                        tables = []
 
-                    for tg in tgrants:
-                        principal = tg.get("principal", "")
-                        privs = tg.get("privileges") or []
-                        if privs and _matches(principal):
-                            perms.append(EffectivePermission(
-                                securable_type="TABLE", securable_name=full_table,
-                                privileges=privs, via_group=principal,
-                                workspace_name=role.workspace_name,
-                                workspace_url=role.workspace_url,
-                                via_path=_path_for(principal),
-                            ))
+                    for tbl in tables:
+                        tname = tbl.get("name", "")
+                        if not tname:
+                            continue
+                        full_table = f"{cname}.{sname}.{tname}"
+                        try:
+                            tgrants = self.api.workspace_api(
+                                role.workspace_url, "GET",
+                                f"/api/2.1/unity-catalog/permissions/table/{full_table}",
+                            ).get("privilege_assignments") or []
+                        except Exception:
+                            tgrants = []
+
+                        for tg in tgrants:
+                            principal = tg.get("principal", "")
+                            privs = tg.get("privileges") or []
+                            if privs and _matches(principal):
+                                perms.append(EffectivePermission(
+                                    securable_type="TABLE", securable_name=full_table,
+                                    privileges=privs, via_group=principal,
+                                    workspace_name=role.workspace_name,
+                                    workspace_url=role.workspace_url,
+                                    via_path=_path_for(principal),
+                                ))
+
+                if scan_volumes:
+                    try:
+                        volumes = self.api.workspace_api(
+                            role.workspace_url, "GET",
+                            "/api/2.1/unity-catalog/volumes",
+                            params={"catalog_name": cname, "schema_name": sname},
+                        ).get("volumes", [])
+                    except Exception:
+                        volumes = []
+
+                    for vol in volumes:
+                        vname = vol.get("name", "")
+                        if not vname:
+                            continue
+                        full_vol = f"{cname}.{sname}.{vname}"
+                        try:
+                            vgrants = self.api.workspace_api(
+                                role.workspace_url, "GET",
+                                f"/api/2.1/unity-catalog/permissions/volume/{full_vol}",
+                            ).get("privilege_assignments") or []
+                        except Exception:
+                            vgrants = []
+
+                        for vg in vgrants:
+                            principal = vg.get("principal", "")
+                            privs = vg.get("privileges") or []
+                            if privs and _matches(principal):
+                                perms.append(EffectivePermission(
+                                    securable_type="VOLUME", securable_name=full_vol,
+                                    privileges=privs, via_group=principal,
+                                    workspace_name=role.workspace_name,
+                                    workspace_url=role.workspace_url,
+                                    via_path=_path_for(principal),
+                                ))
 
         return perms
 
@@ -451,6 +488,7 @@ class PrincipalAuditor:
         group_names: Set[str],
         scan_schemas: bool = False,
         scan_tables: bool = False,
+        scan_volumes: bool = False,
         max_workers: int = 8,
         principal_aliases: Optional[Set[str]] = None,
         group_name_to_path: Optional[Dict[str, List[str]]] = None,
@@ -492,7 +530,7 @@ class PrincipalAuditor:
                 pool.submit(
                     self._scan_one_workspace,
                     role, relevant, relevant_lower, scan_schemas, scan_tables,
-                    group_name_to_path,
+                    group_name_to_path, scan_volumes,
                 ): role
                 for role in unique_roles
             }
@@ -578,6 +616,7 @@ class PrincipalAuditor:
         explicit_workspace_urls: str = "",
         scan_schemas: bool = False,
         scan_tables: bool = False,
+        scan_volumes: bool = False,
         scan_workspace_objects: bool = False,
         workspace_object_types: Optional[List[str]] = None,
         max_workers: int = 8,
@@ -702,8 +741,9 @@ class PrincipalAuditor:
         aliases |= alt_uc_names
         perms = self.scan_permissions(
             ws_roles, pname, group_names,
-            scan_schemas=scan_schemas or scan_tables,
+            scan_schemas=scan_schemas or scan_tables or scan_volumes,
             scan_tables=scan_tables,
+            scan_volumes=scan_volumes,
             max_workers=max_workers,
             principal_aliases=aliases,
             group_name_to_path=group_name_to_path,

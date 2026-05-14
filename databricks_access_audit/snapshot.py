@@ -73,6 +73,19 @@ def _table_grant_dict(g: Any) -> Dict:
     }
 
 
+def _volume_grant_dict(g: Any) -> Dict:
+    return {
+        "securable_type": "VOLUME",
+        "workspace_name": g.workspace_name,
+        "securable_name": g.full_name,
+        "principal": g.principal,
+        "principal_type": g.principal_type,
+        "privileges": sorted(g.privileges),
+        "grant_source": g.grant_source.value,
+        "inherited_from": g.inherited_from,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Build snapshots from audit run results
 # ---------------------------------------------------------------------------
@@ -98,12 +111,14 @@ def build_group_snapshot(
     schema_grants: List,
     table_grants: List,
     workspace_object_grants: Optional[List] = None,
+    volume_grants: Optional[List] = None,
 ) -> Dict:
     """Serialise a group audit run into a snapshot dict."""
     grants = (
         [_catalog_grant_dict(g) for g in catalog_grants]
         + [_schema_grant_dict(g) for g in schema_grants]
         + [_table_grant_dict(g) for g in table_grants]
+        + [_volume_grant_dict(g) for g in (volume_grants or [])]
         + [_ws_object_grant_dict(g) for g in (workspace_object_grants or [])]
     )
     return {
