@@ -47,6 +47,4 @@ jobs:
         run: pip install -e ".[sdk,dev]" "pip-audit>=2.7"
 
       - name: Audit dependencies
-        # CVE-2026-25645 (requests): fix requires requests>=2.33.0 which dropped Python 3.9.
-        # Ignored until we drop Python 3.9 support.
-        run: pip-audit --ignore-vuln CVE-2026-25645
+        run: pip-audit
