@@ -1,0 +1,59 @@
+name: SDK compatibility
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"   # Mondays 08:00 UTC
+  workflow_dispatch:       # allow manual trigger
+
+jobs:
+  latest-sdk:
+    name: Latest databricks-sdk
+    runs-on: ubuntu-latest
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install with latest SDK
+        run: |
+          pip install -e ".[dev]"
+          pip install --upgrade databricks-sdk
+
+      - name: Show SDK version
+        run: pip show databricks-sdk | grep Version
+
+      - name: Test
+        run: pytest --tb=short -q
+
+  min-sdk:
+    name: Min databricks-sdk (0.20.0)
+    runs-on: ubuntu-latest
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install with minimum SDK
+        run: |
+          pip install -e ".[dev]"
+          pip install "databricks-sdk==0.20.0"
+
+      - name: Show SDK version
+        run: pip show databricks-sdk | grep Version
+
+      - name: Test
+        run: pytest --tb=short -q
