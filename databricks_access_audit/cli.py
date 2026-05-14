@@ -83,6 +83,7 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     # Scan depth
     p.add_argument("--scan-schemas", action="store_true", help="Scan schema-level grants")
     p.add_argument("--scan-tables", action="store_true", help="Scan table/view-level grants")
+    p.add_argument("--scan-volumes", action="store_true", help="Scan UC volume-level grants")
 
     # Output
     p.add_argument("--output", choices=["json", "text", "csv", "html"], default="text",
@@ -495,6 +496,7 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
                 explicit_workspace_urls=args.workspace_urls,
                 scan_schemas=args.scan_schemas,
                 scan_tables=args.scan_tables,
+                scan_volumes=args.scan_volumes,
                 scan_workspace_objects=args.scan_workspace_objects,
                 workspace_object_types=obj_types,
                 max_workers=args.workers,
@@ -956,6 +958,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
 
     schema_grants: List = []
     table_grants: List = []
+    volume_grants: List = []
     workspace_object_grants: List = []
 
     obj_types = (
@@ -969,38 +972,41 @@ def _run_group_audit(args: argparse.Namespace) -> int:
         )
         _log(f"  Found {len(catalog_grants)} catalog grant(s)")
 
-        if args.scan_schemas or args.scan_tables:
+        if args.scan_schemas or args.scan_tables or args.scan_volumes:
             sch_scanner = SchemaPermissionScanner(client)
             upstream = cat_scanner.get_groups_containing_target(args.group)
             accessible = sorted({
                 (g.catalog_name, g.workspace_url) for g in catalog_grants
                 if g.grant_source in (GrantSource.DIRECT, GrantSource.UPSTREAM)
             })
-            # Map workspace URL → name so schema/table grants carry the correct
-            # workspace_name (the stub WorkspaceInfo has no name otherwise).
+            # Map workspace URL → name so schema/table/volume grants carry the
+            # correct workspace_name (the stub WorkspaceInfo has no name otherwise).
             url_to_ws_name = {ws.workspace_url: ws.workspace_name for ws in workspaces}
-            workers = max(1, min(args.workers, len(accessible)))
-            with ThreadPoolExecutor(max_workers=workers) as pool:
-                sch_futures = {
-                    pool.submit(
-                        sch_scanner.scan_schemas,
-                        WorkspaceInfo("scan", "", url_to_ws_name.get(ws_url, ""),
-                                      ws_url, args.cloud.upper(), ""),
-                        cat_name, args.group, members, upstream,
-                    ): (cat_name, ws_url)
-                    for cat_name, ws_url in accessible
-                }
-                for fut in as_completed(sch_futures):
-                    cat_name, ws_url = sch_futures[fut]
-                    try:
-                        schema_grants.extend(fut.result())
-                    except Exception as exc:
-                        log.warning("Schema scan failed for %s on %s: %s", cat_name, ws_url, exc)
-            _log(f"  Found {len(schema_grants)} schema grant(s)")
+            workers = max(1, min(args.workers, max(1, len(accessible))))
+            if args.scan_schemas:
+                with ThreadPoolExecutor(max_workers=workers) as pool:
+                    sch_futures = {
+                        pool.submit(
+                            sch_scanner.scan_schemas,
+                            WorkspaceInfo("scan", "", url_to_ws_name.get(ws_url, ""),
+                                          ws_url, args.cloud.upper(), ""),
+                            cat_name, args.group, members, upstream,
+                        ): (cat_name, ws_url)
+                        for cat_name, ws_url in accessible
+                    }
+                    for fut in as_completed(sch_futures):
+                        cat_name, ws_url = sch_futures[fut]
+                        try:
+                            schema_grants.extend(fut.result())
+                        except Exception as exc:
+                            log.warning(
+                                "Schema scan failed for %s on %s: %s", cat_name, ws_url, exc
+                            )
+                _log(f"  Found {len(schema_grants)} schema grant(s)")
 
-            if args.scan_tables:
-                tbl_scanner = TablePermissionScanner(client)
-                # Collect (catalog, workspace_url, schema) triples first, then fan out.
+            if args.scan_tables or args.scan_volumes:
+                # Collect (catalog, workspace_url, schema) triples once; reused by
+                # both table and volume scanners so we enumerate schemas only once.
                 triples = []
                 for cat_name, ws_url in accessible:
                     ws = WorkspaceInfo("scan", "", url_to_ws_name.get(ws_url, ""),
@@ -1009,24 +1015,54 @@ def _run_group_audit(args: argparse.Namespace) -> int:
                         sname = sch.get("name", "")
                         if sname:
                             triples.append((cat_name, ws_url, sname))
-                tbl_workers = max(1, min(args.workers, len(triples)))
-                with ThreadPoolExecutor(max_workers=tbl_workers) as pool:
-                    tbl_futures = {
-                        pool.submit(
-                            tbl_scanner.scan_tables,
-                            WorkspaceInfo("scan", "", url_to_ws_name.get(ws_url, ""),
-                                          ws_url, args.cloud.upper(), ""),
-                            cat_name, sname, args.group, members, upstream,
-                        ): (cat_name, sname)
-                        for cat_name, ws_url, sname in triples
-                    }
-                    for fut in as_completed(tbl_futures):
-                        cat_name, sname = tbl_futures[fut]
-                        try:
-                            table_grants.extend(fut.result())
-                        except Exception as exc:
-                            log.warning("Table scan failed for %s.%s: %s", cat_name, sname, exc)
-                _log(f"  Found {len(table_grants)} table grant(s)")
+
+                if args.scan_tables:
+                    from databricks_access_audit.table_scanner import TablePermissionScanner
+                    tbl_scanner = TablePermissionScanner(client)
+                    tbl_workers = max(1, min(args.workers, max(1, len(triples))))
+                    with ThreadPoolExecutor(max_workers=tbl_workers) as pool:
+                        tbl_futures = {
+                            pool.submit(
+                                tbl_scanner.scan_tables,
+                                WorkspaceInfo("scan", "", url_to_ws_name.get(ws_url, ""),
+                                              ws_url, args.cloud.upper(), ""),
+                                cat_name, sname, args.group, members, upstream,
+                            ): (cat_name, sname)
+                            for cat_name, ws_url, sname in triples
+                        }
+                        for fut in as_completed(tbl_futures):
+                            cat_name, sname = tbl_futures[fut]
+                            try:
+                                table_grants.extend(fut.result())
+                            except Exception as exc:
+                                log.warning(
+                                    "Table scan failed for %s.%s: %s", cat_name, sname, exc
+                                )
+                    _log(f"  Found {len(table_grants)} table grant(s)")
+
+                if args.scan_volumes:
+                    from databricks_access_audit.volume_scanner import VolumePermissionScanner
+                    vol_scanner = VolumePermissionScanner(client)
+                    vol_workers = max(1, min(args.workers, max(1, len(triples))))
+                    with ThreadPoolExecutor(max_workers=vol_workers) as pool:
+                        vol_futures = {
+                            pool.submit(
+                                vol_scanner.scan_volumes,
+                                WorkspaceInfo("scan", "", url_to_ws_name.get(ws_url, ""),
+                                              ws_url, args.cloud.upper(), ""),
+                                cat_name, sname, args.group, members, upstream,
+                            ): (cat_name, sname)
+                            for cat_name, ws_url, sname in triples
+                        }
+                        for fut in as_completed(vol_futures):
+                            cat_name, sname = vol_futures[fut]
+                            try:
+                                volume_grants.extend(fut.result())
+                            except Exception as exc:
+                                log.warning(
+                                    "Volume scan failed for %s.%s: %s", cat_name, sname, exc
+                                )
+                    _log(f"  Found {len(volume_grants)} volume grant(s)")
 
         if args.scan_workspace_objects:
             from databricks_access_audit.workspace_object_scanner import WorkspaceObjectScanner
@@ -1069,7 +1105,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
         from databricks_access_audit.snapshot import build_group_snapshot, save_snapshot
         snap = build_group_snapshot(
             args.group, members, catalog_grants, schema_grants, table_grants,
-            workspace_object_grants or None,
+            workspace_object_grants or None, volume_grants or None,
         )
         save_snapshot(snap, args.save_snapshot)
         _log(f"  Snapshot saved to: {args.save_snapshot}")
@@ -1084,7 +1120,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
         baseline = load_snapshot(args.baseline)
         current_snap = build_group_snapshot(
             args.group, members, catalog_grants, schema_grants, table_grants,
-            workspace_object_grants or None,
+            workspace_object_grants or None, volume_grants or None,
         )
         try:
             diff = diff_snapshots(baseline, current_snap)
@@ -1110,6 +1146,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
             redundancy,
             show_workspace_objects=args.scan_workspace_objects,
             revoke_sql=_revoke_sql,
+            volume_grants=volume_grants or None,
         ))
     elif getattr(args, "tree", False):
         from databricks_access_audit._group_tree_renderer import render_group_tree
@@ -1123,7 +1160,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     elif args.output == "csv":
         from databricks_access_audit.csv_output import write_group_audit_csv
         write_group_audit_csv(catalog_grants, schema_grants, table_grants, redundancy,
-                              workspace_object_grants or None)
+                              workspace_object_grants or None, volume_grants=volume_grants or None)
     elif args.output == "json":
         result: Dict[str, Any] = {
             "group": args.group,
@@ -1137,6 +1174,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
             "catalog_grants": len(catalog_grants),
             "schema_grants": len(schema_grants),
             "table_grants": len(table_grants),
+            "volume_grants": len(volume_grants),
             "full_redundancy": sum(1 for r in redundancy if r.redundancy_level.value == "Full"),
             "partial_redundancy": sum(
                 1 for r in redundancy if r.redundancy_level.value == "Partial"
@@ -1183,6 +1221,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
         print(
             f"  Catalog grants: {len(catalog_grants)}"
             f"  |  Schema: {len(schema_grants)}  |  Table: {len(table_grants)}"
+            + (f"  |  Volume: {len(volume_grants)}" if volume_grants else "")
         )
         full = sum(1 for r in redundancy if r.redundancy_level.value == "Full")
         partial = sum(1 for r in redundancy if r.redundancy_level.value == "Partial")

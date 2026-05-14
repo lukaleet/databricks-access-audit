@@ -14,6 +14,7 @@ def write_group_audit_csv(
     redundancy: List,
     workspace_object_grants: Optional[List] = None,
     output: Optional[TextIO] = None,
+    volume_grants: Optional[List] = None,
 ) -> None:
     """Write group audit results as CSV.  Grants, then redundancy, then workspace objects."""
     out = output or sys.stdout
@@ -33,6 +34,10 @@ def write_group_audit_csv(
                     g.grant_source.value, g.inherited_from or ""])
     for g in table_grants:
         w.writerow(["TABLE", g.workspace_name, g.full_name, g.principal,
+                    g.principal_type, "|".join(g.privileges),
+                    g.grant_source.value, g.inherited_from or ""])
+    for g in (volume_grants or []):
+        w.writerow(["VOLUME", g.workspace_name, g.full_name, g.principal,
                     g.principal_type, "|".join(g.privileges),
                     g.grant_source.value, g.inherited_from or ""])
 

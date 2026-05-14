@@ -146,6 +146,23 @@ class TableGrant:
 
 
 @dataclass
+class VolumeGrant:
+    """Permission grant on a Unity Catalog volume."""
+    catalog_name: str
+    schema_name: str
+    volume_name: str
+    full_name: str
+    workspace_name: str
+    workspace_url: str
+    principal: str
+    principal_type: str
+    privileges: List[str]
+    grant_source: GrantSource
+    inherited_from: Optional[str] = None
+    member_of_target: bool = False
+
+
+@dataclass
 class WorkspaceObjectGrant:
     """Permission grant on a workspace-level object (job, cluster, SQL warehouse, etc.).
 

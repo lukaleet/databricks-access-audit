@@ -63,6 +63,7 @@ from databricks_access_audit.models import (
     SchemaGrant,
     StaleFinding,
     TableGrant,
+    VolumeGrant,
     WorkspaceInfo,
     WorkspaceObjectGrant,
     WorkspaceRole,
@@ -82,6 +83,7 @@ from databricks_access_audit.snapshot import (
 )
 from databricks_access_audit.stale_checker import StaleGrantChecker
 from databricks_access_audit.table_scanner import TablePermissionScanner
+from databricks_access_audit.volume_scanner import VolumePermissionScanner
 from databricks_access_audit.workspace import WORKSPACE_DOMAIN_MAP, WorkspaceDiscovery
 from databricks_access_audit.workspace_object_scanner import (
     ALL_OBJECT_TYPES,
@@ -109,6 +111,7 @@ __all__ = [
     "CatalogPermissionScanner",
     "SchemaPermissionScanner",
     "TablePermissionScanner",
+    "VolumePermissionScanner",
     "WorkspaceObjectScanner",
     "ALL_OBJECT_TYPES",
     "RedundancyDetector",
@@ -132,6 +135,7 @@ __all__ = [
     "CatalogGrant",
     "SchemaGrant",
     "TableGrant",
+    "VolumeGrant",
     "WorkspaceObjectGrant",
     "RedundancyLevel",
     "RedundancyResult",

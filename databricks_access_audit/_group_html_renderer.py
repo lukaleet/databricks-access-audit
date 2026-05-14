@@ -12,6 +12,7 @@ if TYPE_CHECKING:
         RedundancyResult,
         SchemaGrant,
         TableGrant,
+        VolumeGrant,
         WorkspaceObjectGrant,
     )
 
@@ -203,6 +204,7 @@ _STYLE = """
     .t-cat      { background:#e8f5e9; color:#2e7d32; }
     .t-sch      { background:#e3f2fd; color:#1565c0; }
     .t-tbl      { background:#fff8e1; color:#e65100; }
+    .t-vol      { background:#f3e5f5; color:#6a1b9a; }
 
     .redundancy-banner { background: #fff8e1; border: 1px solid #ffcc02;
                          border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;
@@ -265,6 +267,7 @@ def render_group_html(
     redundancy: List["RedundancyResult"],
     show_workspace_objects: bool = False,
     revoke_sql: str = "",
+    volume_grants: List["VolumeGrant"] = None,
 ) -> str:
 
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -275,6 +278,7 @@ def render_group_html(
     n_cat   = len(catalog_grants)
     n_sch   = len(schema_grants)
     n_tbl   = len(table_grants)
+    n_vol   = len(volume_grants) if volume_grants else 0
     n_obj   = len(workspace_object_grants) if show_workspace_objects else 0
     n_full  = sum(1 for r in redundancy if r.redundancy_level.value == "Full")
     n_part  = sum(1 for r in redundancy if r.redundancy_level.value == "Partial")
@@ -301,6 +305,7 @@ def render_group_html(
         stat(n_cat,    "catalog grants") +
         (stat(n_sch,   "schema grants") if n_sch else "") +
         (stat(n_tbl,   "table grants")  if n_tbl else "") +
+        (stat(n_vol,   "volume grants") if n_vol else "") +
         (stat(n_obj,   "workspace objects") if show_workspace_objects and n_obj else "") +
         (stat(n_redun, "redundant grants", warn=True) if n_redun else "")
     )
@@ -370,6 +375,12 @@ def render_group_html(
                 for g in table_grants
                 if g.grant_source.value != "Member Direct"
             ]
+            + [
+                (g.catalog_name, g.schema_name, g.volume_name, g.workspace_name,
+                 g.privileges, g.grant_source, "VOLUME")
+                for g in (volume_grants or [])
+                if g.grant_source.value != "Member Direct"
+            ]
         )
         if not all_grants:
             return '<tr><td colspan="5" class="empty">No Unity Catalog grants found.</td></tr>'
@@ -383,6 +394,9 @@ def render_group_html(
             elif stype == "SCHEMA":
                 name = f"{cat}.{sch}"
                 t_cls = "t-sch"
+            elif stype == "VOLUME":
+                name = f"{cat}.{sch}.{tbl}"
+                t_cls = "t-vol"
             else:
                 name = f"{cat}.{sch}.{tbl}"
                 t_cls = "t-tbl"
