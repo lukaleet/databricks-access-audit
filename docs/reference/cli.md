@@ -162,6 +162,10 @@ Include schema-level Unity Catalog grants. Off by default.
 
 Include table and view-level grants. Implies schema scanning. Off by default.
 
+### `--scan-volumes`
+
+Include Unity Catalog volume-level grants. Requires schema enumeration (triggers the same `(catalog, schema)` traversal as `--scan-tables`). Off by default. Can be combined with `--scan-tables` without double-scanning schemas.
+
 ### `--scan-workspace-objects`
 
 Scan workspace object ACLs: jobs, clusters, SQL warehouses, pipelines, cluster policies, dashboards, Genie spaces, MLflow experiments, registered models, serving endpoints, apps. Off by default — adds significant API calls.
