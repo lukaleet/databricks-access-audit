@@ -28,7 +28,7 @@ classifiers = [
     "Topic :: System :: Systems Administration",
 ]
 dependencies = [
-    "requests>=2.33.0",
+    "requests>=2.28",
 ]
 
 [project.optional-dependencies]
