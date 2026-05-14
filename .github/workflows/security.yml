@@ -44,7 +44,10 @@ jobs:
           cache: pip
 
       - name: Install package and pip-audit
-        run: pip install -e ".[sdk,dev]" "pip-audit>=2.7"
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[sdk,dev]" "pip-audit>=2.7"
 
       - name: Audit dependencies
-        run: pip-audit
+        # CVE-2026-3219: affects pip itself, no fix released yet — ignored
+        run: pip-audit --ignore-vuln CVE-2026-3219
