@@ -1039,6 +1039,29 @@ def _print_principal_summary(
     print(bar, file=out)
 
 
+def _print_resource_summary(args: argparse.Namespace, result: Any) -> None:
+    """Print a compact executive summary for a resource audit."""
+    out = sys.stdout if args.output == "text" else sys.stderr
+
+    direct = [g for g in result.grants if g.via_group is None]
+    via = [g for g in result.grants if g.via_group is not None]
+    n_groups = len({g.via_group for g in via if g.via_group})
+    n_users = sum(1 for g in result.grants if g.principal_type == "USER")
+    n_sps = sum(1 for g in result.grants if g.principal_type == "SERVICE_PRINCIPAL")
+
+    w = 62
+    bar = "=" * w
+    print(f"\n{bar}", file=out)
+    print(f"  SUMMARY  —  {result.resource_name} ({result.resource_type})", file=out)
+    print(bar, file=out)
+    print(f"  Total access  {len(result.grants)} principal(s)", file=out)
+    print(f"  Direct        {len(direct)}", file=out)
+    print(f"  Via group     {len(via)} individual(s) across {n_groups} group(s)", file=out)
+    print(f"  By type       {n_users} user(s)  |  {n_sps} SP(s)  |  "
+          f"{len(result.grants) - n_users - n_sps} group(s)", file=out)
+    print(bar, file=out)
+
+
 def _run_group_audit(args: argparse.Namespace) -> int:
     """Run the group-centric audit (original behavior)."""
     from databricks_access_audit.catalog_scanner import CatalogPermissionScanner
@@ -1418,11 +1441,15 @@ def _run_resource_audit(args: argparse.Namespace, client: Any) -> int:
     if args.output == "html":
         from databricks_access_audit._resource_html_renderer import render_resource_html
         print(render_resource_html(result))
+        if args.summary:
+            _print_resource_summary(args, result)
         return 0
 
     if args.output == "csv":
         from databricks_access_audit.csv_output import write_resource_audit_csv
         write_resource_audit_csv(result)
+        if args.summary:
+            _print_resource_summary(args, result)
         return 0
 
     if args.output == "json":
@@ -1445,6 +1472,8 @@ def _run_resource_audit(args: argparse.Namespace, client: Any) -> int:
             ],
         }
         print(json.dumps(out, indent=2))
+        if args.summary:
+            _print_resource_summary(args, result)
         return 0
 
     # Text output
@@ -1481,6 +1510,10 @@ def _run_resource_audit(args: argparse.Namespace, client: Any) -> int:
                 print(f"      ... {len(members) - 10} more (use --output json for full list)")
 
     print(f"{'='*60}")
+
+    if args.summary:
+        _print_resource_summary(args, result)
+
     return 0
 
 

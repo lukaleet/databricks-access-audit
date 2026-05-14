@@ -808,3 +808,56 @@ def test_cli_resource_type_passed_to_auditor(mock_scim, capsys):
     assert rc == 0
     out = capsys.readouterr().out
     assert "WORKSPACE" in out or "prod-workspace" in out
+
+
+def test_cli_resource_summary_text_output(mock_uc, capsys):
+    """--summary appends a compact block to stdout for resource audit text output."""
+    rsps, client = mock_uc
+    from databricks_access_audit.cli import _run_resource_audit
+
+    _add_workspace_discovery(rsps)
+
+    import argparse
+    args = argparse.Namespace(
+        resource="main",
+        output="text",
+        no_expand_groups=True,
+        workspace_urls="",
+        workers=1,
+        cloud="azure",
+        account_id=ACCOUNT_ID,
+        summary=True,
+    )
+    rc = _run_resource_audit(args, client)
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "SUMMARY" in out
+    assert "main" in out
+    assert "Total access" in out
+
+
+def test_cli_resource_summary_goes_to_stderr_for_json(mock_uc, capsys):
+    """--summary writes to stderr when --output json for resource audit."""
+    import json as json_lib
+
+    rsps, client = mock_uc
+    from databricks_access_audit.cli import _run_resource_audit
+
+    _add_workspace_discovery(rsps)
+
+    import argparse
+    args = argparse.Namespace(
+        resource="main",
+        output="json",
+        no_expand_groups=True,
+        workspace_urls="",
+        workers=1,
+        cloud="azure",
+        account_id=ACCOUNT_ID,
+        summary=True,
+    )
+    rc = _run_resource_audit(args, client)
+    assert rc == 0
+    captured = capsys.readouterr()
+    json_lib.loads(captured.out)   # stdout must be valid JSON
+    assert "SUMMARY" in captured.err
