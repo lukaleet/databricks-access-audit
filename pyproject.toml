@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "databricks-access-audit"
-version = "0.24.0"
+version = "0.25.0"
 description = "Cross-workspace access visibility for Databricks — audit who can reach what across every workspace in your account."
 readme = "README.md"
 license = {text = "Apache-2.0"}
