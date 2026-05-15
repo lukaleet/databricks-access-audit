@@ -1083,10 +1083,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#schemapermissionscanner-tablepermissionscanner" class="md-nav__link">
+  <a href="#schemapermissionscanner-tablepermissionscanner-volumepermissionscanner" class="md-nav__link">
     <span class="md-ellipsis">
       
-        SchemaPermissionScanner / TablePermissionScanner
+        SchemaPermissionScanner / TablePermissionScanner / VolumePermissionScanner
       
     </span>
   </a>
@@ -1678,10 +1678,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#schemapermissionscanner-tablepermissionscanner" class="md-nav__link">
+  <a href="#schemapermissionscanner-tablepermissionscanner-volumepermissionscanner" class="md-nav__link">
     <span class="md-ellipsis">
       
-        SchemaPermissionScanner / TablePermissionScanner
+        SchemaPermissionScanner / TablePermissionScanner / VolumePermissionScanner
       
     </span>
   </a>
@@ -2008,15 +2008,25 @@
 <a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="p">)</span>
 <a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="c1"># Returns List[CatalogGrant]</span>
 </code></pre></div>
-<h3 id="schemapermissionscanner-tablepermissionscanner"><code>SchemaPermissionScanner</code> / <code>TablePermissionScanner</code><a class="headerlink" href="#schemapermissionscanner-tablepermissionscanner" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">databricks_access_audit</span><span class="w"> </span><span class="kn">import</span> <span class="n">SchemaPermissionScanner</span><span class="p">,</span> <span class="n">TablePermissionScanner</span><span class="p">,</span> <span class="n">WorkspaceInfo</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">sch_scanner</span> <span class="o">=</span> <span class="n">SchemaPermissionScanner</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">schema_grants</span> <span class="o">=</span> <span class="n">sch_scanner</span><span class="o">.</span><span class="n">scan_schemas</span><span class="p">(</span><span class="n">workspace</span><span class="p">,</span> <span class="n">catalog_name</span><span class="p">,</span> <span class="n">group_name</span><span class="p">,</span> <span class="n">members</span><span class="p">,</span> <span class="n">upstream</span><span class="p">)</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">tbl_scanner</span> <span class="o">=</span> <span class="n">TablePermissionScanner</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="n">table_grants</span> <span class="o">=</span> <span class="n">tbl_scanner</span><span class="o">.</span><span class="n">scan_tables</span><span class="p">(</span><span class="n">workspace</span><span class="p">,</span> <span class="n">catalog_name</span><span class="p">,</span> <span class="n">schema_name</span><span class="p">,</span> <span class="n">group_name</span><span class="p">,</span> <span class="n">members</span><span class="p">,</span> <span class="n">upstream</span><span class="p">)</span>
+<h3 id="schemapermissionscanner-tablepermissionscanner-volumepermissionscanner"><code>SchemaPermissionScanner</code> / <code>TablePermissionScanner</code> / <code>VolumePermissionScanner</code><a class="headerlink" href="#schemapermissionscanner-tablepermissionscanner-volumepermissionscanner" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">databricks_access_audit</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="n">SchemaPermissionScanner</span><span class="p">,</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">TablePermissionScanner</span><span class="p">,</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">VolumePermissionScanner</span><span class="p">,</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="n">WorkspaceInfo</span><span class="p">,</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="p">)</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="n">sch_scanner</span> <span class="o">=</span> <span class="n">SchemaPermissionScanner</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="n">schema_grants</span> <span class="o">=</span> <span class="n">sch_scanner</span><span class="o">.</span><span class="n">scan_schemas</span><span class="p">(</span><span class="n">workspace</span><span class="p">,</span> <span class="n">catalog_name</span><span class="p">,</span> <span class="n">group_name</span><span class="p">,</span> <span class="n">members</span><span class="p">,</span> <span class="n">upstream</span><span class="p">)</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="n">tbl_scanner</span> <span class="o">=</span> <span class="n">TablePermissionScanner</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="n">table_grants</span> <span class="o">=</span> <span class="n">tbl_scanner</span><span class="o">.</span><span class="n">scan_tables</span><span class="p">(</span><span class="n">workspace</span><span class="p">,</span> <span class="n">catalog_name</span><span class="p">,</span> <span class="n">schema_name</span><span class="p">,</span> <span class="n">group_name</span><span class="p">,</span> <span class="n">members</span><span class="p">,</span> <span class="n">upstream</span><span class="p">)</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="n">vol_scanner</span> <span class="o">=</span> <span class="n">VolumePermissionScanner</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="n">volume_grants</span> <span class="o">=</span> <span class="n">vol_scanner</span><span class="o">.</span><span class="n">scan_volumes</span><span class="p">(</span><span class="n">workspace</span><span class="p">,</span> <span class="n">catalog_name</span><span class="p">,</span> <span class="n">schema_name</span><span class="p">,</span> <span class="n">group_name</span><span class="p">,</span> <span class="n">members</span><span class="p">,</span> <span class="n">upstream</span><span class="p">)</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="c1"># Returns List[VolumeGrant]</span>
 </code></pre></div>
+<p>When using both <code>scan_tables</code> and <code>scan_volumes</code>, enumerate schemas once and pass the same <code>(catalog, schema)</code> pairs to both scanners to avoid double API calls.</p>
 <h3 id="redundancydetector"><code>RedundancyDetector</code><a class="headerlink" href="#redundancydetector" title="Permanent link">&para;</a></h3>
 <p>Compares member-direct grants against the group's effective privileges.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">databricks_access_audit</span><span class="w"> </span><span class="kn">import</span> <span class="n">RedundancyDetector</span>
