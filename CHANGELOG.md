@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [0.24.0] - 2026-05-14
+## [0.25.0] - 2026-05-15
 
 ### Added
 - **`--summary` flag** — prints a compact executive summary after any audit run: member counts,
@@ -28,7 +28,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 7 new tests in `tests/test_cli.py`: `--summary` output for group and principal audit,
   `--summary` goes to stderr for JSON output, and `_handle_fatal` error message formatting
   for HTTP 401/403/404 and `ConnectionError`.
-- Total: 597 tests.
+- Total: 599 tests.
 
 ---
 
