@@ -28,7 +28,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 7 new tests in `tests/test_cli.py`: `--summary` output for group and principal audit,
   `--summary` goes to stderr for JSON output, and `_handle_fatal` error message formatting
   for HTTP 401/403/404 and `ConnectionError`.
-- Total: 597 tests.
+- Total: 599 tests.
 
 ---
 
