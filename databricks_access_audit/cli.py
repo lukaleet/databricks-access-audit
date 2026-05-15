@@ -699,7 +699,7 @@ def _run_principal_audit(args: argparse.Namespace) -> int:
 
         print(f"\n{'='*60}")
 
-    if args.summary:
+    if getattr(args, "summary", False):
         _print_principal_summary(args, result, [], local_findings)
 
     return 0
@@ -1403,7 +1403,7 @@ def _run_group_audit(args: argparse.Namespace) -> int:
     if args.revoke_script and args.output != "html":
         print("\n" + RevokeScriptGenerator.generate(redundancy, include_partial=True))
 
-    if args.summary:
+    if getattr(args, "summary", False):
         _print_group_summary(
             args, members, catalog_grants, schema_grants, table_grants, volume_grants,
             redundancy, stale_findings, workspace_object_grants, local_findings,
@@ -1441,14 +1441,14 @@ def _run_resource_audit(args: argparse.Namespace, client: Any) -> int:
     if args.output == "html":
         from databricks_access_audit._resource_html_renderer import render_resource_html
         print(render_resource_html(result))
-        if args.summary:
+        if getattr(args, "summary", False):
             _print_resource_summary(args, result)
         return 0
 
     if args.output == "csv":
         from databricks_access_audit.csv_output import write_resource_audit_csv
         write_resource_audit_csv(result)
-        if args.summary:
+        if getattr(args, "summary", False):
             _print_resource_summary(args, result)
         return 0
 
@@ -1472,7 +1472,7 @@ def _run_resource_audit(args: argparse.Namespace, client: Any) -> int:
             ],
         }
         print(json.dumps(out, indent=2))
-        if args.summary:
+        if getattr(args, "summary", False):
             _print_resource_summary(args, result)
         return 0
 
@@ -1511,7 +1511,7 @@ def _run_resource_audit(args: argparse.Namespace, client: Any) -> int:
 
     print(f"{'='*60}")
 
-    if args.summary:
+    if getattr(args, "summary", False):
         _print_resource_summary(args, result)
 
     return 0
