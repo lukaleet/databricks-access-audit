@@ -63,17 +63,28 @@ catalog_grants = scanner.scan_all_workspaces(
 # Returns List[CatalogGrant]
 ```
 
-### `SchemaPermissionScanner` / `TablePermissionScanner`
+### `SchemaPermissionScanner` / `TablePermissionScanner` / `VolumePermissionScanner`
 
 ```python
-from databricks_access_audit import SchemaPermissionScanner, TablePermissionScanner, WorkspaceInfo
+from databricks_access_audit import (
+    SchemaPermissionScanner,
+    TablePermissionScanner,
+    VolumePermissionScanner,
+    WorkspaceInfo,
+)
 
 sch_scanner = SchemaPermissionScanner(client)
 schema_grants = sch_scanner.scan_schemas(workspace, catalog_name, group_name, members, upstream)
 
 tbl_scanner = TablePermissionScanner(client)
 table_grants = tbl_scanner.scan_tables(workspace, catalog_name, schema_name, group_name, members, upstream)
+
+vol_scanner = VolumePermissionScanner(client)
+volume_grants = vol_scanner.scan_volumes(workspace, catalog_name, schema_name, group_name, members, upstream)
+# Returns List[VolumeGrant]
 ```
+
+When using both `scan_tables` and `scan_volumes`, enumerate schemas once and pass the same `(catalog, schema)` pairs to both scanners to avoid double API calls.
 
 ### `RedundancyDetector`
 

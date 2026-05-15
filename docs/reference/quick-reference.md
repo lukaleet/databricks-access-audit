@@ -39,6 +39,7 @@ Start shallow, go deeper when you need to.
 | Catalog-level UC grants | *(default)* | Baseline — always included |
 | Schema-level grants too | `--scan-schemas` | +1 API call per accessible catalog |
 | Table/view grants too | `--scan-schemas --scan-tables` | +1 API call per schema |
+| UC volume grants too | `--scan-volumes` | +1 API call per schema (shares enumeration with `--scan-tables`) |
 | Jobs, clusters, dashboards, pipelines, warehouses… | `--scan-workspace-objects` | +1 API call per object type per workspace |
 | Specific object types only | `--scan-workspace-objects --workspace-object-types jobs,clusters` | Faster than full scan |
 
@@ -50,6 +51,7 @@ These stack on top of any audit run.
 
 | You want to... | Add this | Works with |
 |---|---|---|
+| Print a compact executive summary | `--summary` | `--group`, `--principal`, `--resource` |
 | Flag ALL_PRIVILEGES and MANAGE grants | `--escalation-check` | `--principal` |
 | Find grants with no recent activity | `--stale-days 90 --sql-warehouse-id ID` | `--group` |
 | Generate REVOKE SQL for redundant personal grants | `--revoke-script` | `--group` |

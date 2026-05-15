@@ -39,7 +39,7 @@ The tool audits Databricks group membership and Unity Catalog permissions across
 
 1. `group_resolver.py` — walks SCIM to build a `GroupNode` tree (nested groups, users, SPs). Bulk pre-fetches all users and SPs to avoid N+1 calls. Reads `externalId` from SCIM to tag each member as IdP-synced or Databricks-managed.
 2. `workspace.py` — discovers workspaces via the Account API (or explicit URLs).
-3. `catalog_scanner.py` → `schema_scanner.py` → `table_scanner.py` — fetches UC grants at progressively deeper levels; all call `classify_grant()` from `_classification.py`.
+3. `catalog_scanner.py` → `schema_scanner.py` → `table_scanner.py` → `volume_scanner.py` — fetches UC grants at progressively deeper levels; all call `classify_grant()` from `_classification.py`. When `--scan-tables` and `--scan-volumes` are both set, schema enumeration runs once and the `(catalog, schema)` triples are reused by both scanners.
 4. `_classification.py` — `classify_grant()` and `build_member_lookups()` shared by all scanners. Classifies each grant as `GrantSource.DIRECT`, `UPSTREAM`, or `MEMBER_DIRECT`.
 5. `redundancy.py` — compares member-direct grants against the group's effective privileges (with `ALL_PRIVILEGES` expansion) to produce `RedundancyLevel.FULL/PARTIAL/NONE`.
 6. `revoke.py` — generates copy-paste REVOKE SQL from `RedundancyResult` objects.
@@ -60,6 +60,8 @@ The tool audits Databricks group membership and Unity Catalog permissions across
 - `csv_output.py` — `write_group_audit_csv()` and `write_principal_audit_csv()` render results as CSV (grants + redundancy + workspace objects / permissions + escalations + workspace objects). `write_diff_csv()` renders an `AuditDiff`. Used by `--output csv`.
 - `snapshot.py` — `build_group_snapshot()` / `build_principal_snapshot()` serialise audit results to a plain-dict JSON format. `save_snapshot()` / `load_snapshot()` persist to disk. `diff_snapshots()` compares two snapshots by full-field fingerprint (grants) and identity key (members) to produce an `AuditDiff`. Used by `--save-snapshot` / `--baseline`.
 - `workspace_object_scanner.py` — `WorkspaceObjectScanner` scans workspace-level ACLs (13 types: jobs, clusters, cluster policies, pipelines, SQL warehouses, SQL queries, SQL alerts, Lakeview dashboards, Genie spaces, MLflow experiments, registered models, serving endpoints, apps) via `/api/2.0/permissions/`. Fans out with `ThreadPoolExecutor` per object type; reuses `classify_grant` from `_classification.py`. Used by `--scan-workspace-objects`.
+- `volume_scanner.py` — `VolumePermissionScanner` scans UC volume-level grants via `GET /api/2.1/unity-catalog/volumes` and `GET /api/2.1/unity-catalog/permissions/volume/{full_name}`. Returns `List[VolumeGrant]`. Used by `--scan-volumes`.
+- `cli.py` — `_print_group_summary()`, `_print_principal_summary()`, `_print_resource_summary()` render compact executive summaries. `_handle_fatal()` translates HTTP 401/403/404/429 and `ConnectionError` into plain-English error messages. Used by `--summary`.
 
 ### Models
 
@@ -70,7 +72,7 @@ All dataclasses and enums live in `models.py`:
 | `GroupMember`, `GroupNode` | SCIM group tree; both have `external_id` and `source: PrincipalSource` |
 | `PrincipalSource` | Enum: `EXTERNAL` (has SCIM `externalId`) / `INTERNAL` (Databricks-managed) |
 | `WorkspaceInfo` | Workspace metadata |
-| `CatalogGrant`, `SchemaGrant`, `TableGrant` | UC permission grant at each level |
+| `CatalogGrant`, `SchemaGrant`, `TableGrant`, `VolumeGrant` | UC permission grant at each level (`VolumeGrant` has no `table_type` field) |
 | `GrantSource` | `DIRECT`, `UPSTREAM`, `MEMBER_DIRECT` |
 | `RedundancyResult`, `RedundancyLevel` | Redundancy analysis output |
 | `GroupMembership`, `WorkspaceRole`, `EffectivePermission`, `PrincipalAuditResult` | Principal audit output |
