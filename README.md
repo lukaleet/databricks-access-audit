@@ -7,6 +7,8 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 
+> Community tool — not affiliated with or endorsed by Databricks, Inc.
+
 The Account Console shows you one workspace at a time. `INFORMATION_SCHEMA` shows you one metastore at a time. Neither resolves nested group memberships. Neither tells you whether a personal grant duplicates what the group already provides.
 
 `databricks-access-audit` answers cross-workspace access questions in one command, across every workspace in your account at once.
